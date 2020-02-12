@@ -2,12 +2,12 @@
 
 from setuptools import setup, find_packages
 
-setup(name='research_seed',
+setup(name='trec_2019',
       version='0.0.1',
-      description='Describe Your Cool Project',
-      author='',
-      author_email='',
-      url='https://github.com/williamFalcon/pytorch-lightning-conference-seed',  # REPLACE WITH YOUR OWN GITHUB PROJECT LINK
+      description='TREC 2019 Deep Learning',
+      author='Kyoung-Rok Jang',
+      author_email='kyoungrok.jang@gmail.com',
+      url='https://github.com/kyoungrok0517/trec-2019-deep-learning',
       install_requires=[
             'pytorch-lightning'
       ],
