@@ -43,7 +43,7 @@ if __name__ == "__main__":
         data_path = Path(args.data_path)
         meta = make_meta(data_path)
         d = db.read_text(data_path).map(
-            parse_id_and_vector).to_dataframe(meta).drop_duplicates(subset=["id"])
+            parse_id_and_vector).to_dataframe(meta).drop_duplicates(subset=["id"]).set_index("id")
         num_samples = len(d)
 
         # SAVE
