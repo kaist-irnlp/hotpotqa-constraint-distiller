@@ -2,39 +2,31 @@ import torch
 import pandas as pd
 import gzip
 from torch.utils.data import Dataset, ConcatDataset, IterableDataset
+import h5py
+import numpy as np
 
 
 class TRECTripleEmbeddingDataset(Dataset):
     HDF_KEY = '/data'
-    IDX_UID = 1
-    IDX_EMB = 2
-
+    
     def __init__(self, data_path):
         super().__init__()
         self.data_path = data_path
         self.data = None
-        self._data_shape = self._read_data_shape()
+        self._length = self._get_length()
 
-    def _read_data_shape(self):
-        with h5py.File(self.data_path, "r") as fin:
-            dataset = fin[self.HDF_KEY]["table"]
-            num_samples = dataset.shape[0]
-            dimension = dataset[0][self.vector_idx].shape[0]
-            return (num_samples, dimension)
-
-    def get_data_shape(self):
-        return self._data_shape
+    def _get_length(self):
+        with h5py.File(self.data_path, 'r') as f:
+            return len(f[self.HDF_KEY]["table"])
 
     def __len__(self):
-        return self._data_shape[0]
+        return self._length
 
     def __getitem__(self, index):
         if self.data is None:
             self.data = h5py.File(self.data_path, "r")[self.HDF_KEY]["table"]
         sample = self.data[index]
-        uid = sample[self.IDX_UID][0].decode(encoding="utf-8")
-        vector = np.array(sample[self.IDX_EMB], dtype=np.float32)
-        return {"id": uid, "vector": vector}
+        return {}
 
 
 class TRECTripleIdDataset(Dataset):
