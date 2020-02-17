@@ -45,8 +45,9 @@ if __name__ == "__main__":
         # read
         data_path = Path(args.data_path)
         meta = make_meta(data_path)
-        d = db.read_text(data_path).repartition(npartitions=1000).map(parse_id_and_vector).to_dataframe(
-            meta=meta).drop_duplicates(subset=["id"])
+        d = db.read_text(data_path, blocksize="100mb").map(parse_id_and_vector).to_dataframe(
+            meta=meta).drop_duplicates(subset=["id"]).repartition(npartitions=500)
+        # print(d.npartitions)
         # .set_index("id")
         # num_samples = len(d)
 
