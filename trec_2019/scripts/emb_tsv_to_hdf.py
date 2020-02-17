@@ -45,15 +45,17 @@ if __name__ == "__main__":
         # read
         data_path = Path(args.data_path)
         meta = make_meta(data_path)
-        d = db.read_text(data_path).map(parse_id_and_vector).to_dataframe(meta=meta)
-        # .drop_duplicates(subset=["id"]).set_index("id")
-        num_samples = len(d)
+        d = db.read_text(data_path).repartition(npartitions=100).map(parse_id_and_vector).to_dataframe(
+            meta=meta).drop_duplicates(subset=["id"])
+        # .set_index("id")
+        # num_samples = len(d)
 
         # SAVE
         fname = (
-            Path(data_path.stem) / f"{data_path.stem}.*.hdf5" if args.low_memory else f"{data_path.stem}.hdf5"
+            Path(data_path.stem) /
+            f"{data_path.stem}.*.hdf5" if args.low_memory else f"{data_path.stem}.hdf5"
         )
-        out_path = data_path.parent / fname if not args.out_path else args.out_path
+        out_path = args.out_path or (data_path.parent / fname)
         data_columns = ["id"]
         d.to_hdf(
             out_path,
