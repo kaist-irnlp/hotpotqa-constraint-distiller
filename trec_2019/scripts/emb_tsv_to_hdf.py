@@ -57,6 +57,8 @@ if __name__ == "__main__":
             f"{data_path.stem}.*.hdf5" if args.low_memory else f"{data_path.stem}.hdf5"
         )
         out_path = args.out_path or (data_path.parent / fname)
+        if not out_path.parent.exists():
+            out_path.parent.mkdir(parents=True)
         data_columns = ["id"]
         d.to_hdf(
             out_path,
