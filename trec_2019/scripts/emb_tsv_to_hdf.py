@@ -92,27 +92,3 @@ if __name__ == "__main__":
             ids, vectors = [], []
 
         assert n_rows == dset_id.shape[0] == dset_vector.shape[0]
-
-    # with ProgressBar():
-    #     # read
-    #     data_path = Path(args.data_path)
-    #     meta = make_meta(data_path)
-    #     d = db.read_text(data_path).repartition(npartitions=1000).map(parse_id_and_vector).to_dataframe(
-    #         meta=meta).drop_duplicates(subset=["id"])
-    #     # .set_index("id")
-    #     # num_samples = len(d)
-
-    #     # SAVE
-    #     fname = (
-    #         Path(data_path.stem) /
-    #         f"{data_path.stem}.*.hdf5" if args.low_memory else f"{data_path.stem}.hdf5"
-    #     )
-    #     out_path = args.out_path or (data_path.parent / fname)
-    #     data_columns = ["id"]
-    #     d.to_hdf(
-    #         out_path,
-    #         HDF_PATH,
-    #         mode="w",
-    #         data_columns=data_columns,
-    #         complevel=COMP_LEVEL,
-    #     )
