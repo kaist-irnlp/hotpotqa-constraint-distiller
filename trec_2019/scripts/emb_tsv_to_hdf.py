@@ -65,7 +65,7 @@ if __name__ == "__main__":
         dset_vector = f.create_dataset('vector', shape=(
             n_rows, n_dims), dtype=np.float32, **opts)
 
-        BUFFER_SIZE = 50000
+        BUFFER_SIZE = 20000
         row_start = 0
         with gzip.open(data_path, 'rt', encoding='utf-8') as fin:
             ids, vectors = [], []
@@ -76,8 +76,8 @@ if __name__ == "__main__":
                 if (i % BUFFER_SIZE) == 0:
                     buffer_size = len(ids)
                     row_end = (row_start + buffer_size)
-                    dset_id[row_start:row_end] = ids
-                    dset_vector[row_start:row_end, :] = vectors
+                    dset_id[row_start:row_end] = np.array(ids, dtype=np.int32)
+                    dset_vector[row_start:row_end, :] = np.array(vectors, dtype=np.float32)
                     row_start += buffer_size
                     ids, vectors = [], []
                     continue
