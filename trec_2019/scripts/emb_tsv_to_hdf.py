@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 parser = ArgumentParser()
 parser.add_argument("--data_path", type=str, required=True)
 parser.add_argument("--out_path", type=str, default=None)
+parser.add_argument("--bufsize", type=int, default=1000000)
 # parser.add_argument("--low_memory", action="store_true")
 args = parser.parse_args()
 
@@ -66,7 +67,7 @@ if __name__ == "__main__":
         dset_vector = f.create_dataset('vector', shape=(
             n_rows, n_dims), dtype=np.float32, **opts)
 
-        BUFFER_SIZE = 20000
+        BUFFER_SIZE = args.bufsize
         row_start = 0
         with gzip.open(data_path, 'rt', encoding='utf-8') as fin:
             ids, vectors = [], []
