@@ -58,8 +58,7 @@ if __name__ == "__main__":
     fname = f"{data_path.stem.replace('.tsv', '')}.hdf5"
     out_path = args.out_path or (data_path.parent / fname)
     opts = {
-        "compression": "gzip",
-        "compression_opts": 9
+        "compression": "lzf"
     }
     with h5py.File(out_path, 'w') as f:
         dset_id = f.create_dataset('id', shape=(
