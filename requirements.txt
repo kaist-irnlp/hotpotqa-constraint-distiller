@@ -1,1 +1,7 @@
 pytorch-lightning
+torch
+transformers
+h5py
+tqdm
+pyarrow
+python-snappy
