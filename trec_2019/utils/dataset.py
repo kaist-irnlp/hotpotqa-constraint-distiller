@@ -7,27 +7,21 @@ import numpy as np
 
 
 class TRECTripleEmbeddingDataset(Dataset):
-    HDF_KEY = '/data'
-
     def __init__(self, data_path):
         super().__init__()
-        self.data_path = data_path
-        self.data = None
-        self._length = self._get_length()
-
-    def _get_length(self):
-        with h5py.File(self.data_path, 'r') as f:
-            return len(f[self.HDF_KEY]["table"])
+        self.data = pd.read_parquet(data_path)
 
     def __len__(self):
-        return self._length
+        return len(self.data)
 
     def __getitem__(self, index):
-        if self.data is None:
-            self.data = h5py.File(self.data_path, "r")[self.HDF_KEY]["table"]
         # return a sample
-        sample = self.data[index]
-        return {}
+        tr = self.data.iloc[index]
+        return {
+            'query': tr.query,
+            'doc_pos': tr.doc_pos,
+            'doc_neg': tr.doc_neg
+        }
 
 
 class TRECTripleIdDataset(Dataset):
