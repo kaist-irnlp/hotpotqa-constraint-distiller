@@ -15,9 +15,13 @@ class Encoder(metaclass=ABCMeta):
 class BertEncoder(Encoder):
     MAX_LENGTH = 512
 
-    def __init__(self, weights="bert-base-uncased"):
+    def __init__(self, weights="bert-base-uncased", summarize="cls"):
         self.model = BertModel.from_pretrained(weights)
         self.tokenizer = BertTokenizer.from_pretrained(weights)
+        self.summarize = {"cls": self._summarize_cls}[summarize]
+
+    def _summarize_cls(self, emb_seq):
+        return emb_seq[0][0]
 
     def encode(self, text):
         input_ids = torch.tensor(
@@ -29,4 +33,4 @@ class BertEncoder(Encoder):
         )
         with torch.no_grad():
             last_hidden_states = self.model(input_ids)[0]
-        return last_hidden_states
+        return self.summarize(last_hidden_states)
