@@ -54,6 +54,8 @@ if __name__ == '__main__':
     encoder = BertEncoder()
     fpath = '/Users/kyoungrok/Resilio Sync/Dataset/2019 TREC/passage_ranking/triples.train.tiny.parquet'
     dset = TRECTripleEmbeddingDataset(fpath, encoder)
+    # dset = TRECTripleDataset(fpath)
     for d in dset:
         print(d)
         break
+    
