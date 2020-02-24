@@ -38,6 +38,12 @@ class TRECTripleEmbeddingDataset(TRECTripleDataset):
         return sample
 
 
+class TRECTripleBERTDataset(TRECTripleEmbeddingDataset):
+    def __init__(self, data_path):
+        encoder = BertEncoder()
+        super().__init__(data_path, encoder)
+
+
 class TRECTripleIdDataset(Dataset):
     def __init__(self, data_path):
         super().__init__()
@@ -50,12 +56,13 @@ class TRECTripleIdDataset(Dataset):
     def __getitem__(self, index):
         return self.data.iloc[index].to_dict()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     encoder = BertEncoder()
-    fpath = '/Users/kyoungrok/Resilio Sync/Dataset/2019 TREC/passage_ranking/triples.train.tiny.parquet'
+    fpath = "/Users/kyoungrok/Resilio Sync/Dataset/2019 TREC/passage_ranking/triples.train.tiny.parquet"
     dset = TRECTripleEmbeddingDataset(fpath, encoder)
     # dset = TRECTripleDataset(fpath)
     for d in dset:
         print(d)
         break
-    
+
