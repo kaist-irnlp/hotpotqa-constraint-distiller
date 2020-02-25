@@ -24,7 +24,7 @@ from trec2019.utils.encoder import BertEncoder
 from trec2019.sparse.sparsenet.helper import *
 
 logging.basicConfig(
-   format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ class SparseNet(pl.LightningModule):
         if self.training:
             batch_size = x.shape[0]
             self.learning_iterations += batch_size
-        
+
         return x
 
     def _init_network(self):
@@ -82,7 +82,7 @@ class SparseNet(pl.LightningModule):
                     self.linear_sdr.add_module(
                         f"linear_sdr{i+1}_bn", nn.BatchNorm1d(n_i, affine=False)
                     )
-                
+
                 if dropout > 0.0:
                     self.linear_sdr.add_module(
                         f"linear_sdr{i+1}_dropout", nn.Dropout(dropout)
@@ -96,30 +96,26 @@ class SparseNet(pl.LightningModule):
                         boostStrength=boost_strength,
                         boostStrengthFactor=boost_strength_factor,
                     )
-                    self.linear_sdr.add_module(
-                        f"linear_sdr{i+1}_kwinner", kwinner
-                    )
+                    self.linear_sdr.add_module(f"linear_sdr{i+1}_kwinner", kwinner)
                 else:
-                    self.linear_sdr.add_module(
-                        f"linear_sdr{i+1}_relu", nn.ReLU()
-                    )
+                    self.linear_sdr.add_module(f"linear_sdr{i+1}_relu", nn.ReLU())
                 # Feed this layer output into next layer input
                 input_features = n_i
 
         # Add one fully connected layer after all hidden layers
         self.fc = nn.Linear(input_features, output_size)
 
-    def postEpoch(self):
+    def on_epoch_end(self):
         self.apply(updateBoostStrength)
         self.apply(rezeroWeights)
-    
+
     def get_encoded(self):
         return self._encoded
 
     def get_learning_iterations(self):
         return self.learning_iterations
 
-    def maxEntropy(self):
+    def max_entropy(self):
         entropy = 0
         for module in self.modules():
             if module == self:
@@ -160,7 +156,7 @@ class SparseNet(pl.LightningModule):
         the given threshold
         :param threshold: min threshold to prune. If less than zero then no pruning
         :type threshold: float
-        """ 
+        """
         if threshold < 0.0:
             return
 
@@ -185,13 +181,12 @@ class SparseNet(pl.LightningModule):
         assert len(hparams.n) == len(hparams.weight_sparsity)
         for i in range(len(hparams.weight_sparsity)):
             assert hparams.weight_sparsity[i] >= 0
-        
+
     def _load_dataset(self):
         data_dir = Path(self.hparams.data_dir)
         self._train_dataset = TRECTripleBERTDataset(data_dir / "train.parquet")
         self._val_dataset = TRECTripleBERTDataset(data_dir / "valid.parquet")
         self._test_dataset = TRECTripleBERTDataset(data_dir / "test.parquet")
-
 
     def training_step(self, batch, batch_idx):
         # REQUIRED
