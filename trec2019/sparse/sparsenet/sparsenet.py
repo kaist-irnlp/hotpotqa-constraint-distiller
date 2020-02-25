@@ -133,7 +133,7 @@ class SparseNet(pl.LightningModule):
                 entropy += module.entropy()
         return entropy
 
-    def pruneWeights(self, minWeight):
+    def prune_weights(self, minWeight):
         """
         Prune all the weights whose absolute magnitude is less than minWeight
         :param minWeight: min weight to prune. If zero then no pruning
@@ -150,7 +150,7 @@ class SparseNet(pl.LightningModule):
             # Zero other weights
             w.data.mul_(mask.type(torch.float32))
 
-    def pruneDutycycles(self, threshold=0.0):
+    def prune_duty_cycles(self, threshold=0.0):
         """
         Prune all the units with dutycycles whose absolute magnitude is less than
         the given threshold
