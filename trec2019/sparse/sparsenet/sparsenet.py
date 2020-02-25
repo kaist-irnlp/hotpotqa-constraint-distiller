@@ -69,8 +69,8 @@ class SparseNet(pl.LightningModule):
         boost_strength_factor = self.hparams.boost_strength_factor
 
         self.linear_sdr = nn.Sequential()
-        for i, n_i in enumerate(n):
-            if n_i != 0:
+        for i in range(len(n)):
+            if n[i] != 0:
                 linear = nn.Linear(input_features)
                 if 0 < weight_sparsity[i] < 1:
                     linear = SparseWeights(linear, weightSparsity=weight_sparsity[i])
@@ -80,7 +80,7 @@ class SparseNet(pl.LightningModule):
 
                 if use_batch_norm:
                     self.linear_sdr.add_module(
-                        f"linear_sdr{i+1}_bn", nn.BatchNorm1d(n_i, affine=False)
+                        f"linear_sdr{i+1}_bn", nn.BatchNorm1d(n[i], affine=False)
                     )
 
                 if dropout > 0.0:
@@ -100,7 +100,7 @@ class SparseNet(pl.LightningModule):
                 else:
                     self.linear_sdr.add_module(f"linear_sdr{i+1}_relu", nn.ReLU())
                 # Feed this layer output into next layer input
-                input_features = n_i
+                input_features = n[i]
 
         # Add one fully connected layer after all hidden layers
         self.fc = nn.Linear(input_features, output_size)
@@ -115,7 +115,7 @@ class SparseNet(pl.LightningModule):
     def get_learning_iterations(self):
         return self.learning_iterations
 
-    def max_entropy(self):
+    def maxEntropy(self):
         entropy = 0
         for module in self.modules():
             if module == self:
@@ -133,7 +133,7 @@ class SparseNet(pl.LightningModule):
                 entropy += module.entropy()
         return entropy
 
-    def prune_weights(self, minWeight):
+    def pruneWeights(self, minWeight):
         """
         Prune all the weights whose absolute magnitude is less than minWeight
         :param minWeight: min weight to prune. If zero then no pruning
@@ -150,7 +150,7 @@ class SparseNet(pl.LightningModule):
             # Zero other weights
             w.data.mul_(mask.type(torch.float32))
 
-    def prune_duty_cycles(self, threshold=0.0):
+    def pruneDutycycles(self, threshold=0.0):
         """
         Prune all the units with dutycycles whose absolute magnitude is less than
         the given threshold
