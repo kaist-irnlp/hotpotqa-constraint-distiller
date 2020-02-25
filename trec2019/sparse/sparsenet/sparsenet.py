@@ -39,6 +39,9 @@ class SparseNet(pl.LightningModule):
         # network
         self._validate_network_params()
         self._init_network()
+        # loss
+        self.score = lambda a, b: a * b
+        self.loss = nn.MarginRankingLoss()
 
     def forward(self, x):
         x = self.flatten(x)
@@ -50,6 +53,28 @@ class SparseNet(pl.LightningModule):
             self.learning_iterations += batch_size
 
         return x
+
+    def training_step(self, batch, batch_idx):
+        query, doc_pos, doc_neg = batch
+        query, doc_pos, doc_neg = (
+            self.forward(query),
+            self.forward(doc_pos),
+            self.forward(doc_neg),
+        )
+        score_p = self.score((query, doc_pos), 1)
+        score_n = self.score((query, doc_neg), -1)
+        return {"loss": F.cross_entropy(y_hat, y)}
+
+    def validation_step(self, batch, batch_idx):
+        # OPTIONAL
+        x, y = batch
+        y_hat = self.forward(x)
+        return {"val_loss": F.cross_entropy(y_hat, y)}
+
+    def validation_end(self, outputs):
+        # OPTIONAL
+        avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
+        return {"avg_val_loss": avg_loss}
 
     def _init_network(self):
         self.learning_iterations = 0
@@ -71,7 +96,7 @@ class SparseNet(pl.LightningModule):
         self.linear_sdr = nn.Sequential()
         for i in range(len(n)):
             if n[i] != 0:
-                linear = nn.Linear(input_features)
+                linear = nn.Linear(input_features, n[i])
                 if 0 < weight_sparsity[i] < 1:
                     linear = SparseWeights(linear, weightSparsity=weight_sparsity[i])
                     if normalize_weights:
@@ -188,23 +213,6 @@ class SparseNet(pl.LightningModule):
         self._val_dataset = TRECTripleBERTDataset(data_dir / "valid.parquet")
         self._test_dataset = TRECTripleBERTDataset(data_dir / "test.parquet")
 
-    def training_step(self, batch, batch_idx):
-        # REQUIRED
-        x, y = batch
-        y_hat = self.forward(x)
-        return {"loss": F.cross_entropy(y_hat, y)}
-
-    def validation_step(self, batch, batch_idx):
-        # OPTIONAL
-        x, y = batch
-        y_hat = self.forward(x)
-        return {"val_loss": F.cross_entropy(y_hat, y)}
-
-    def validation_end(self, outputs):
-        # OPTIONAL
-        avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
-        return {"avg_val_loss": avg_loss}
-
     def configure_optimizers(self):
         # REQUIRED
         # can return multiple optimizers and learning_rate schedulers
@@ -251,3 +259,5 @@ class SparseNet(pl.LightningModule):
 
         return parser
 
+
+metric_p = torch.sum(query * doc_pos)
