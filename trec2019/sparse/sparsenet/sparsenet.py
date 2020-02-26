@@ -12,6 +12,7 @@ import torchvision.transforms as transforms
 from argparse import ArgumentParser
 
 import pytorch_lightning as pl
+from test_tube import HyperOptArgumentParser
 
 import logging
 from multiprocessing import cpu_count
@@ -37,7 +38,7 @@ class SparseNet(pl.LightningModule):
         self.hparams = hparams
         self._encoded = None
         self._load_dataset()
-        
+
         # network
         self._validate_network_params()
         self._init_network()
@@ -298,14 +299,16 @@ class SparseNet(pl.LightningModule):
         Specify the hyperparams for this LightningModule
         """
         # MODEL specific
-        parser = ArgumentParser(parents=[parent_parser])
-        parser.add_argument("--learning_rate", default=0.02, type=float)
-        parser.add_argument("--batch_size", default=32, type=int)
-
-        # training specific (for this model)
-        parser.add_argument("--max_nb_epochs", default=2, type=int)
+        parser = HyperOptArgumentParser(parents=[parent_parser])
+        parser.add_argument("--n", default=10000, type=int)
+        parser.add_argument("--k_inference_factor", default=1.5, type=float)
+        parser.add_argument("--weight_sparsity", default=0.3, type=float)
+        parser.add_argument("--boost_strength", default=1.5, type=float)
+        parser.add_argument(
+            "--boost_strength_factor", default=0.85, type=float,
+        )
+        parser.add_argument("--dropout", default=0.0, type=float)
+        parser.add_argument("--use_batch_norm", default=True, type=bool)
+        parser.add_argument("--normalize_weights", default=False, type=bool)
 
         return parser
-
-
-metric_p = torch.sum(query * doc_pos)
