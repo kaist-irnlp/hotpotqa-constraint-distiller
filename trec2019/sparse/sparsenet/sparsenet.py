@@ -22,6 +22,7 @@ from torch.utils.data.distributed import DistributedSampler
 from trec2019.utils.dataset import TRECTripleBERTDataset
 from trec2019.utils.encoder import BertEncoder
 from trec2019.sparse.sparsenet.helper import *
+from collections import OrderedDict
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -36,9 +37,11 @@ class SparseNet(pl.LightningModule):
         self.hparams = hparams
         self._encoded = None
         self._load_dataset()
+        
         # network
         self._validate_network_params()
         self._init_network()
+
         # loss
         self.score = lambda a, b: a * b
         self.loss = nn.MarginRankingLoss()
@@ -61,20 +64,65 @@ class SparseNet(pl.LightningModule):
             self.forward(doc_pos),
             self.forward(doc_neg),
         )
-        score_p = self.score((query, doc_pos), 1)
-        score_n = self.score((query, doc_neg), -1)
-        return {"loss": F.cross_entropy(y_hat, y)}
+        score_p = self.score(query, doc_pos)
+        score_n = self.score(query, doc_neg)
+        loss_val = self.loss(score_p, score_n)
+
+        # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
+        if self.trainer.use_dp or self.trainer.use_ddp2:
+            loss_val = loss_val.unsqueeze(0)
+        tqdm_dict = {"train_loss": loss_val}
+        output = OrderedDict(
+            {"loss": loss_val, "progress_bar": tqdm_dict, "log": tqdm_dict}
+        )
+
+        return output
 
     def validation_step(self, batch, batch_idx):
-        # OPTIONAL
-        x, y = batch
-        y_hat = self.forward(x)
-        return {"val_loss": F.cross_entropy(y_hat, y)}
+        query, doc_pos, doc_neg = batch
+        query, doc_pos, doc_neg = (
+            self.forward(query),
+            self.forward(doc_pos),
+            self.forward(doc_neg),
+        )
+        score_p = self.score(query, doc_pos)
+        score_n = self.score(query, doc_neg)
+        loss_val = self.loss(score_p, score_n)
+
+        # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
+        if self.trainer.use_dp or self.trainer.use_ddp2:
+            loss_val = loss_val.unsqueeze(0)
+
+        # return results
+        tqdm_dict = {"val_loss": loss_val}
+        output = OrderedDict({"val_loss": loss_val, "log": tqdm_dict,})
+
+        return output
 
     def validation_end(self, outputs):
-        # OPTIONAL
-        avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
-        return {"avg_val_loss": avg_loss}
+        tqdm_dict = {}
+
+        for metric_name in ["val_loss"]:
+            metric_total = 0
+
+            for output in outputs:
+                metric_value = output[metric_name]
+
+                # reduce manually when using dp
+                if self.trainer.use_dp or self.trainer.use_ddp2:
+                    metric_value = torch.mean(metric_value)
+
+                metric_total += metric_value
+
+            tqdm_dict[metric_name] = metric_total / len(outputs)
+
+        result = {
+            "progress_bar": tqdm_dict,
+            "log": tqdm_dict,
+            "avg_val_loss": tqdm_dict["val_loss"],
+        }
+
+        return result
 
     def _init_network(self):
         self.learning_iterations = 0
