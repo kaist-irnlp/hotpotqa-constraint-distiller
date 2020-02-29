@@ -14,6 +14,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 
 from trec2019.sparse.sparsenet import SparseNet
+from trec2019.utils.encoder import BertEncoder
 
 cudnn.benchmark = True
 root_dir = str(Path(__file__).parent.absolute())
@@ -29,11 +30,16 @@ def main(hparams):
     # hparams_dict["hpc_exp_number"] = 0
 
     # init module
-    model = SparseNet(hparams)
+    encoder = BertEncoder()
+    model = SparseNet(hparams, encoder)
 
     early_stop_callback = EarlyStopping(
         monitor="val_loss", patience=5, verbose=True, mode="min"
     )
+
+    # loader = model.val_dataloader()[0]
+    # for i, dset in enumerate(loader):
+    #     print(dset)
 
     trainer = Trainer(
         default_save_path=root_dir,
@@ -70,6 +76,6 @@ if __name__ == "__main__":
     hparams = parser.parse_args()
 
     # run trials of random search over the hyperparams
-    N_TRIALS = 50
+    N_TRIALS = 1
     for hparam_trial in hparams.trials(N_TRIALS):
         main(hparam_trial)

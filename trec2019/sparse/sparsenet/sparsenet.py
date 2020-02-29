@@ -20,8 +20,14 @@ from multiprocessing import cpu_count
 from pathlib import Path
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
+from transformers import BertModel
+from transformers import BertTokenizer
 
-from trec2019.utils.dataset import TRECTripleBERTDataset
+from trec2019.utils.dataset import (
+    TRECTripleBERTDataset,
+    TRECTripleEmbeddingDataset,
+    TRECTripleDataset,
+)
 from trec2019.utils.encoder import BertEncoder
 from trec2019.sparse.sparsenet.helper import *
 from collections import OrderedDict
@@ -34,23 +40,46 @@ logger = logging.getLogger(__name__)
 
 
 class SparseNet(pl.LightningModule):
-    def __init__(self, hparams):
+    def __init__(self, hparams, encoder):
         super(SparseNet, self).__init__()
         self.hparams = hparams
         self._encoded = None
         self._load_dataset()
-        input_dim = self._train_dataset.get_dim()
+        self._init_encoder()
+        self.input_dim = self.encoder.get_dim()
 
         # network
         self._validate_network_params()
-        self._init_network(input_dim)
+        self._init_network()
 
         # loss
         self.sim = lambda a, b: a * b
         self.loss = nn.MarginRankingLoss()
 
+    def _init_encoder(
+        self, weights="bert-base-uncased",
+    ):
+        # self.encoder = BertModel.from_pretrained(weights)
+        # self.tokenizer = BertTokenizer.from_pretrained(weights)
+        # self.summarize = lambda emb_seq: emb_seq[0][0]
+        self.encoder = BertEncoder()
+
+    # def _encode(self, text):
+    #     MAX_LENGTH = 512
+    #     input_ids = torch.tensor(
+    #         [
+    #             self.tokenizer.encode(
+    #                 text, add_special_tokens=True, max_length=MAX_LENGTH,
+    #             )
+    #         ]
+    #     )
+    #     with torch.no_grad():
+    #         last_hidden_states = self.encoder(input_ids)[0]
+    #     return self.summarize(last_hidden_states)
+
     def forward(self, x):
         x = self.flatten(x)
+        x = torch.tensor([self.encoder.encode(txt) for txt in x])
         x = self.linear_sdr(x)
         x = self.fc(x)
 
@@ -127,13 +156,13 @@ class SparseNet(pl.LightningModule):
 
         return result
 
-    def _init_network(self, emb_dim):
+    def _init_network(self):
         self.learning_iterations = 0
         self.flatten = Flatten()
 
         # Linear layers only (from original code)
-        input_features = emb_dim
-        output_size = emb_dim
+        input_features = self.input_dim
+        output_size = self.input_dim
         n = self.hparams.n
         k = self.hparams.k
         normalize_weights = self.hparams.normalize_weights
@@ -262,9 +291,10 @@ class SparseNet(pl.LightningModule):
 
     def _load_dataset(self):
         data_dir = Path(self.hparams.data_dir)
-        self._train_dataset = TRECTripleBERTDataset(data_dir / "train.parquet")
-        self._val_dataset = TRECTripleBERTDataset(data_dir / "valid.parquet")
-        self._test_dataset = TRECTripleBERTDataset(data_dir / "test.parquet")
+        dset_cls = TRECTripleDataset
+        self._train_dataset = dset_cls(data_dir / "train.parquet")
+        self._val_dataset = dset_cls(data_dir / "valid.parquet")
+        self._test_dataset = dset_cls(data_dir / "test.parquet")
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers
@@ -275,7 +305,8 @@ class SparseNet(pl.LightningModule):
     def _get_dataloader(self, dataset, test=False):
         dist_sampler = DistributedSampler(dataset) if self.use_ddp else None
         batch_size = self.hparams.batch_size if not test else 100000
-        num_workers = int(cpu_count() / 4) or 1
+        # num_workers = int(cpu_count() / 4) or 1
+        num_workers = 0
         return DataLoader(
             dataset,
             sampler=dist_sampler,
