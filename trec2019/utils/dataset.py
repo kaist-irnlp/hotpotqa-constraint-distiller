@@ -1,7 +1,7 @@
 import torch
 import pandas as pd
 import gzip
-from torch.utils.data import Dataset, ConcatDataset, IterableDataset
+from torch.utils.data import Dataset, ConcatDataset, IterableDataset, DataLoader
 import h5py
 import numpy as np
 from trec2019.utils.encoder import BertEncoder
@@ -62,10 +62,16 @@ class TRECTripleIdDataset(Dataset):
 
 if __name__ == "__main__":
     encoder = BertEncoder()
-    fpath = "/Users/kyoungrok/Resilio Sync/Dataset/2019 TREC/passage_ranking/triples.train.tiny.parquet"
+    fpath = "/Users/kyoungrok/Resilio Sync/Dataset/2019 TREC/passage_ranking/dataset/valid.parquet"
     dset = TRECTripleEmbeddingDataset(fpath, encoder)
+    loader = DataLoader(
+        dset,
+        sampler=None,
+        batch_size=256,
+        num_workers=4,
+        pin_memory=True
+    )
     # dset = TRECTripleDataset(fpath)
     for d in dset:
         print(d)
-        break
 
