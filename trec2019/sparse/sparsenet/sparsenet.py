@@ -53,8 +53,9 @@ class SparseNet(pl.LightningModule):
         self._init_network()
 
         # loss
-        self.sim = lambda a, b: a * b
-        self.loss = nn.MarginRankingLoss()
+        self.metric = lambda a, b: a * b
+        # self.loss = nn.MarginRankingLoss()
+        self.loss = lambda delta: torch.sum(torch.exp(delta))
 
     def _init_encoder(
         self, weights="bert-base-uncased",
@@ -78,8 +79,11 @@ class SparseNet(pl.LightningModule):
     #     return self.summarize(last_hidden_states)
 
     def forward(self, x):
-        x = self.flatten(x)
-        x = torch.tensor([self.encoder.encode(txt) for txt in x])
+        # x = self.flatten(x)
+        x = torch.stack([self.encoder.encode(txt) for txt in x])
+        # print(embeddings)
+        # sys.exit(-1)
+        # x = torch.Tensor(embeddings)
         x = self.linear_sdr(x)
         x = self.fc(x)
 
@@ -96,9 +100,10 @@ class SparseNet(pl.LightningModule):
             self.forward(doc_pos),
             self.forward(doc_neg),
         )
-        score_p = self.sim(query, doc_pos)
-        score_n = self.sim(query, doc_neg)
-        loss_val = self.loss(score_p, score_n)
+        metric_p = self.metric(query, doc_pos)
+        metric_n = self.metric(query, doc_neg)
+        delta = metric_n - metric_p
+        loss_val = self.loss(delta)
 
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
         if self.trainer.use_dp or self.trainer.use_ddp2:
@@ -111,15 +116,16 @@ class SparseNet(pl.LightningModule):
         return output
 
     def validation_step(self, batch, batch_idx):
-        query, doc_pos, doc_neg = batch
+        query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
         query, doc_pos, doc_neg = (
             self.forward(query),
             self.forward(doc_pos),
             self.forward(doc_neg),
         )
-        score_p = self.sim(query, doc_pos)
-        score_n = self.sim(query, doc_neg)
-        loss_val = self.loss(score_p, score_n)
+        metric_p = self.metric(query, doc_pos)
+        metric_n = self.metric(query, doc_neg)
+        delta = metric_n - metric_p
+        loss_val = self.loss(delta)
 
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
         if self.trainer.use_dp or self.trainer.use_ddp2:
