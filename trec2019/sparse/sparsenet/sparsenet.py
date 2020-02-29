@@ -263,7 +263,6 @@ class SparseNet(pl.LightningModule):
         self._test_dataset = TRECTripleBERTDataset(data_dir / "test.parquet")
 
     def configure_optimizers(self):
-        # REQUIRED
         # can return multiple optimizers and learning_rate schedulers
         optimizer = optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
@@ -300,7 +299,6 @@ class SparseNet(pl.LightningModule):
         """
         # MODEL specific
         parser = HyperOptArgumentParser(parents=[parent_parser])
-        parser.add_argument("--n", default=10000, type=int)
         parser.add_argument("--k_inference_factor", default=1.5, type=float)
         parser.add_argument("--weight_sparsity", default=0.3, type=float)
         parser.add_argument("--boost_strength", default=1.5, type=float)
