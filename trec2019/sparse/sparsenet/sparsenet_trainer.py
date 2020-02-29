@@ -20,6 +20,14 @@ root_dir = str(Path(__file__).parent.absolute())
 
 
 def main(hparams):
+    # clean hparams to avoid TensorBoard error
+    # hparams_dict = vars(hparams)
+    # for k, v in hparams_dict.items():
+    #     if v is None:
+    #         hparams_dict[k] = ""
+    # hparams_dict["gpus"] = 0
+    # hparams_dict["hpc_exp_number"] = 0
+
     # init module
     model = SparseNet(hparams)
 
@@ -48,11 +56,12 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", default=0.0001, type=float)
     parser.add_argument("--nodes", type=int, default=1)
     parser.add_argument("--distributed_backend", type=str, default=None)
-
     add_default_args(parser, root_dir)
+
+    # add model params
     parser = SparseNet.add_model_specific_args(parser)
 
-    # param search
+    # searchable params
     parser.opt_list("--n", type=int, tunable=True, options=[8000, 10000])
     parser.opt_list("--k", type=int, tunable=True, options=[30, 60, 120, 240, 300])
     parser.opt_list("--batch_size", type=int, tunable=True, options=[512])
