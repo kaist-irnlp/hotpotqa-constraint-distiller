@@ -37,6 +37,9 @@ class TRECTripleEmbeddingDataset(TRECTripleDataset):
             sample[fld] = self.encoder.encode(sample[fld])
         return sample
 
+    def get_dim(self):
+        return self.encoder.get_dim()
+
 
 class TRECTripleBERTDataset(TRECTripleEmbeddingDataset):
     def __init__(self, data_path):
