@@ -18,7 +18,7 @@ if __name__ == "__main__":
         out_dir.mkdir(parents=True)
 
     # split & save
-    split_ratio = {"train": 0.8, "dev": 0.1, "test": 0.1}
+    split_ratio = {"train": 0.8, "valid": 0.1, "test": 0.1}
     with ProgressBar():
         d = dd.read_parquet(args.data_path).repartition(npartitions=4)
         splits = d.random_split(split_ratio.values())

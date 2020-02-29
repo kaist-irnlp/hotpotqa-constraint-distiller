@@ -2,6 +2,7 @@
 This file defines the core research contribution   
 """
 import os
+import sys
 import torch
 from torch import optim
 from torch import nn
@@ -38,10 +39,11 @@ class SparseNet(pl.LightningModule):
         self.hparams = hparams
         self._encoded = None
         self._load_dataset()
+        input_dim = self._train_dataset.get_dim()
 
         # network
         self._validate_network_params()
-        self._init_network()
+        self._init_network(input_dim)
 
         # loss
         self.score = lambda a, b: a * b
@@ -125,13 +127,13 @@ class SparseNet(pl.LightningModule):
 
         return result
 
-    def _init_network(self):
+    def _init_network(self, emb_dim):
         self.learning_iterations = 0
         self.flatten = Flatten()
 
         # Linear layers only (from original code)
-        input_features = self.hparams.input_size
-        output_size = self.hparams.output_size
+        input_features = emb_dim
+        output_size = emb_dim
         n = self.hparams.n
         k = self.hparams.k
         normalize_weights = self.hparams.normalize_weights
@@ -255,6 +257,8 @@ class SparseNet(pl.LightningModule):
         assert len(hparams.n) == len(hparams.weight_sparsity)
         for i in range(len(hparams.weight_sparsity)):
             assert hparams.weight_sparsity[i] >= 0
+        # DEBUG
+        print(vars(hparams))
 
     def _load_dataset(self):
         data_dir = Path(self.hparams.data_dir)
