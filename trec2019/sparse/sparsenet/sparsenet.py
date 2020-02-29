@@ -46,7 +46,7 @@ class SparseNet(pl.LightningModule):
         self._init_network(input_dim)
 
         # loss
-        self.score = lambda a, b: a * b
+        self.sim = lambda a, b: a * b
         self.loss = nn.MarginRankingLoss()
 
     def forward(self, x):
@@ -67,8 +67,8 @@ class SparseNet(pl.LightningModule):
             self.forward(doc_pos),
             self.forward(doc_neg),
         )
-        score_p = self.score(query, doc_pos)
-        score_n = self.score(query, doc_neg)
+        score_p = self.sim(query, doc_pos)
+        score_n = self.sim(query, doc_neg)
         loss_val = self.loss(score_p, score_n)
 
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
@@ -88,8 +88,8 @@ class SparseNet(pl.LightningModule):
             self.forward(doc_pos),
             self.forward(doc_neg),
         )
-        score_p = self.score(query, doc_pos)
-        score_n = self.score(query, doc_neg)
+        score_p = self.sim(query, doc_pos)
+        score_n = self.sim(query, doc_neg)
         loss_val = self.loss(score_p, score_n)
 
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
