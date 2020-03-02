@@ -27,19 +27,19 @@ class TRECTripleDataset(Dataset):
 class TRECTripleBERTTokenizedDataset(TRECTripleDataset):
     MAX_LENGTH = 512
 
-    def __init__(self, data_path, tokenizer):
+    def __init__(self, data_path, weights="bert-base-uncased"):
         super().__init__(data_path)
-        self.tokenizer = tokenizer
+        self.tokenizer = BertTokenizer.from_pretrained(weights)
 
     def _tokenize(self, text):
-        return np.array(
+        return torch.LongTensor(
             self.tokenizer.encode(
                 text,
                 add_special_tokens=True,
                 max_length=self.MAX_LENGTH,
                 pad_to_max_length="left",
             ),
-            dtype=np.int32,
+            dtype=np.int64,
         )
 
     def __getitem__(self, index):
@@ -91,8 +91,7 @@ if __name__ == "__main__":
         "/Users/kyoungrok/Resilio Sync/Dataset/2019 TREC/passage_ranking/dataset"
     )
     fpath = data_dir / "valid.parquet"
-    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-    dset = TRECTripleBERTTokenizedDataset(fpath, tokenizer)
+    dset = TRECTripleBERTTokenizedDataset(fpath)
     loader = DataLoader(dset, batch_size=32, num_workers=2)
     for batch in loader:
         res = batch["doc_pos"]
