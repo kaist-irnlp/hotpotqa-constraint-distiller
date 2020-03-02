@@ -38,8 +38,7 @@ class TRECTripleBERTTokenizedDataset(TRECTripleDataset):
                 add_special_tokens=True,
                 max_length=self.MAX_LENGTH,
                 pad_to_max_length="left",
-            ),
-            dtype=np.int64,
+            )
         )
 
     def __getitem__(self, index):
