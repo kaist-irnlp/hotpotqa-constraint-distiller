@@ -30,8 +30,8 @@ def main(hparams):
     # hparams_dict["hpc_exp_number"] = 0
 
     # init module
-    encoder = BertEncoder()
-    model = SparseNet(hparams, encoder)
+    # encoder = BertEncoder()
+    model = SparseNet(hparams)
 
     early_stop_callback = EarlyStopping(
         monitor="val_loss", patience=5, verbose=True, mode="min"

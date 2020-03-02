@@ -27,6 +27,7 @@ from trec2019.utils.dataset import (
     TRECTripleBERTDataset,
     TRECTripleEmbeddingDataset,
     TRECTripleDataset,
+    TRECTripleBERTTokenizedDataset,
 )
 from trec2019.utils.encoder import BertEncoder
 from trec2019.sparse.sparsenet.helper import *
@@ -40,13 +41,13 @@ logger = logging.getLogger(__name__)
 
 
 class SparseNet(pl.LightningModule):
-    def __init__(self, hparams, encoder):
+    def __init__(self, hparams):
         super(SparseNet, self).__init__()
         self.hparams = hparams
-        self._encoded = None
+        self.encoded = None
         self._load_dataset()
         self._init_encoder()
-        self.input_dim = self.encoder.get_dim()
+        self.input_dim = self._get_input_dim()
 
         # network
         self._validate_network_params()
@@ -57,33 +58,22 @@ class SparseNet(pl.LightningModule):
         # self.loss = nn.MarginRankingLoss()
         self.loss = lambda delta: torch.sum(torch.exp(delta))
 
+    def _get_input_dim(self):
+        return self.enc_model.config.hidden_size
+
     def _init_encoder(
         self, weights="bert-base-uncased",
     ):
-        # self.encoder = BertModel.from_pretrained(weights)
-        # self.tokenizer = BertTokenizer.from_pretrained(weights)
-        # self.summarize = lambda emb_seq: emb_seq[0][0]
-        self.encoder = BertEncoder()
+        self.enc_model = BertModel.from_pretrained(weights)
+        self.enc_summarize = lambda emb_seq: emb_seq[0][0]
 
-    # def _encode(self, text):
-    #     MAX_LENGTH = 512
-    #     input_ids = torch.tensor(
-    #         [
-    #             self.tokenizer.encode(
-    #                 text, add_special_tokens=True, max_length=MAX_LENGTH,
-    #             )
-    #         ]
-    #     )
-    #     with torch.no_grad():
-    #         last_hidden_states = self.encoder(input_ids)[0]
-    #     return self.summarize(last_hidden_states)
+    def _encode(self, batch):
+        print(batch)
+        last_hidden_states = self.enc_model(batch)[0]
+        return torch.Tensor([emb_seq[0][0] for emb_seq in last_hidden_states])
 
     def forward(self, x):
-        # x = self.flatten(x)
-        x = torch.stack([self.encoder.encode(txt) for txt in x])
-        # print(embeddings)
-        # sys.exit(-1)
-        # x = torch.Tensor(embeddings)
+        x = self._encode(x)
         x = self.linear_sdr(x)
         x = self.fc(x)
 
@@ -218,10 +208,11 @@ class SparseNet(pl.LightningModule):
 
     def on_epoch_end(self):
         self.apply(updateBoostStrength)
+        return self.encoded
         self.apply(rezeroWeights)
 
     def get_encoded(self):
-        return self._encoded
+        return self.encoded
 
     def get_learning_iterations(self):
         return self.learning_iterations
@@ -297,7 +288,7 @@ class SparseNet(pl.LightningModule):
 
     def _load_dataset(self):
         data_dir = Path(self.hparams.data_dir)
-        dset_cls = TRECTripleDataset
+        dset_cls = TRECTripleBERTTokenizedDataset
         self._train_dataset = dset_cls(data_dir / "train.parquet")
         self._val_dataset = dset_cls(data_dir / "valid.parquet")
         self._test_dataset = dset_cls(data_dir / "test.parquet")
