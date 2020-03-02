@@ -1,10 +1,13 @@
 import torch
 import pandas as pd
 import gzip
+from pprint import pprint
+from pathlib import Path
 from torch.utils.data import Dataset, ConcatDataset, IterableDataset, DataLoader
 import h5py
 import numpy as np
 from trec2019.utils.encoder import BertEncoder
+from transformers import BertTokenizer
 
 
 class TRECTripleDataset(Dataset):
@@ -18,11 +21,34 @@ class TRECTripleDataset(Dataset):
     def __getitem__(self, index):
         # return a sample
         tr = self.data.iloc[index]
-        return {
-            "query": tr["query"],
-            "doc_pos": tr["doc_pos"],
-            "doc_neg": tr["doc_neg"],
-        }
+        return tr.to_dict()
+
+
+class TRECTripleBERTTokenizedDataset(TRECTripleDataset):
+    MAX_LENGTH = 512
+
+    def __init__(self, data_path, tokenizer):
+        super().__init__(data_path)
+        self.tokenizer = tokenizer
+
+    def _tokenize(self, text):
+        return np.array(
+            self.tokenizer.encode(
+                text,
+                add_special_tokens=True,
+                max_length=self.MAX_LENGTH,
+                pad_to_max_length="left",
+            ),
+            dtype=np.int32,
+        )
+
+    def __getitem__(self, index):
+        sample = super().__getitem__(index)
+        tokenized = {}
+        tokenized["query"] = self._tokenize(sample["query"])
+        tokenized["doc_pos"] = self._tokenize(sample["doc_pos"])
+        tokenized["doc_neg"] = self._tokenize(sample["doc_neg"])
+        return tokenized
 
 
 class TRECTripleEmbeddingDataset(TRECTripleDataset):
@@ -61,17 +87,14 @@ class TRECTripleIdDataset(Dataset):
 
 
 if __name__ == "__main__":
-    encoder = BertEncoder()
-    fpath = "/Users/kyoungrok/Resilio Sync/Dataset/2019 TREC/passage_ranking/dataset/valid.parquet"
-    dset = TRECTripleEmbeddingDataset(fpath, encoder)
-    loader = DataLoader(
-        dset,
-        sampler=None,
-        batch_size=256,
-        num_workers=4,
-        pin_memory=True
+    data_dir = Path(
+        "/Users/kyoungrok/Resilio Sync/Dataset/2019 TREC/passage_ranking/dataset"
     )
-    # dset = TRECTripleDataset(fpath)
-    for d in dset:
-        print(d)
-
+    fpath = data_dir / "valid.parquet"
+    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+    dset = TRECTripleBERTTokenizedDataset(fpath, tokenizer)
+    loader = DataLoader(dset, batch_size=32, num_workers=2)
+    for batch in loader:
+        res = batch["doc_pos"]
+        print(res, len(res))
+        break
