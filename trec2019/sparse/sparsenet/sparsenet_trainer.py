@@ -70,7 +70,7 @@ if __name__ == "__main__":
     # searchable params
     parser.opt_list("--n", type=int, tunable=True, options=[8000, 10000])
     parser.opt_list("--k", type=int, tunable=True, options=[30, 60, 120, 240, 300])
-    parser.opt_list("--batch_size", type=int, tunable=True, options=[512])
+    parser.opt_list("--batch_size", type=int, tunable=True, options=[64])
 
     # parse params
     hparams = parser.parse_args()
