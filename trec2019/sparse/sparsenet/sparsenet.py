@@ -67,13 +67,12 @@ class SparseNet(pl.LightningModule):
         self.enc_model = BertModel.from_pretrained(weights)
         self.enc_summarize = lambda emb_seq: emb_seq[0][0]
 
-    def _encode(self, batch):
-        print(batch)
+    def embed(self, batch):
         last_hidden_states = self.enc_model(batch)[0]
         return torch.Tensor([emb_seq[0][0] for emb_seq in last_hidden_states])
 
     def forward(self, x):
-        x = self._encode(x)
+        x = self.embed(x)
         x = self.linear_sdr(x)
         x = self.fc(x)
 
