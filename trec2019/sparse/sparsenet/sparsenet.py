@@ -70,7 +70,7 @@ class SparseNet(pl.LightningModule):
 
     def embed(self, batch):
         last_hidden_states = self.enc_model(batch)[0]
-        return torch.Tensor([emb_seq[0][0] for emb_seq in last_hidden_states])
+        return [emb_seq[0][0] for emb_seq in last_hidden_states]
 
     def forward(self, x):
         x = self.embed(x)
