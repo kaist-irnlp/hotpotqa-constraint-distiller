@@ -42,33 +42,53 @@ logger = logging.getLogger(__name__)
 
 class SparseNet(pl.LightningModule):
     BERT_WEIGHTS = "bert-base-uncased"
+    BERT_DIM = 768
+    BERT_MAX_LENGTH = 512
 
     def __init__(self, hparams):
         super(SparseNet, self).__init__()
         self.hparams = hparams
         self.encoded = None
-        self._load_dataset()
         self._init_encoder()
-        self.input_dim = self._get_input_dim()
+        self._load_dataset()
+        self.input_dim = self.BERT_DIM
 
         # network
         self._validate_network_params()
         self._init_network()
 
         # loss
-        self.metric = lambda a, b: a * b
+        # self.metric = lambda a, b: a * b
         # self.loss = nn.MarginRankingLoss()
-        self.loss = lambda delta: torch.log1p(torch.sum(torch.exp(delta)))
+        # self.loss = lambda delta: torch.log1p(torch.sum(torch.exp(delta)))
+
+    def metric(self, a, b):
+        return a * b
+
+    def loss(self, delta):
+        return torch.log1p(torch.sum(torch.exp(delta)))
 
     def _get_input_dim(self):
         return self.enc_model.config.hidden_size
 
     def _init_encoder(self):
-        self.enc_model = BertModel.from_pretrained(self.BERT_WEIGHTS)
-        self.enc_summarize = lambda emb_seq: emb_seq[0][0]
+        self.emb_model = BertModel.from_pretrained(self.BERT_WEIGHTS)
+        self.emb_tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
 
     def embed(self, batch):
-        last_hidden_states = self.enc_model(batch)[0]
+        # batch = batch.to(self.device)
+        # if self.emb_model is None:
+        #     self.emb_model = BertModel.from_pretrained(self.BERT_WEIGHTS)
+        #     self.emb_tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
+        batch = self.emb_tokenizer.batch_encode_plus(
+            batch,
+            add_special_tokens=True,
+            max_length=self.BERT_MAX_LENGTH,
+            pad_to_max_length="left",
+            return_tensors="pt",
+        )["input_ids"]
+        batch = batch.to("cuda")
+        last_hidden_states = self.emb_model(batch)[0]
         IDX_CLS = 0
         return last_hidden_states[:, IDX_CLS, :]
         # return [emb_seq.squeeze()[IDX_CLS] for emb_seq in last_hidden_states]
@@ -289,11 +309,11 @@ class SparseNet(pl.LightningModule):
 
     def _load_dataset(self):
         data_dir = Path(self.hparams.data_dir)
-        dset_cls = TRECTripleBERTTokenizedDataset
-        tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
-        self._train_dataset = dset_cls(data_dir / "train.parquet", tokenizer)
-        self._val_dataset = dset_cls(data_dir / "valid.parquet", tokenizer)
-        self._test_dataset = dset_cls(data_dir / "test.parquet", tokenizer)
+        dset_cls = TRECTripleDataset
+        # tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
+        self._train_dataset = dset_cls(data_dir / "train.parquet")
+        self._val_dataset = dset_cls(data_dir / "valid.parquet")
+        self._test_dataset = dset_cls(data_dir / "test.parquet")
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers
