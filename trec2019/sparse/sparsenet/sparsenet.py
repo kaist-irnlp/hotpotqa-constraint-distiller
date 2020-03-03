@@ -65,7 +65,6 @@ class SparseNet(pl.LightningModule):
         self, weights="bert-base-uncased",
     ):
         self.enc_model = BertModel.from_pretrained(weights)
-        self.enc_model.eval()
         self.enc_summarize = lambda emb_seq: emb_seq[0][0]
 
     def embed(self, batch):
