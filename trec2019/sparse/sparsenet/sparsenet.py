@@ -41,6 +41,8 @@ logger = logging.getLogger(__name__)
 
 
 class SparseNet(pl.LightningModule):
+    BERT_WEIGHTS = "bert-base-uncased"
+
     def __init__(self, hparams):
         super(SparseNet, self).__init__()
         self.hparams = hparams
@@ -61,10 +63,8 @@ class SparseNet(pl.LightningModule):
     def _get_input_dim(self):
         return self.enc_model.config.hidden_size
 
-    def _init_encoder(
-        self, weights="bert-base-uncased",
-    ):
-        self.enc_model = BertModel.from_pretrained(weights)
+    def _init_encoder(self):
+        self.enc_model = BertModel.from_pretrained(self.BERT_WEIGHTS)
         self.enc_summarize = lambda emb_seq: emb_seq[0][0]
 
     def embed(self, batch):
@@ -290,7 +290,7 @@ class SparseNet(pl.LightningModule):
     def _load_dataset(self):
         data_dir = Path(self.hparams.data_dir)
         dset_cls = TRECTripleBERTTokenizedDataset
-        tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
         self._train_dataset = dset_cls(data_dir / "train.parquet", tokenizer)
         self._val_dataset = dset_cls(data_dir / "valid.parquet", tokenizer)
         self._test_dataset = dset_cls(data_dir / "test.parquet", tokenizer)
