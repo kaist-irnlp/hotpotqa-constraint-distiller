@@ -56,7 +56,7 @@ class SparseNet(pl.LightningModule):
         # loss
         self.metric = lambda a, b: a * b
         # self.loss = nn.MarginRankingLoss()
-        self.loss = lambda delta: torch.sum(torch.exp(delta))
+        self.loss = lambda delta: torch.log1p(torch.sum(torch.exp(delta)))
 
     def _get_input_dim(self):
         return self.enc_model.config.hidden_size
