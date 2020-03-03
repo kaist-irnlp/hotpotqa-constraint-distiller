@@ -70,6 +70,8 @@ class SparseNet(pl.LightningModule):
 
     def embed(self, batch):
         last_hidden_states = self.enc_model(batch)[0]
+        print(last_hidden_states.shape)
+        sys.exit(-1)
         return [emb_seq[0][0] for emb_seq in last_hidden_states]
 
     def forward(self, x):
@@ -208,7 +210,6 @@ class SparseNet(pl.LightningModule):
 
     def on_epoch_end(self):
         self.apply(updateBoostStrength)
-        return self.encoded
         self.apply(rezeroWeights)
 
     def get_encoded(self):
