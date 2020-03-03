@@ -70,12 +70,13 @@ class SparseNet(pl.LightningModule):
 
     def embed(self, batch):
         last_hidden_states = self.enc_model(batch)[0]
-        print(last_hidden_states.shape)
-        sys.exit(-1)
-        return [emb_seq[0][0] for emb_seq in last_hidden_states]
+        IDX_CLS = 0
+        return last_hidden_states[:, IDX_CLS, :]
+        # return [emb_seq.squeeze()[IDX_CLS] for emb_seq in last_hidden_states]
 
     def forward(self, x):
-        x = self.embed(x)
+        with torch.no_grad():
+            x = self.embed(x)
         x = self.linear_sdr(x)
         x = self.fc(x)
 
@@ -86,7 +87,7 @@ class SparseNet(pl.LightningModule):
         return x
 
     def training_step(self, batch, batch_idx):
-        query, doc_pos, doc_neg = batch
+        query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
         query, doc_pos, doc_neg = (
             self.forward(query),
             self.forward(doc_pos),
@@ -290,9 +291,10 @@ class SparseNet(pl.LightningModule):
     def _load_dataset(self):
         data_dir = Path(self.hparams.data_dir)
         dset_cls = TRECTripleBERTTokenizedDataset
-        self._train_dataset = dset_cls(data_dir / "train.parquet")
-        self._val_dataset = dset_cls(data_dir / "valid.parquet")
-        self._test_dataset = dset_cls(data_dir / "test.parquet")
+        tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        self._train_dataset = dset_cls(data_dir / "train.parquet", tokenizer)
+        self._val_dataset = dset_cls(data_dir / "valid.parquet", tokenizer)
+        self._test_dataset = dset_cls(data_dir / "test.parquet", tokenizer)
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers

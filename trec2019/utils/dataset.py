@@ -27,18 +27,19 @@ class TRECTripleDataset(Dataset):
 class TRECTripleBERTTokenizedDataset(TRECTripleDataset):
     MAX_LENGTH = 512
 
-    def __init__(self, data_path, weights="bert-base-uncased"):
+    def __init__(self, data_path, tokenizer):
         super().__init__(data_path)
-        self.tokenizer = BertTokenizer.from_pretrained(weights)
+        self.tokenizer = tokenizer
 
     def _tokenize(self, text):
-        return torch.LongTensor(
+        return torch.tensor(
             self.tokenizer.encode(
                 text,
                 add_special_tokens=True,
                 max_length=self.MAX_LENGTH,
                 pad_to_max_length="left",
-            )
+            ),
+            dtype=torch.long,
         )
 
     def __getitem__(self, index):
