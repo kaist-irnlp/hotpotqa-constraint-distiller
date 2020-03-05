@@ -57,6 +57,13 @@ class SparseNet(pl.LightningModule):
         self._validate_network_params()
         self._init_network()
 
+        # GPU
+        if torch.cuda.is_available():
+            gpu_idx = torch.cuda.current_device()
+            self.device = f"cuda:{gpu_idx}"
+        else:
+            self.device = "cpu"
+
         # loss
         # self.metric = lambda a, b: a * b
         # self.loss = nn.MarginRankingLoss()
@@ -87,13 +94,13 @@ class SparseNet(pl.LightningModule):
             pad_to_max_length="left",
             return_tensors="pt",
         )["input_ids"]
-        batch = batch.to("cuda")
         last_hidden_states = self.emb_model(batch)[0]
         IDX_CLS = 0
         return last_hidden_states[:, IDX_CLS, :]
         # return [emb_seq.squeeze()[IDX_CLS] for emb_seq in last_hidden_states]
 
     def forward(self, x):
+        x = x.to(self.device)
         with torch.no_grad():
             x = self.embed(x)
         x = self.linear_sdr(x)
