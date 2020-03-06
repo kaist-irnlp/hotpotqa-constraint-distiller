@@ -33,14 +33,14 @@ class TRECTripleBERTTokenizedDataset(TRECTripleDataset):
         self.tokenizer = tokenizer
 
     def _tokenize(self, text, max_length):
-        return torch.tensor(
+        return np.array(
             self.tokenizer.encode(
                 text,
                 add_special_tokens=True,
                 max_length=max_length,
                 pad_to_max_length="left",
             ),
-            dtype=torch.long,
+            dtype=np.int64,
         )
 
     def _tokenize_query(self, text):

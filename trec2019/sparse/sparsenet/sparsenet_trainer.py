@@ -61,7 +61,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", dest="max_nb_epochs", default=500, type=int)
     parser.add_argument("--learning_rate", default=0.0001, type=float)
     parser.add_argument("--nodes", type=int, default=1)
-    parser.add_argument("--distributed_backend", type=str, default=None)
+    parser.add_argument("--distributed_backend", "-db", type=str, default=None)
     add_default_args(parser, root_dir)
 
     # add model params

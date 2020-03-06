@@ -5,3 +5,4 @@ h5py
 tqdm
 pyarrow
 python-snappy
+matplotlib
