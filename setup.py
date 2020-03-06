@@ -15,7 +15,8 @@ setup(name='trec2019',
             'h5py',
             'tqdm',
             'pyarrow',
-            'python-snappy'
+            'python-snappy',
+            'matplotlib'
       ],
       packages=find_packages()
       )
