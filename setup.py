@@ -19,6 +19,9 @@ setup(
         "python-snappy",
         "matplotlib",
         "gensim",
+        "textblob",
+        "torchtext",
+        "spacy",
     ],
     packages=find_packages(),
 )

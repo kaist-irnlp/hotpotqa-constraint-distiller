@@ -7,3 +7,6 @@ pyarrow
 python-snappy
 matplotlib
 gensim
+textblob
+torchtext
+spacy
