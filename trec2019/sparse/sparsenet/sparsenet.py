@@ -54,7 +54,7 @@ class SparseNet(pl.LightningModule):
         self._init_network()
 
         # loss
-        self.metric = lambda a, b: a * b
+        self.distance = lambda a, b: F.cosine_similarity(a, b)
         # self.loss = nn.MarginRankingLoss()
         self.loss = lambda delta: torch.sum(torch.exp(delta))
 
@@ -68,14 +68,14 @@ class SparseNet(pl.LightningModule):
         self.enc_summarize = lambda emb_seq: emb_seq[0][0]
 
     def embed(self, batch):
-        last_hidden_states = self.enc_model(batch)[0]
+        with torch.no_grad():
+            last_hidden_states = self.enc_model(batch)[0]
         IDX_CLS = 0
         return last_hidden_states[:, IDX_CLS, :]
         # return [emb_seq.squeeze()[IDX_CLS] for emb_seq in last_hidden_states]
 
     def forward(self, x):
-        with torch.no_grad():
-            x = self.embed(x)
+        x = self.embed(x)
         x = self.linear_sdr(x)
         x = self.fc(x)
 
@@ -92,9 +92,9 @@ class SparseNet(pl.LightningModule):
             self.forward(doc_pos),
             self.forward(doc_neg),
         )
-        metric_p = self.metric(query, doc_pos)
-        metric_n = self.metric(query, doc_neg)
-        delta = metric_n - metric_p
+        distance_p = self.distance(query, doc_pos)
+        distance_n = self.distance(query, doc_neg)
+        delta = distance_n - distance_p
         loss_val = self.loss(delta)
 
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
@@ -114,9 +114,9 @@ class SparseNet(pl.LightningModule):
             self.forward(doc_pos),
             self.forward(doc_neg),
         )
-        metric_p = self.metric(query, doc_pos)
-        metric_n = self.metric(query, doc_neg)
-        delta = metric_n - metric_p
+        distance_p = self.distance(query, doc_pos)
+        distance_n = self.distance(query, doc_neg)
+        delta = distance_n - distance_p
         loss_val = self.loss(delta)
 
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
