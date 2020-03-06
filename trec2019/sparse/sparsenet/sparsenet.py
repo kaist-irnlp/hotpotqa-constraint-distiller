@@ -4,6 +4,7 @@ This file defines the core research contribution
 import os
 import sys
 import torch
+import gc
 from torch import optim
 from torch import nn
 from torch.nn import functional as F
@@ -22,6 +23,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from transformers import BertModel
 from transformers import BertTokenizer
+import gensim
+from gensim.models.keyedvectors import KeyedVectors
 
 from trec2019.utils.dataset import (
     TRECTripleBERTDataset,
@@ -45,13 +48,16 @@ class SparseNet(pl.LightningModule):
     BERT_DIM = 768
     BERT_MAX_LENGTH = 512
 
+    EMB_DIM = 300
+
     def __init__(self, hparams):
         super(SparseNet, self).__init__()
         self.hparams = hparams
         self.encoded = None
         self._init_encoder()
         self._load_dataset()
-        self.input_dim = self.BERT_DIM
+        self._load_embeddings()
+        self.input_dim = self._get_input_dim()
 
         # network
         self._validate_network_params()
@@ -64,18 +70,26 @@ class SparseNet(pl.LightningModule):
         else:
             self.device = "cpu"
 
+    def _load_embeddings(self):
+        model = KeyedVectors.load(self.hparams.embedding_path)
+        vectors = model.vectors
+        self.embeddings = nn.Embedding.from_pretrained(vectors, freeze=True)
+        self.word2idx = {w: idx for (idx, w) in enumerate(model.index2word)}
+        del model, vectors
+        gc.collect()
+
+    def _get_input_dim(self):
+        return self.EMB_DIM
+
+    def _init_encoder(self):
+        self.emb_model = BertModel.from_pretrained(self.BERT_WEIGHTS)
+        self.emb_tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
+
     def metric(self, a, b):
         return F.cosine_similarity(a, b)
 
     def loss(self, delta):
         return torch.log1p(torch.sum(torch.exp(delta)))
-
-    def _get_input_dim(self):
-        return self.enc_model.config.hidden_size
-
-    def _init_encoder(self):
-        self.emb_model = BertModel.from_pretrained(self.BERT_WEIGHTS)
-        self.emb_tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
 
     def embed(self, batch):
         batch = self.emb_tokenizer.batch_encode_plus(
