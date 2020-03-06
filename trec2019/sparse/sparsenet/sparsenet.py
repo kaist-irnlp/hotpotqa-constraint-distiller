@@ -15,6 +15,7 @@ from argparse import ArgumentParser
 
 import pytorch_lightning as pl
 from test_tube import HyperOptArgumentParser
+import spacy
 
 import logging
 from multiprocessing import cpu_count
@@ -54,6 +55,7 @@ class SparseNet(pl.LightningModule):
         super(SparseNet, self).__init__()
         self.hparams = hparams
         self.encoded = None
+        self._init_tokenizer()
         self._init_encoder()
         self._load_dataset()
         self._load_embeddings()
@@ -81,9 +83,13 @@ class SparseNet(pl.LightningModule):
     def _get_input_dim(self):
         return self.EMB_DIM
 
+    def _init_tokenizer(self):
+        # self.emb_tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
+        self.nlp = spacy.load("en")
+
     def _init_encoder(self):
-        self.emb_model = BertModel.from_pretrained(self.BERT_WEIGHTS)
-        self.emb_tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
+        # self.emb_model = BertModel.from_pretrained(self.BERT_WEIGHTS)
+        pass
 
     def metric(self, a, b):
         return F.cosine_similarity(a, b)
@@ -91,8 +97,8 @@ class SparseNet(pl.LightningModule):
     def loss(self, delta):
         return torch.log1p(torch.sum(torch.exp(delta)))
 
-    def embed(self, batch):
-        batch = self.emb_tokenizer.batch_encode_plus(
+    def embed_bert(self, batch):
+        batch_token_ids = self.emb_tokenizer.batch_encode_plus(
             batch,
             add_special_tokens=True,
             max_length=self.BERT_MAX_LENGTH,
@@ -101,10 +107,15 @@ class SparseNet(pl.LightningModule):
         )["input_ids"]
 
         with torch.no_grad():
-            last_hidden_states = self.emb_model(batch)[0]
+            last_hidden_states = self.emb_model(batch_token_ids)[0]
         IDX_CLS = 0
         return last_hidden_states[:, IDX_CLS, :]
         # return [emb_seq.squeeze()[IDX_CLS] for emb_seq in last_hidden_states]
+
+    def embed(self, batch):
+        with self.nlp.disable_pipes("tagger", "parser"):
+            docs = list(nlp.pipe(batch))
+            batch_token_ids = [[self.word2idx(w) for w in doc] for doc in docs]
 
     def forward(self, x):
         x = self.embed(x)
