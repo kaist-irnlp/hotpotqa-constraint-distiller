@@ -44,6 +44,40 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+class DiscEmbedding(nn.Module):
+    def __init__(self, embedding_path, ngram=3, normalize=True):
+        super().__init__()
+        # params
+        self.embedding_path = embedding_path
+        self.ngram = ngram
+        self.normalize = normalize
+        # modules
+        self.embeddings = None
+        self.word2idx = {}
+        # init
+        self._load_embeddings()
+
+    def forward(self, batch_text):
+        with self.nlp.disable_pipes("tagger", "parser"):
+            docs = self.nlp.pipe(batch_text)
+            batch_token_ids = [[self.word2idx(w) for w in doc] for doc in docs]
+        # DO n-gram embedding lookup for each sample (row)
+
+    def _init_tokenizer(self):
+        self.nlp = spacy.load("en")
+
+    def _load_embeddings(self):
+        # load
+        model = KeyedVectors.load(self.embedding_path)
+        vectors = model.vectors
+        # save
+        self.embeddings = nn.Embedding.from_pretrained(vectors, freeze=True)
+        self.word2idx = {w: idx for (idx, w) in enumerate(model.index2word)}
+        # clean
+        del model, vectors
+        gc.collect()
+
+
 class SparseNet(pl.LightningModule):
     BERT_WEIGHTS = "bert-base-uncased"
     BERT_DIM = 768
