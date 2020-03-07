@@ -100,9 +100,9 @@ class SparseNet(pl.LightningModule):
         # return [emb_seq.squeeze()[IDX_CLS] for emb_seq in last_hidden_states]
 
     def forward(self, x):
-        x = x.to(self.device)
         with torch.no_grad():
             x = self.embed(x)
+        x = x.to(self.device)
         x = self.linear_sdr(x)
         x = self.fc(x)
 
