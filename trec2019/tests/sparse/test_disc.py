@@ -11,6 +11,7 @@ EMBED_PATH = EMBED_DIR / "GoogleNews-vectors-negative300.gensim"
 
 class TestDiscEmbedding:
     def test_run(self):
+        # TODO: git@github.com:facebookresearch/SentEval.git
         model = DiscEmbedding(EMBED_PATH, ngram=3)
         texts = [
             "Jerry loves to eat a slice of cheese",
