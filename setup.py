@@ -22,6 +22,7 @@ setup(
         "textblob",
         "torchtext",
         "spacy",
+        "dask[complete]"
     ],
     packages=find_packages(),
 )

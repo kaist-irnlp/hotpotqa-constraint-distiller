@@ -13,7 +13,7 @@ from test_tube import Experiment
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 
-from trec2019.sparse.sparsenet import SparseNet
+from trec2019.model.sparsenet import SparseNet
 from trec2019.utils.encoder import BertEncoder
 
 cudnn.benchmark = True
