@@ -16,6 +16,8 @@ from argparse import ArgumentParser
 import pytorch_lightning as pl
 from test_tube import HyperOptArgumentParser
 import spacy
+from nltk.util import ngrams
+from textblob import TextBlob
 
 import logging
 from multiprocessing import cpu_count
@@ -34,7 +36,7 @@ from trec2019.utils.dataset import (
     TRECTripleBERTTokenizedDataset,
 )
 from trec2019.utils.encoder import BertEncoder
-from trec2019.sparse.sparsenet.helper import *
+from trec2019.model.sparsenet.helper import *
 from collections import OrderedDict
 
 logging.basicConfig(
@@ -48,7 +50,7 @@ class DiscEmbedding(nn.Module):
     def __init__(self, embedding_path, ngram=3, normalize=True):
         super().__init__()
         # params
-        self.embedding_path = embedding_path
+        self.embedding_path = str(embedding_path)
         self.ngram = ngram
         self.normalize = normalize
         # modules
@@ -58,10 +60,17 @@ class DiscEmbedding(nn.Module):
         self._load_embeddings()
 
     def forward(self, batch_text):
-        with self.nlp.disable_pipes("tagger", "parser"):
-            docs = self.nlp.pipe(batch_text)
-            batch_token_ids = [[self.word2idx(w) for w in doc] for doc in docs]
+        batch_embeddings = [self._embed(text) for text in batch_text]
+        # with self.nlp.disable_pipes("tagger", "parser"):
+        #     docs = self.nlp.pipe(batch_text)
+        # batch_token_ids = [[self.word2idx(w) for w in doc] for doc in docs]
         # DO n-gram embedding lookup for each sample (row)
+        # embeddings = self.embeddings(docs).view(1, -1)
+
+    def _embed(self, text):
+        blob = TextBlob(text)
+        for n in range(1, self.ngram + 1):
+            ngrams = blob.ngrams(n=n)
 
     def _init_tokenizer(self):
         self.nlp = spacy.load("en")
@@ -69,12 +78,13 @@ class DiscEmbedding(nn.Module):
     def _load_embeddings(self):
         # load
         model = KeyedVectors.load(self.embedding_path)
-        vectors = model.vectors
         # save
-        self.embeddings = nn.Embedding.from_pretrained(vectors, freeze=True)
+        self.embeddings = nn.Embedding.from_pretrained(
+            torch.tensor(model.vectors, dtype=torch.float32), freeze=True
+        )
         self.word2idx = {w: idx for (idx, w) in enumerate(model.index2word)}
         # clean
-        del model, vectors
+        del model
         gc.collect()
 
 
@@ -105,14 +115,6 @@ class SparseNet(pl.LightningModule):
             self.device = f"cuda:{gpu_idx}"
         else:
             self.device = "cpu"
-
-    def _load_embeddings(self):
-        model = KeyedVectors.load(self.hparams.embedding_path)
-        vectors = model.vectors
-        self.embeddings = nn.Embedding.from_pretrained(vectors, freeze=True)
-        self.word2idx = {w: idx for (idx, w) in enumerate(model.index2word)}
-        del model, vectors
-        gc.collect()
 
     def _get_input_dim(self):
         return self.EMB_DIM

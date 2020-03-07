@@ -10,3 +10,4 @@ gensim
 textblob
 torchtext
 spacy
+dask[complete]
