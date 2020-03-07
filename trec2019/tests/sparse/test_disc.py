@@ -18,4 +18,6 @@ class TestDiscEmbedding:
             "She works two jobs to make ends meet; at least, that was her reason for not having time to join us.",
         ]
         embeds = model(texts)
-        print(embeds)
+        for e in embeds:
+            print(e.shape)
+        assert False
