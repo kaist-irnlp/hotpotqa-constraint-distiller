@@ -50,21 +50,13 @@ logger = logging.getLogger(__name__)
 
 
 class SparseNet(pl.LightningModule):
-    BERT_WEIGHTS = "bert-base-uncased"
-    BERT_DIM = 768
-    BERT_MAX_LENGTH = 512
-
-    EMB_DIM = 300
-
     def __init__(self, hparams):
         super(SparseNet, self).__init__()
         self.hparams = hparams
         self.encoded = None
-        self._init_tokenizer()
-        self._init_encoder()
         self._load_dataset()
-        self._load_embeddings()
-        self.input_dim = self._get_input_dim()
+        self.dense = BowEmbedding(hparams.embedding_path)
+        self.input_dim = self.dense.get_dim()
 
         # network
         self._validate_network_params()
@@ -77,46 +69,17 @@ class SparseNet(pl.LightningModule):
         else:
             self.device = "cpu"
 
-    def _get_input_dim(self):
-        return self.EMB_DIM
-
-    def _init_tokenizer(self):
-        # self.emb_tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
-        self.nlp = spacy.load("en")
-
-    def _init_encoder(self):
-        # self.emb_model = BertModel.from_pretrained(self.BERT_WEIGHTS)
-        pass
-
     def metric(self, a, b):
         return F.cosine_similarity(a, b)
 
     def loss(self, delta):
         return torch.log1p(torch.sum(torch.exp(delta)))
 
-    def embed_bert(self, batch):
-        batch_token_ids = self.emb_tokenizer.batch_encode_plus(
-            batch,
-            add_special_tokens=True,
-            max_length=self.BERT_MAX_LENGTH,
-            pad_to_max_length="left",
-            return_tensors="pt",
-        )["input_ids"]
-
-        with torch.no_grad():
-            last_hidden_states = self.emb_model(batch_token_ids)[0]
-        IDX_CLS = 0
-        return last_hidden_states[:, IDX_CLS, :]
-        # return [emb_seq.squeeze()[IDX_CLS] for emb_seq in last_hidden_states]
-
-    def embed(self, batch):
-        with self.nlp.disable_pipes("tagger", "parser"):
-            docs = list(nlp.pipe(batch))
-            batch_token_ids = [[self.word2idx(w) for w in doc] for doc in docs]
-
     def forward(self, x):
-        x = self.embed(x)
+        # dense
+        x = self.dense(x)
         x = x.to(self.device)
+        # sparse
         x = self.linear_sdr(x)
         x = self.fc(x)
 
@@ -331,7 +294,6 @@ class SparseNet(pl.LightningModule):
     def _load_dataset(self):
         data_dir = Path(self.hparams.data_dir)
         dset_cls = TRECTripleDataset
-        # tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
         self._train_dataset = dset_cls(data_dir / "train.parquet")
         self._val_dataset = dset_cls(data_dir / "valid.parquet")
         self._test_dataset = dset_cls(data_dir / "test.parquet")

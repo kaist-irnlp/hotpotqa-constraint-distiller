@@ -1,10 +1,47 @@
 from textblob import TextBlob
+from transformers import BertModel
+from transformers import BertTokenizer
 import gensim
 from gensim.models.keyedvectors import KeyedVectors
 import torch
 from torch import nn
 from torch import tensor
 import gc
+import abc
+
+
+class BaseEmbedding(metaclass=abc.ABCMeta):
+    def __init__(self):
+        pass
+
+    @abc.abstractmethod
+    def get_dim(self):
+        pass
+
+
+class BertEmbedding(nn.Module):
+    def __init__(self, weights="bert-base-uncased", max_length=512):
+        self.max_length = max_length
+        self.model = BertModel.from_pretrained(self.BERT_WEIGHTS)
+        self.tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
+
+    def forward(self, batch_text):
+        batch_token_ids = self.tokenizer.batch_encode_plus(
+            batch_text,
+            add_special_tokens=True,
+            max_length=self.max_length,
+            pad_to_max_length="left",
+            return_tensors="pt",
+        )["input_ids"]
+
+        with torch.no_grad():
+            last_hidden_states = self.model(batch_token_ids)[0]
+
+        IDX_CLS = 0
+        return last_hidden_states[:, IDX_CLS, :]
+
+    def get_dim(self):
+        return self.model.config.hidden_size
 
 
 class BowEmbedding(nn.Module):
@@ -21,6 +58,9 @@ class BowEmbedding(nn.Module):
     def forward(self, batch_text):
         batch_embeddings = [self._embed(text) for text in batch_text]
         return batch_embeddings
+
+    def get_dim(self):
+        return self.emb_dim
 
     def _embed(self, text):
         blob = TextBlob(text).lower()
@@ -67,6 +107,9 @@ class DiscEmbedding(nn.Module):
         # batch_token_ids = [[self.word2idx(w) for w in doc] for doc in docs]
         # DO n-gram embedding lookup for each sample (row)
         # embeddings = self.embeddings(docs).view(1, -1)
+
+    def get_dim(self):
+        return self.emb_dim
 
     def _embed(self, text):
         blob = TextBlob(text).lower()
