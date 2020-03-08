@@ -9,6 +9,8 @@ from torch import tensor
 import gc
 import abc
 
+DTYPE_FLOAT = torch.float32
+
 
 class BaseEmbedding(metaclass=abc.ABCMeta):
     def __init__(self):
@@ -56,7 +58,7 @@ class BowEmbedding(nn.Module):
         self._load_embeddings()
 
     def forward(self, batch_text):
-        batch_embeddings = [self._embed(text) for text in batch_text]
+        batch_embeddings = torch.stack([self._embed(text) for text in batch_text])
         return batch_embeddings
 
     def get_dim(self):
@@ -100,7 +102,7 @@ class DiscEmbedding(nn.Module):
         self._load_embeddings()
 
     def forward(self, batch_text):
-        batch_embeddings = [self._embed(text) for text in batch_text]
+        batch_embeddings = torch.stack([self._embed(text) for text in batch_text])
         return batch_embeddings
         # with self.nlp.disable_pipes("tagger", "parser"):
         #     docs = self.nlp.pipe(batch_text)
