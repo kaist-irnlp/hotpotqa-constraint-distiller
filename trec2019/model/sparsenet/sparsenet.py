@@ -32,12 +32,9 @@ from gensim.models.keyedvectors import KeyedVectors
 import numpy as np
 
 from trec2019.utils.dataset import (
-    TRECTripleBERTDataset,
-    TRECTripleEmbeddingDataset,
     TRECTripleDataset,
     TRECTripleBERTTokenizedDataset,
 )
-from trec2019.utils.encoder import BertEncoder
 from trec2019.model.sparsenet.helper import *
 from trec2019.utils.dense import *
 from collections import OrderedDict
@@ -69,7 +66,7 @@ class SparseNet(pl.LightningModule):
         else:
             self.device = "cpu"
 
-    def metric(self, a, b):
+    def distance(self, a, b):
         return F.cosine_similarity(a, b)
 
     def loss(self, delta):

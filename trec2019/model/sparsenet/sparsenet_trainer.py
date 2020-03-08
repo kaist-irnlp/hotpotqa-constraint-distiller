@@ -14,7 +14,6 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 
 from trec2019.model.sparsenet import SparseNet
-from trec2019.utils.encoder import BertEncoder
 
 cudnn.benchmark = True
 root_dir = str(Path(__file__).parent.absolute())

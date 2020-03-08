@@ -6,7 +6,6 @@ from pathlib import Path
 from torch.utils.data import Dataset, ConcatDataset, IterableDataset, DataLoader
 import h5py
 import numpy as np
-from trec2019.utils.encoder import BertEncoder
 from transformers import BertTokenizer
 
 
@@ -56,28 +55,6 @@ class TRECTripleBERTTokenizedDataset(TRECTripleDataset):
         tokenized["doc_pos"] = self._tokenize_doc(sample["doc_pos"])
         tokenized["doc_neg"] = self._tokenize_doc(sample["doc_neg"])
         return tokenized
-
-
-class TRECTripleEmbeddingDataset(TRECTripleDataset):
-    def __init__(self, data_path, encoder):
-        super().__init__(data_path)
-        self.encoder = encoder
-
-    def __getitem__(self, index):
-        # return a sample
-        sample = super().__getitem__(index)
-        for fld in ["query", "doc_pos", "doc_neg"]:
-            sample[fld] = self.encoder.encode(sample[fld])
-        return sample
-
-    def get_dim(self):
-        return self.encoder.get_dim()
-
-
-class TRECTripleBERTDataset(TRECTripleEmbeddingDataset):
-    def __init__(self, data_path):
-        encoder = BertEncoder()
-        super().__init__(data_path, encoder)
 
 
 class TRECTripleIdDataset(Dataset):
