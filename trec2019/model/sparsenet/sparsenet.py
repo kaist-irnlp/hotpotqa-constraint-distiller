@@ -81,7 +81,7 @@ class SparseNet(pl.LightningModule):
         x = x.to(self.device)
         # sparse
         x = self.linear_sdr(x)
-        x = self.fc(x)
+        # x = self.fc(x)
 
         if self.training:
             batch_size = x.shape[0]
@@ -164,7 +164,7 @@ class SparseNet(pl.LightningModule):
 
         # Linear layers only (from original code)
         input_features = self.input_dim
-        output_size = self.input_dim
+        # output_size = self.input_dim
         n = self.hparams.n
         k = self.hparams.k
         normalize_weights = self.hparams.normalize_weights
@@ -210,7 +210,7 @@ class SparseNet(pl.LightningModule):
                 input_features = n[i]
 
         # Add one fully connected layer after all hidden layers
-        self.fc = nn.Linear(input_features, output_size)
+        # self.fc = nn.Linear(input_features, output_size)
 
     def on_epoch_end(self):
         self.apply(updateBoostStrength)
