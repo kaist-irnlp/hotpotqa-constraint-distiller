@@ -21,6 +21,7 @@ class TRECTripleDataset(Dataset):
     def __getitem__(self, index):
         # return a sample
         sample = self.data.iloc[index].to_dict()
+        sample["index"] = index
         # for k, v in sample.items():
         #     blob = TextBlob(v)
         #     if self.lower:
