@@ -7,12 +7,14 @@ from torch.utils.data import Dataset, ConcatDataset, IterableDataset, DataLoader
 import h5py
 import numpy as np
 from transformers import BertTokenizer
+from textblob import TextBlob
 
 
 class TRECTripleDataset(Dataset):
-    def __init__(self, data_path):
+    def __init__(self, data_path, lower=True):
         super().__init__()
         self.data = pd.read_parquet(data_path)
+        self.lower = lower
 
     def __len__(self):
         return len(self.data)
@@ -21,7 +23,10 @@ class TRECTripleDataset(Dataset):
         # return a sample
         sample = self.data.iloc[index].to_dict()
         for k, v in sample.items():
-            sample[k] = torch.from_numpy(v)
+            blob = TextBlob(v)
+            if self.lower:
+                blob = blob.lower()
+            sample[k] = torch.from_numpy(np.array(blob.tokens, dtype="object"))
         return sample
 
 

@@ -66,7 +66,7 @@ class BowEmbedding(nn.Module):
         return self.emb_dim
 
     def _embed(self, text):
-        blob = TextBlob(text).lower()
+        blob = TextBlob(text).lower()/
         ids = [self.word2idx.get(w, -1) for w in blob.tokens]
         ids = tensor([i for i in ids if i != -1]).type_as(self.embeddings.weight).long()
         embs = self.embeddings(ids)
