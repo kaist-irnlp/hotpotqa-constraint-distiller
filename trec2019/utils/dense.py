@@ -15,9 +15,10 @@ FLOAT = torch.float32
 
 class BertEmbedding(nn.Module):
     def __init__(self, weights="bert-base-uncased", max_length=512):
+        super().__init__()
         self.max_length = max_length
-        self.model = BertModel.from_pretrained(self.BERT_WEIGHTS)
-        self.tokenizer = BertTokenizer.from_pretrained(self.BERT_WEIGHTS)
+        self.model = BertModel.from_pretrained(weights)
+        self.tokenizer = BertTokenizer.from_pretrained(weights)
 
     def forward(self, batch_text):
         batch_token_ids = self.tokenizer.batch_encode_plus(
@@ -53,6 +54,12 @@ class BasePretrainedEmbedding(nn.Module):
     def get_dim(self):
         raise NotImplementedError
 
+    def _tokenize(self, text):
+        raise NotImplementedError
+
+    def _embed(self, text):
+        raise NotImplementedError
+
     def _init_embeddings(self):
         # load
         model = KeyedVectors.load(self.embedding_path)
@@ -73,16 +80,22 @@ class BowEmbedding(BasePretrainedEmbedding):
     def __init__(self, embedding_path):
         super().__init__(embedding_path)
 
-    def forward(self, batch_tokens):
-        batch_embeddings = torch.stack([self._embed(tokens) for tokens in batch_tokens])
+    def forward(self, batch_text):
+        batch_embeddings = torch.stack([self._embed(text) for text in batch_text])
         return batch_embeddings
 
     def get_dim(self):
         return self.emb_dim
 
-    def _embed(self, tokens):
+    def _tokenize(self, text):
+        return list(TextBlob(text).lower().tokens)
+
+    def _embed(self, text):
+        tokens = self._tokenize(text)
         ids = [self.word2idx.get(w, -1) for w in tokens]
-        ids = tensor([i for i in ids if i != -1]).to(self.embeddings.weight.device)
+        ids = (
+            tensor([i for i in ids if i >= 0]).long().to(self.embeddings.weight.device)
+        )
         embs = self.embeddings(ids)
         return torch.mean(embs, 0)
 
@@ -128,22 +141,3 @@ class DiscEmbedding(nn.Module):
             # out[ngram_range] = ngrams_emb
             out[self.emb_dim * (n - 1) : self.emb_dim * n] = ngrams_emb / n
         return out
-
-    def _init_tokenizer(self):
-        self.nlp = spacy.load("en")
-
-    def _load_embeddings(self):
-        # load
-        model = KeyedVectors.load(self.embedding_path)
-        # save
-        self.embeddings = nn.Embedding.from_pretrained(
-            tensor(model.vectors, dtype=FLOAT), freeze=True
-        )
-        self.vocab_size = self.embeddings.num_embeddings
-        self.emb_dim = self.embeddings.embedding_dim
-        self.word2idx = {w: idx for (idx, w) in enumerate(model.index2word)}
-        self.idx2word = model.index2word
-        # clean
-        del model
-        gc.collect()
-
