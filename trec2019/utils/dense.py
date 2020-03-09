@@ -48,7 +48,7 @@ class BasePretrainedEmbedding(nn.Module):
         self.idx2word = []
         # init
         self._init_embeddings()
-        self.device = self.embeddings.weight.device
+        # self.device = self.embeddings.weight.device
 
     def get_dim(self):
         raise NotImplementedError
@@ -82,7 +82,7 @@ class BowEmbedding(BasePretrainedEmbedding):
 
     def _embed(self, tokens):
         ids = [self.word2idx.get(w, -1) for w in tokens]
-        ids = tensor([i for i in ids if i != -1]).to(self.device)
+        ids = tensor([i for i in ids if i != -1]).to(self.embeddings.weight.device)
         embs = self.embeddings(ids)
         return torch.mean(embs, 0)
 
