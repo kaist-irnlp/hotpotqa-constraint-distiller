@@ -6,15 +6,22 @@ from pathlib import Path
 from torch.utils.data import Dataset, ConcatDataset, IterableDataset, DataLoader
 import h5py
 import numpy as np
+from gensim.models import KeyedVectors
 from transformers import BertTokenizer
 from textblob import TextBlob
+import gc
 
 
-class TRECTripleDataset(Dataset):
-    def __init__(self, data_path, lower=True):
+class TRECTripleEmbeddingDataset(Dataset):
+    def __init__(self, data_path, emb_model, lower=True):
         super().__init__()
         self.data = pd.read_parquet(data_path)
         self.lower = lower
+        # emb
+        self.emb_model = emb_model
+        self.word2idx = {w: idx for (idx, w) in enumerate(self.emb_model.index2word)}
+        self.idx2word = self.emb_model.index2word
+        self.emb_dim = self.emb_model.vector_size
 
     def __len__(self):
         return len(self.data)
@@ -26,7 +33,15 @@ class TRECTripleDataset(Dataset):
             blob = TextBlob(v)
             if self.lower:
                 blob = blob.lower()
-            sample[k] = torch.from_numpy(np.array(blob.tokens, dtype="object"))
+            sample[k] = np.array(
+                list(
+                    filter(
+                        lambda i: i >= 0,
+                        [self.word2idx.get(w, -1) for w in blob.tokens],
+                    )
+                ),
+                dtype=np.int32,
+            )
         return sample
 
 

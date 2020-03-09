@@ -48,33 +48,32 @@ class BertEmbedding(nn.Module):
 
 
 class BowEmbedding(nn.Module):
-    def __init__(self, embedding_path):
+    def __init__(self, emb_model):
         super().__init__()
-        self.embedding_path = str(embedding_path)
+        self.emb_model = emb_model
         # modules
         self.embeddings = None
         self.word2idx = {}
         self.idx2word = []
         # init
-        self._load_embeddings()
+        self._init_embeddings()
 
-    def forward(self, batch_text):
-        batch_embeddings = torch.stack([self._embed(text) for text in batch_text])
+    def forward(self, batch_tokens):
+        batch_embeddings = torch.stack([self._embed(tokens) for tokens in batch_tokens])
         return batch_embeddings
 
     def get_dim(self):
         return self.emb_dim
 
-    def _embed(self, text):
-        blob = TextBlob(text).lower()/
-        ids = [self.word2idx.get(w, -1) for w in blob.tokens]
+    def _embed(self, tokens):
+        ids = [self.word2idx.get(w, -1) for w in tokens]
         ids = tensor([i for i in ids if i != -1]).type_as(self.embeddings.weight).long()
         embs = self.embeddings(ids)
         return torch.mean(embs, 0)
 
-    def _load_embeddings(self):
+    def _init_embeddings(self):
         # load
-        model = KeyedVectors.load(self.embedding_path)
+        model = self.emb_model
         # save
         self.embeddings = nn.Embedding.from_pretrained(
             tensor(model.vectors, dtype=FLOAT), freeze=True
@@ -83,9 +82,6 @@ class BowEmbedding(nn.Module):
         self.emb_dim = self.embeddings.embedding_dim
         self.word2idx = {w: idx for (idx, w) in enumerate(model.index2word)}
         self.idx2word = model.index2word
-        # clean
-        del model
-        gc.collect()
 
 
 class DiscEmbedding(nn.Module):
