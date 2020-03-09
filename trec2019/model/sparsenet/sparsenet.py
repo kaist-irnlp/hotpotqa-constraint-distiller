@@ -31,10 +31,7 @@ import gensim
 from gensim.models.keyedvectors import KeyedVectors
 import numpy as np
 
-from trec2019.utils.dataset import (
-    TRECTripleDataset,
-    TRECTripleBERTTokenizedDataset,
-)
+from trec2019.utils.dataset import TRECTripleDataset
 from trec2019.model.sparsenet.helper import *
 from trec2019.utils.dense import *
 from collections import OrderedDict
@@ -74,8 +71,9 @@ class SparseNet(pl.LightningModule):
 
     def forward(self, x):
         # dense
-        x = self.dense(x)
-        x = x.to(self.device)
+        with torch.no_grad():
+            x = self.dense(x).type_as(x.type())
+        # x = x.to(self.device)
         # sparse
         x = self.linear_sdr(x)
         # x = self.fc(x)
@@ -209,6 +207,11 @@ class SparseNet(pl.LightningModule):
         # Add one fully connected layer after all hidden layers
         # self.fc = nn.Linear(input_features, output_size)
 
+        # if useSoftmax:
+        #     self.softmax = nn.LogSoftmax(dim=1)
+        # else:
+        #     self.softmax = None
+
     def on_epoch_end(self):
         self.apply(updateBoostStrength)
         self.apply(rezeroWeights)
@@ -302,13 +305,13 @@ class SparseNet(pl.LightningModule):
         return [optimizer], [scheduler]
 
     def _get_dataloader(self, dataset, test=False):
-        dist_sampler = DistributedSampler(dataset) if self.use_ddp else None
+        # dist_sampler = DistributedSampler(dataset) if self.use_ddp else None
         batch_size = self.hparams.batch_size if not test else 100000
-        # num_workers = int(cpu_count() / 4) or 1
-        num_workers = 0
+        num_workers = int(cpu_count() / 4) or 1
+        # num_workers = 0
         return DataLoader(
             dataset,
-            sampler=dist_sampler,
+            # sampler=dist_sampler,
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=True,
