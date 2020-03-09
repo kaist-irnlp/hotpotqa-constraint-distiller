@@ -8,6 +8,7 @@ from torch import nn
 from torch import tensor
 import gc
 import abc
+import numpy as np
 
 DTYPE_FLOAT = torch.float32
 
@@ -117,16 +118,23 @@ class DiscEmbedding(nn.Module):
         blob = TextBlob(text).lower()
         out_dim = self.emb_dim * self.ngram
         out = torch.zeros(out_dim)
+        scaling = np.sqrt(self.emb_dim)
         for n in range(1, self.ngram + 1):
             ngrams = blob.ngrams(n=n)
             ngrams_emb = torch.zeros(self.emb_dim)
             for i, ng in enumerate(ngrams):
-                ng_ids = [self.word2idx.get(w, -1) for w in ng]
-                ng_ids = tensor([i for i in ng_ids if i != -1], dtype=torch.long)
+                ng_ids = tensor(
+                    list(
+                        filter(
+                            lambda i: i != -1, [self.word2idx.get(w, -1) for w in ng]
+                        )
+                    ),
+                    dtype=torch.long,
+                )
                 ng_embs = self.embeddings(ng_ids)
-                ngrams_emb += torch.prod(ng_embs, 0)
+                ngrams_emb += torch.prod(ng_embs, 0) * (scaling ** (len(ng_ids) - 1))
             # out[ngram_range] = ngrams_emb
-            out[self.emb_dim * (n - 1) : self.emb_dim * n] = ngrams_emb / (i + 1)
+            out[self.emb_dim * (n - 1) : self.emb_dim * n] = ngrams_emb / n
         return out
 
     def _init_tokenizer(self):
