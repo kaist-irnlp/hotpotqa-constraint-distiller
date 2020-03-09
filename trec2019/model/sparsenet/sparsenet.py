@@ -31,7 +31,7 @@ import gensim
 from gensim.models.keyedvectors import KeyedVectors
 import numpy as np
 
-from trec2019.utils.dataset import TRECTripleEmbeddingDataset
+from trec2019.utils.dataset import TRECTripleDataset
 from trec2019.model.sparsenet.helper import *
 from trec2019.utils.dense import *
 from collections import OrderedDict
@@ -48,8 +48,7 @@ class SparseNet(pl.LightningModule):
         super(SparseNet, self).__init__()
         self.hparams = hparams
         self.encoded = None
-        self.emb_model = KeyedVectors.load(hparams.embedding_path)
-        self.dense = BowEmbedding(self.emb_model)
+        self.dense = BowEmbedding(self.hparams.embedding_path)
         self.input_dim = self.dense.get_dim()
 
         # dataset
@@ -58,13 +57,6 @@ class SparseNet(pl.LightningModule):
         # network
         self._validate_network_params()
         self._init_network()
-
-        # GPU
-        if torch.cuda.is_available():
-            gpu_idx = torch.cuda.current_device()
-            self.device = f"cuda:{gpu_idx}"
-        else:
-            self.device = "cpu"
 
     def distance(self, a, b):
         return F.cosine_similarity(a, b)
@@ -296,10 +288,10 @@ class SparseNet(pl.LightningModule):
 
     def _load_dataset(self):
         data_dir = Path(self.hparams.data_dir)
-        dset_cls = TRECTripleEmbeddingDataset
-        self._train_dataset = dset_cls(data_dir / "train.parquet", self.emb_model)
-        self._val_dataset = dset_cls(data_dir / "valid.parquet", self.emb_model)
-        self._test_dataset = dset_cls(data_dir / "test.parquet", self.emb_model)
+        dset_cls = TRECTripleDataset
+        self._train_dataset = dset_cls(data_dir / "train.parquet")
+        self._val_dataset = dset_cls(data_dir / "valid.parquet")
+        self._test_dataset = dset_cls(data_dir / "test.parquet")
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers

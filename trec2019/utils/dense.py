@@ -13,15 +13,6 @@ import numpy as np
 FLOAT = torch.float32
 
 
-class BaseEmbedding(metaclass=abc.ABCMeta):
-    def __init__(self):
-        pass
-
-    @abc.abstractmethod
-    def get_dim(self):
-        pass
-
-
 class BertEmbedding(nn.Module):
     def __init__(self, weights="bert-base-uncased", max_length=512):
         self.max_length = max_length
@@ -47,16 +38,40 @@ class BertEmbedding(nn.Module):
         return self.model.config.hidden_size
 
 
-class BowEmbedding(nn.Module):
-    def __init__(self, emb_model):
+class BasePretrainedEmbedding(nn.Module):
+    def __init__(self, embedding_path):
         super().__init__()
-        self.emb_model = emb_model
+        self.embedding_path = str(embedding_path)
         # modules
         self.embeddings = None
         self.word2idx = {}
         self.idx2word = []
         # init
         self._init_embeddings()
+        self.device = self.embeddings.weight.device
+
+    def get_dim(self):
+        raise NotImplementedError
+
+    def _init_embeddings(self):
+        # load
+        model = KeyedVectors.load(self.embedding_path)
+        # save
+        self.embeddings = nn.Embedding.from_pretrained(
+            tensor(model.vectors, dtype=FLOAT), freeze=True
+        )
+        self.vocab_size = self.embeddings.num_embeddings
+        self.emb_dim = self.embeddings.embedding_dim
+        self.word2idx = {w: idx for (idx, w) in enumerate(model.index2word)}
+        self.idx2word = model.index2word
+        # clean
+        del model
+        gc.collect()
+
+
+class BowEmbedding(BasePretrainedEmbedding):
+    def __init__(self, embedding_path):
+        super().__init__(embedding_path)
 
     def forward(self, batch_tokens):
         batch_embeddings = torch.stack([self._embed(tokens) for tokens in batch_tokens])
@@ -67,36 +82,17 @@ class BowEmbedding(nn.Module):
 
     def _embed(self, tokens):
         ids = [self.word2idx.get(w, -1) for w in tokens]
-        ids = tensor([i for i in ids if i != -1]).type_as(self.embeddings.weight).long()
+        ids = tensor([i for i in ids if i != -1]).to(self.device)
         embs = self.embeddings(ids)
         return torch.mean(embs, 0)
-
-    def _init_embeddings(self):
-        # load
-        model = self.emb_model
-        # save
-        self.embeddings = nn.Embedding.from_pretrained(
-            tensor(model.vectors, dtype=FLOAT), freeze=True
-        )
-        self.vocab_size = self.embeddings.num_embeddings
-        self.emb_dim = self.embeddings.embedding_dim
-        self.word2idx = {w: idx for (idx, w) in enumerate(model.index2word)}
-        self.idx2word = model.index2word
 
 
 class DiscEmbedding(nn.Module):
     def __init__(self, embedding_path, ngram=3, normalize=True):
-        super().__init__()
+        super().__init__(embedding_path)
         # params
-        self.embedding_path = str(embedding_path)
         self.ngram = ngram
         self.normalize = normalize
-        # modules
-        self.embeddings = None
-        self.word2idx = {}
-        self.idx2word = []
-        # init
-        self._load_embeddings()
 
     def forward(self, batch_text):
         batch_embeddings = torch.stack([self._embed(text) for text in batch_text])
@@ -113,11 +109,11 @@ class DiscEmbedding(nn.Module):
     def _embed(self, text):
         blob = TextBlob(text).lower()
         out_dim = self.emb_dim * self.ngram
-        out = torch.zeros(out_dim, device=DEVICE)
+        out = torch.zeros(out_dim)
         scaling = np.sqrt(self.emb_dim)
         for n in range(1, self.ngram + 1):
             ngrams = blob.ngrams(n=n)
-            ngrams_emb = torch.zeros(self.emb_dim, device=DEVICE)
+            ngrams_emb = torch.zeros(self.emb_dim)
             for i, ng in enumerate(ngrams):
                 ng_ids = tensor(
                     list(
@@ -126,7 +122,6 @@ class DiscEmbedding(nn.Module):
                         )
                     ),
                     dtype=torch.long,
-                    device=DEVICE,
                 )
                 ng_embs = self.embeddings(ng_ids)
                 ngrams_emb += torch.prod(ng_embs, 0) * (scaling ** (len(ng_ids) - 1))
