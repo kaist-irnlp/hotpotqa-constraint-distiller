@@ -11,10 +11,9 @@ import gc
 
 
 class TRECTripleDataset(Dataset):
-    def __init__(self, data_path, lower=True):
+    def __init__(self, data_path):
         super().__init__()
         self.data = pd.read_parquet(data_path)
-        self.lower = lower
 
     def __len__(self):
         return len(self.data)

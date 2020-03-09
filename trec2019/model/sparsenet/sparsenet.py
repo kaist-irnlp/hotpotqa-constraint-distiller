@@ -48,7 +48,8 @@ class SparseNet(pl.LightningModule):
         super(SparseNet, self).__init__()
         self.hparams = hparams
         self.encoded = None
-        self.dense = BowEmbedding(self.hparams.embedding_path)
+        # self.dense = BowEmbedding(self.hparams.embedding_path)
+        self.dense = BertEmbedding()
         self.input_dim = self.dense.get_dim()
 
         # dataset

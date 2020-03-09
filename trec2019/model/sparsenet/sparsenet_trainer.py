@@ -68,14 +68,14 @@ if __name__ == "__main__":
     parser = SparseNet.add_model_specific_args(parser)
 
     # searchable params
-    parser.opt_list("--n", type=int, tunable=True, options=[8000, 10000])
-    parser.opt_list("--k", type=int, tunable=True, options=[30, 60, 120, 240, 300])
+    parser.opt_list("--n", type=int, tunable=True, options=[10000])
+    parser.opt_list("--k", type=int, tunable=True, options=[200, 300])
     parser.opt_list("--batch_size", type=int, tunable=True, options=[64])
 
     # parse params
     hparams = parser.parse_args()
 
     # run trials of random search over the hyperparams
-    N_TRIALS = 1
+    N_TRIALS = 3
     for hparam_trial in hparams.trials(N_TRIALS):
         main(hparam_trial)
