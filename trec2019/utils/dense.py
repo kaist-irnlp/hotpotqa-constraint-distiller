@@ -10,7 +10,7 @@ import gc
 import abc
 import numpy as np
 
-DTYPE_FLOAT = torch.float32
+FLOAT = torch.float32
 
 
 class BaseEmbedding(metaclass=abc.ABCMeta):
@@ -68,7 +68,7 @@ class BowEmbedding(nn.Module):
     def _embed(self, text):
         blob = TextBlob(text).lower()
         ids = [self.word2idx.get(w, -1) for w in blob.tokens]
-        ids = tensor([i for i in ids if i != -1], dtype=torch.long)
+        ids = tensor([i for i in ids if i != -1]).type_as(self.embeddings.weight).long()
         embs = self.embeddings(ids)
         return torch.mean(embs, 0)
 
@@ -77,7 +77,7 @@ class BowEmbedding(nn.Module):
         model = KeyedVectors.load(self.embedding_path)
         # save
         self.embeddings = nn.Embedding.from_pretrained(
-            tensor(model.vectors, dtype=torch.float32), freeze=True
+            tensor(model.vectors, dtype=FLOAT), freeze=True
         )
         self.vocab_size = self.embeddings.num_embeddings
         self.emb_dim = self.embeddings.embedding_dim
@@ -112,16 +112,16 @@ class DiscEmbedding(nn.Module):
         # embeddings = self.embeddings(docs).view(1, -1)
 
     def get_dim(self):
-        return self.emb_dim
+        return self.emb_dim * self.ngram
 
     def _embed(self, text):
         blob = TextBlob(text).lower()
         out_dim = self.emb_dim * self.ngram
-        out = torch.zeros(out_dim)
+        out = torch.zeros(out_dim, device=DEVICE)
         scaling = np.sqrt(self.emb_dim)
         for n in range(1, self.ngram + 1):
             ngrams = blob.ngrams(n=n)
-            ngrams_emb = torch.zeros(self.emb_dim)
+            ngrams_emb = torch.zeros(self.emb_dim, device=DEVICE)
             for i, ng in enumerate(ngrams):
                 ng_ids = tensor(
                     list(
@@ -130,6 +130,7 @@ class DiscEmbedding(nn.Module):
                         )
                     ),
                     dtype=torch.long,
+                    device=DEVICE,
                 )
                 ng_embs = self.embeddings(ng_ids)
                 ngrams_emb += torch.prod(ng_embs, 0) * (scaling ** (len(ng_ids) - 1))
@@ -145,7 +146,7 @@ class DiscEmbedding(nn.Module):
         model = KeyedVectors.load(self.embedding_path)
         # save
         self.embeddings = nn.Embedding.from_pretrained(
-            tensor(model.vectors, dtype=torch.float32), freeze=True
+            tensor(model.vectors, dtype=FLOAT), freeze=True
         )
         self.vocab_size = self.embeddings.num_embeddings
         self.emb_dim = self.embeddings.embedding_dim
