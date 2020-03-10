@@ -50,7 +50,6 @@ class SparseNet(pl.LightningModule):
         self.encoded = None
         self.dense = BowEmbedding(self.hparams.embedding_path)
         # self.dense = BertEmbedding()
-        self.input_dim = self.dense.get_dim()
 
         # network
         self._validate_network_params()
@@ -78,20 +77,20 @@ class SparseNet(pl.LightningModule):
             recovered_doc_neg,
         ) = out
 
-        # 1. triplet loss
-        distance_p = self.distance(sparse_query, sparse_doc_pos)
-        distance_n = self.distance(sparse_query, sparse_doc_neg)
-        delta = distance_n - distance_p
-        loss_triplet_val = self.loss_triplet(delta)
-
-        # 2. recovery loss
+        # recovery loss
         loss_recovery_val = (
             self.loss_recovery(recovered_query, dense_query)
             + self.loss_recovery(recovered_doc_pos, dense_doc_pos)
             + self.loss_recovery(recovered_doc_neg, dense_doc_neg)
         )
 
-        # triplet + recovery
+        # triplet loss
+        distance_p = self.distance(recovered_query, recovered_doc_pos)
+        distance_n = self.distance(recovered_query, recovered_doc_neg)
+        delta = distance_n - distance_p
+        loss_triplet_val = self.loss_triplet(delta)
+
+        # loss = triplet + recovery
         return loss_triplet_val + loss_recovery_val
 
     def forward(self, query, doc_pos, doc_neg):
@@ -200,15 +199,15 @@ class SparseNet(pl.LightningModule):
         # Linear layers only (from original code)
         input_features = self.input_dim
         output_size = self.input_dim
-        n = self.hparams.n
-        k = self.hparams.k
+        n = self.n
+        k = self.k
         normalize_weights = self.hparams.normalize_weights
-        weight_sparsity = self.hparams.weight_sparsity
+        weight_sparsity = self.weightSparsity
         use_batch_norm = self.hparams.use_batch_norm
         dropout = self.hparams.dropout
-        k_inference_factor = self.hparams.k_inference_factor
-        boost_strength = self.hparams.boost_strength
-        boost_strength_factor = self.hparams.boost_strength_factor
+        k_inference_factor = self.kInferenceFactor
+        boost_strength = self.boostStrength
+        boost_strength_factor = self.boostStrengthFactor
 
         self.linear_sdr = nn.Sequential()
         for i in range(len(n)):
@@ -328,8 +327,21 @@ class SparseNet(pl.LightningModule):
         assert len(hparams.n) == len(hparams.weight_sparsity)
         for i in range(len(hparams.weight_sparsity)):
             assert hparams.weight_sparsity[i] >= 0
+
         # DEBUG
         print(vars(hparams))
+
+        # assign
+        self.input_dim = self.dense.get_dim()
+        self.k = hparams.k
+        self.kInferenceFactor = hparams.k_inference_factor
+        self.n = hparams.n
+        self.weightSparsity = (
+            hparams.weight_sparsity
+        )  # Pct of weights that are non-zero
+        self.boostStrengthFactor = hparams.boost_strength_factor
+        self.boostStrength = hparams.boost_strength
+        self.learning_iterations = 0
 
     def prepare_data(self):
         data_dir = Path(self.hparams.data_dir)
