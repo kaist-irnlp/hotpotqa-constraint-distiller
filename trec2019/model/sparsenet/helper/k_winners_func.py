@@ -24,9 +24,8 @@ from __future__ import print_function
 import torch
 
 
-
 class k_winners(torch.autograd.Function):
-  """
+    """
   A simple K-winner take all autograd function for creating layers with sparse
   output.
 
@@ -35,10 +34,9 @@ class k_winners(torch.autograd.Function):
       https://github.com/jcjohnson/pytorch-examples
   """
 
-
-  @staticmethod
-  def forward(ctx, x, dutyCycles, k, boostStrength):
-    """
+    @staticmethod
+    def forward(ctx, x, dutyCycles, k, boostStrength):
+        """
     Use the boost strength to compute a boost factor for each unit represented
     in x. These factors are used to increase the impact of each unit to improve
     their chances of being chosen. This encourages participation of more columns
@@ -93,55 +91,52 @@ class k_winners(torch.autograd.Function):
     :return: 
       A tensor representing the activity of x after k-winner take all.
     """
-    if boostStrength > 0.0:
-      targetDensity = float(k) / x.size(1)
-      boostFactors = torch.exp((targetDensity - dutyCycles) * boostStrength)
-      boosted = x.detach() * boostFactors
-    else:
-      boosted = x.detach()
+        if boostStrength > 0.0:
+            targetDensity = float(k) / x.size(1)
+            boostFactors = torch.exp((targetDensity - dutyCycles) * boostStrength)
+            boosted = x.detach() * boostFactors
+        else:
+            boosted = x.detach()
 
-    # Take the boosted version of the input x, find the top k winners.
-    # Compute an output that contains the values of x corresponding to the top k
-    # boosted values
-    res = torch.zeros_like(x)
-    topk, indices = boosted.topk(k, sorted=False)
-    for i in range(x.shape[0]):
-      res[i, indices[i]] = x[i, indices[i]]
+        # Take the boosted version of the input x, find the top k winners.
+        # Compute an output that contains the values of x corresponding to the top k
+        # boosted values
+        res = torch.zeros_like(x)
+        topk, indices = boosted.topk(k, sorted=False)
+        for i in range(x.shape[0]):
+            res[i, indices[i]] = x[i, indices[i]]
 
-    ctx.save_for_backward(indices)
-    return res
+        ctx.save_for_backward(indices)
+        return res
 
-
-  @staticmethod
-  def backward(ctx, grad_output):
-    """
+    @staticmethod
+    def backward(ctx, grad_output):
+        """
     In the backward pass, we set the gradient to 1 for the winning units, and 0
     for the others.
     """
-    indices, = ctx.saved_tensors
-    grad_x = torch.zeros_like(grad_output, requires_grad=True)
+        (indices,) = ctx.saved_tensors
+        grad_x = torch.zeros_like(grad_output, requires_grad=True)
 
-    # Probably a better way to do it, but this is not terrible as it only loops
-    # over the batch size.
-    for i in range(grad_output.size(0)):
-      grad_x[i, indices[i]] = grad_output[i, indices[i]]
+        # Probably a better way to do it, but this is not terrible as it only loops
+        # over the batch size.
+        for i in range(grad_output.size(0)):
+            grad_x[i, indices[i]] = grad_output[i, indices[i]]
 
-    return grad_x, None, None, None
-
+        return grad_x, None, None, None
 
 
 class k_winners2d(torch.autograd.Function):
-  """
+    """
   A K-winner take all autograd function for CNN 2D inputs (batch, Channel, H, W).
 
   .. seealso::
        Function :class:`k_winners`
   """
 
-
-  @staticmethod
-  def forward(ctx, x, dutyCycles, k, boostStrength):
-    """
+    @staticmethod
+    def forward(ctx, x, dutyCycles, k, boostStrength):
+        """
     Use the boost strength to compute a boost factor for each unit represented
     in x. These factors are used to increase the impact of each unit to improve
     their chances of being chosen. This encourages participation of more columns
@@ -167,40 +162,40 @@ class k_winners2d(torch.autograd.Function):
     :return:
       A tensor representing the activity of x after k-winner take all.
     """
-    batchSize = x.shape[0]
-    if boostStrength > 0.0:
-      targetDensity = float(k) / (x.shape[1] * x.shape[2] * x.shape[3])
-      boostFactors = torch.exp((targetDensity - dutyCycles) * boostStrength)
-      boosted = x.detach() * boostFactors
-    else:
-      boosted = x.detach()
+        batchSize = x.shape[0]
+        if boostStrength > 0.0:
+            targetDensity = float(k) / (x.shape[1] * x.shape[2] * x.shape[3])
+            boostFactors = torch.exp((targetDensity - dutyCycles) * boostStrength)
+            boosted = x.detach() * boostFactors
+        else:
+            boosted = x.detach()
 
-    # Take the boosted version of the input x, find the top k winners.
-    # Compute an output that only contains the values of x corresponding to the top k
-    # boosted values. The rest of the elements in the output should be 0.
-    boosted = boosted.reshape((batchSize, -1))
-    xr = x.reshape((batchSize, -1))
-    res = torch.zeros_like(boosted)
-    topk, indices = boosted.topk(k, dim=1, sorted=False)
-    res.scatter_(1, indices, xr.gather(1, indices))
-    res = res.reshape(x.shape)
+        # Take the boosted version of the input x, find the top k winners.
+        # Compute an output that only contains the values of x corresponding to the top k
+        # boosted values. The rest of the elements in the output should be 0.
+        boosted = boosted.reshape((batchSize, -1))
+        xr = x.reshape((batchSize, -1))
+        res = torch.zeros_like(boosted)
+        topk, indices = boosted.topk(k, dim=1, sorted=False)
+        res.scatter_(1, indices, xr.gather(1, indices))
+        res = res.reshape(x.shape)
 
-    ctx.save_for_backward(indices)
-    return res
+        ctx.save_for_backward(indices)
+        return res
 
-
-  @staticmethod
-  def backward(ctx, grad_output):
-    """
+    @staticmethod
+    def backward(ctx, grad_output):
+        """
     In the backward pass, we set the gradient to 1 for the winning units, and 0
     for the others.
     """
-    batchSize = grad_output.shape[0]
-    indices, = ctx.saved_tensors
+        batchSize = grad_output.shape[0]
+        (indices,) = ctx.saved_tensors
 
-    g = grad_output.reshape((batchSize, -1))
-    grad_x = torch.zeros_like(g, requires_grad=False)
-    grad_x.scatter_(1, indices, g.gather(1, indices))
-    grad_x = grad_x.reshape(grad_output.shape)
+        g = grad_output.reshape((batchSize, -1))
+        grad_x = torch.zeros_like(g, requires_grad=False)
+        grad_x.scatter_(1, indices, g.gather(1, indices))
+        grad_x = grad_x.reshape(grad_output.shape)
 
-    return grad_x, None, None, None
+        return grad_x, None, None, None
+
