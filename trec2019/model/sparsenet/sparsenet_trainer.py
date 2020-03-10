@@ -77,6 +77,8 @@ if __name__ == "__main__":
 
     # parse params
     hparams = parser.parse_args()
+    if (hparams.gpus is not None) and (hparams.distributed_backend is None):
+        hparams.distributed_backend = "ddp"
 
     # run trials of random search over the hyperparams
     N_TRIALS = 3
