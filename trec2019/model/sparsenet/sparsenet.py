@@ -52,9 +52,6 @@ class SparseNet(pl.LightningModule):
         # self.dense = BertEmbedding()
         self.input_dim = self.dense.get_dim()
 
-        # dataset
-        self.prepare_data()
-
         # network
         self._validate_network_params()
         self._init_network()
@@ -96,9 +93,7 @@ class SparseNet(pl.LightningModule):
         # triplet + recovery
         return loss_triplet_val + loss_recovery_val
 
-    def forward(self, batch):
-        query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
-
+    def forward(self, query, doc_pos, doc_neg):
         # dense
         with torch.no_grad():
             dense_query, dense_doc_pos, dense_doc_neg = (
@@ -138,102 +133,63 @@ class SparseNet(pl.LightningModule):
         )
 
     def training_step(self, batch, batch_idx):
+        query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
+
         # infer
-        (
-            dense_query,
-            dense_doc_pos,
-            dense_doc_neg,
-            sparse_query,
-            sparse_doc_pos,
-            sparse_doc_neg,
-            recovered_query,
-            recovered_doc_pos,
-            recovered_doc_neg,
-        ) = self.forward(batch)
+        out = self.forward(query, doc_pos, doc_neg)
+
+        return {"out": out}
+
+    def training_step_end(self, outputs):
+        # aggregate (dp or ddp)
+        out = outputs["out"]
 
         # loss
-        loss_val = self.loss(
-            dense_query,
-            dense_doc_pos,
-            dense_doc_neg,
-            sparse_query,
-            sparse_doc_pos,
-            sparse_doc_neg,
-            recovered_query,
-            recovered_doc_pos,
-            recovered_doc_neg,
-        )
+        loss_val = self.loss(out)
 
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
-        if self.trainer.use_dp or self.trainer.use_ddp2:
-            loss_val = loss_val.unsqueeze(0)
-        tqdm_dict = {"train_loss": loss_val}
-        output = OrderedDict(
-            {"loss": loss_val, "progress_bar": tqdm_dict, "log": tqdm_dict}
-        )
+        # if self.trainer.use_dp or self.trainer.use_ddp2:
+        #     loss_val = loss_val.unsqueeze(0)
 
-        return output
+        # logging
+        tqdm_dict = {"training_loss": loss_val}
+        log_dict = {"losses": tqdm_dict}
+        return {"loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_step(self, batch, batch_idx):
+        query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
+
         # infer
-        (
-            dense_query,
-            dense_doc_pos,
-            dense_doc_neg,
-            sparse_query,
-            sparse_doc_pos,
-            sparse_doc_neg,
-            recovered_query,
-            recovered_doc_pos,
-            recovered_doc_neg,
-        ) = self.forward(batch)
+        out = self.forward(query, doc_pos, doc_neg)
+
+        return {"out": out}
+
+    def validation_step_end(self, outputs):
+        # aggregate (dp or ddp)
+        out = outputs["out"]
 
         # loss
-        loss_val = self.loss(
-            dense_query,
-            dense_doc_pos,
-            dense_doc_neg,
-            sparse_query,
-            sparse_doc_pos,
-            sparse_doc_neg,
-            recovered_query,
-            recovered_doc_pos,
-            recovered_doc_neg,
-        )
+        loss_val = self.loss(out)
+
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
-        if self.trainer.use_dp or self.trainer.use_ddp2:
-            loss_val = loss_val.unsqueeze(0)
+        # if self.trainer.use_dp or self.trainer.use_ddp2:
+        #     loss_val = loss_val.unsqueeze(0)
 
-        # return results
+        # logging
         tqdm_dict = {"val_loss": loss_val}
-        output = OrderedDict({"val_loss": loss_val, "log": tqdm_dict,})
+        log_dict = {"val_losses": tqdm_dict}
+        return {"val_loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
-        return output
+    def validation_epoch_end(self, outputs):
+        val_loss_mean = 0
+        for output in outputs:
+            val_loss_mean += output["val_loss"]
+        val_loss_mean /= len(outputs)
+        tqdm_dict = {"val_loss": val_loss_mean.item()}
 
-    def validation_end(self, outputs):
-        tqdm_dict = {}
+        results = {"progress_bar": tqdm_dict, "log": {"val_loss": val_loss_mean.item()}}
 
-        for metric_name in ["val_loss"]:
-            metric_total = 0
-
-            for output in outputs:
-                metric_value = output[metric_name]
-
-                # reduce manually when using dp
-                if self.trainer.use_dp or self.trainer.use_ddp2:
-                    metric_value = torch.mean(metric_value)
-
-                metric_total += metric_value
-
-            tqdm_dict[metric_name] = metric_total / len(outputs)
-
-        result = {
-            "progress_bar": tqdm_dict,
-            "log": tqdm_dict,
-            "avg_val_loss": tqdm_dict["val_loss"],
-        }
-
-        return result
+        return results
 
     def _init_network(self):
         self.learning_iterations = 0
