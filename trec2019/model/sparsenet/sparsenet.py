@@ -49,10 +49,7 @@ class SparseNet(pl.LightningModule):
         self.hparams = hparams
         self.encoded = None
         self.dense = BowEmbedding(self.hparams.embedding_path)
-        self.input_dim = self.dense.get_dim()
-
-        # dataset
-        self._load_dataset()
+        # self.dense = BertEmbedding()
 
         # network
         self._validate_network_params()
@@ -61,92 +58,139 @@ class SparseNet(pl.LightningModule):
     def distance(self, a, b):
         return F.cosine_similarity(a, b)
 
-    def loss(self, delta):
+    def loss_recovery(self, input, target):
+        return F.l1_loss(input, target)
+
+    def loss_triplet(self, delta):
         return torch.log1p(torch.sum(torch.exp(delta)))
 
-    def forward(self, x):
+    def loss(self, out):
+        (
+            dense_query,
+            dense_doc_pos,
+            dense_doc_neg,
+            sparse_query,
+            sparse_doc_pos,
+            sparse_doc_neg,
+            recovered_query,
+            recovered_doc_pos,
+            recovered_doc_neg,
+        ) = out
+
+        # recovery loss
+        loss_recovery_val = (
+            self.loss_recovery(recovered_query, dense_query)
+            + self.loss_recovery(recovered_doc_pos, dense_doc_pos)
+            + self.loss_recovery(recovered_doc_neg, dense_doc_neg)
+        )
+
+        # triplet loss
+        distance_p = self.distance(recovered_query, recovered_doc_pos)
+        distance_n = self.distance(recovered_query, recovered_doc_neg)
+        delta = distance_n - distance_p
+        loss_triplet_val = self.loss_triplet(delta)
+
+        # loss = triplet + recovery
+        return loss_triplet_val + loss_recovery_val
+
+    def forward(self, query, doc_pos, doc_neg):
         # dense
         with torch.no_grad():
-            x = self.dense(x)
-        # x = x.to(self.device)
+            dense_query, dense_doc_pos, dense_doc_neg = (
+                self.dense(query),
+                self.dense(doc_pos),
+                self.dense(doc_neg),
+            )
+
         # sparse
-        x = self.linear_sdr(x)
-        # x = self.fc(x)
+        sparse_query, sparse_doc_pos, sparse_doc_neg = (
+            self.linear_sdr(dense_query),
+            self.linear_sdr(dense_doc_pos),
+            self.linear_sdr(dense_doc_neg),
+        )
+
+        # recover
+        recovered_query, recovered_doc_pos, recovered_doc_neg = (
+            self.recover(sparse_query),
+            self.recover(sparse_doc_pos),
+            self.recover(sparse_doc_neg),
+        )
 
         if self.training:
-            batch_size = x.shape[0]
+            # batch_size = batch.shape[0]
+            batch_size = len(query)
             self.learning_iterations += batch_size
 
-        return x
+        return (
+            dense_query,
+            dense_doc_pos,
+            dense_doc_neg,
+            sparse_query,
+            sparse_doc_pos,
+            sparse_doc_neg,
+            recovered_query,
+            recovered_doc_pos,
+            recovered_doc_neg,
+        )
 
     def training_step(self, batch, batch_idx):
         query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
-        query, doc_pos, doc_neg = (
-            self.forward(query),
-            self.forward(doc_pos),
-            self.forward(doc_neg),
-        )
-        distance_p = self.distance(query, doc_pos)
-        distance_n = self.distance(query, doc_neg)
-        delta = distance_n - distance_p
-        loss_val = self.loss(delta)
+
+        # infer
+        out = self.forward(query, doc_pos, doc_neg)
+
+        return {"out": out}
+
+    def training_step_end(self, outputs):
+        # aggregate (dp or ddp)
+        out = outputs["out"]
+
+        # loss
+        loss_val = self.loss(out)
 
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
-        if self.trainer.use_dp or self.trainer.use_ddp2:
-            loss_val = loss_val.unsqueeze(0)
-        tqdm_dict = {"train_loss": loss_val}
-        output = OrderedDict(
-            {"loss": loss_val, "progress_bar": tqdm_dict, "log": tqdm_dict}
-        )
+        # if self.trainer.use_dp or self.trainer.use_ddp2:
+        #     loss_val = loss_val.unsqueeze(0)
 
-        return output
+        # logging
+        tqdm_dict = {"training_loss": loss_val}
+        log_dict = {"losses": tqdm_dict}
+        return {"loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_step(self, batch, batch_idx):
         query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
-        query, doc_pos, doc_neg = (
-            self.forward(query),
-            self.forward(doc_pos),
-            self.forward(doc_neg),
-        )
-        distance_p = self.distance(query, doc_pos)
-        distance_n = self.distance(query, doc_neg)
-        delta = distance_n - distance_p
-        loss_val = self.loss(delta)
+
+        # infer
+        out = self.forward(query, doc_pos, doc_neg)
+
+        return {"out": out}
+
+    def validation_step_end(self, outputs):
+        # aggregate (dp or ddp)
+        out = outputs["out"]
+
+        # loss
+        loss_val = self.loss(out)
 
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
-        if self.trainer.use_dp or self.trainer.use_ddp2:
-            loss_val = loss_val.unsqueeze(0)
+        # if self.trainer.use_dp or self.trainer.use_ddp2:
+        #     loss_val = loss_val.unsqueeze(0)
 
-        # return results
+        # logging
         tqdm_dict = {"val_loss": loss_val}
-        output = OrderedDict({"val_loss": loss_val, "log": tqdm_dict,})
+        log_dict = {"val_losses": tqdm_dict}
+        return {"val_loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
-        return output
+    def validation_epoch_end(self, outputs):
+        val_loss_mean = 0
+        for output in outputs:
+            val_loss_mean += output["val_loss"]
+        val_loss_mean /= len(outputs)
+        tqdm_dict = {"val_loss": val_loss_mean.item()}
 
-    def validation_end(self, outputs):
-        tqdm_dict = {}
+        results = {"progress_bar": tqdm_dict, "log": {"val_loss": val_loss_mean.item()}}
 
-        for metric_name in ["val_loss"]:
-            metric_total = 0
-
-            for output in outputs:
-                metric_value = output[metric_name]
-
-                # reduce manually when using dp
-                if self.trainer.use_dp or self.trainer.use_ddp2:
-                    metric_value = torch.mean(metric_value)
-
-                metric_total += metric_value
-
-            tqdm_dict[metric_name] = metric_total / len(outputs)
-
-        result = {
-            "progress_bar": tqdm_dict,
-            "log": tqdm_dict,
-            "avg_val_loss": tqdm_dict["val_loss"],
-        }
-
-        return result
+        return results
 
     def _init_network(self):
         self.learning_iterations = 0
@@ -154,16 +198,16 @@ class SparseNet(pl.LightningModule):
 
         # Linear layers only (from original code)
         input_features = self.input_dim
-        # output_size = self.input_dim
-        n = self.hparams.n
-        k = self.hparams.k
+        output_size = self.input_dim
+        n = self.n
+        k = self.k
         normalize_weights = self.hparams.normalize_weights
-        weight_sparsity = self.hparams.weight_sparsity
+        weight_sparsity = self.weightSparsity
         use_batch_norm = self.hparams.use_batch_norm
         dropout = self.hparams.dropout
-        k_inference_factor = self.hparams.k_inference_factor
-        boost_strength = self.hparams.boost_strength
-        boost_strength_factor = self.hparams.boost_strength_factor
+        k_inference_factor = self.kInferenceFactor
+        boost_strength = self.boostStrength
+        boost_strength_factor = self.boostStrengthFactor
 
         self.linear_sdr = nn.Sequential()
         for i in range(len(n)):
@@ -200,7 +244,7 @@ class SparseNet(pl.LightningModule):
                 input_features = n[i]
 
         # Add one fully connected layer after all hidden layers
-        # self.fc = nn.Linear(input_features, output_size)
+        self.recover = nn.Linear(input_features, output_size)
 
         # if useSoftmax:
         #     self.softmax = nn.LogSoftmax(dim=1)
@@ -283,10 +327,23 @@ class SparseNet(pl.LightningModule):
         assert len(hparams.n) == len(hparams.weight_sparsity)
         for i in range(len(hparams.weight_sparsity)):
             assert hparams.weight_sparsity[i] >= 0
+
         # DEBUG
         print(vars(hparams))
 
-    def _load_dataset(self):
+        # assign
+        self.input_dim = self.dense.get_dim()
+        self.k = hparams.k
+        self.kInferenceFactor = hparams.k_inference_factor
+        self.n = hparams.n
+        self.weightSparsity = (
+            hparams.weight_sparsity
+        )  # Pct of weights that are non-zero
+        self.boostStrengthFactor = hparams.boost_strength_factor
+        self.boostStrength = hparams.boost_strength
+        self.learning_iterations = 0
+
+    def prepare_data(self):
         data_dir = Path(self.hparams.data_dir)
         dset_cls = TRECTripleDataset
         self._train_dataset = dset_cls(data_dir / "train.parquet")
@@ -312,15 +369,12 @@ class SparseNet(pl.LightningModule):
             pin_memory=True,
         )
 
-    @pl.data_loader
     def train_dataloader(self):
         return self._get_dataloader(self._train_dataset)
 
-    @pl.data_loader
     def val_dataloader(self):
         return self._get_dataloader(self._val_dataset)
 
-    @pl.data_loader
     def test_dataloader(self):
         return self._get_dataloader(self._test_dataset, test=True)
 
