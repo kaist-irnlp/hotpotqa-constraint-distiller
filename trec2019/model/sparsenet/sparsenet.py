@@ -49,6 +49,7 @@ class SparseNet(pl.LightningModule):
         self.hparams = hparams
         self.encoded = None
         self.dense = BowEmbedding(self.hparams.embedding_path)
+        # self.dense = DiscEmbedding(self.hparams.embedding_path, ngram=1)
         # self.dense = BertEmbedding()
 
         # network
@@ -85,8 +86,8 @@ class SparseNet(pl.LightningModule):
         )
 
         # triplet loss
-        distance_p = self.distance(recovered_query, recovered_doc_pos)
-        distance_n = self.distance(recovered_query, recovered_doc_neg)
+        distance_p = self.distance(sparse_query, sparse_doc_pos)
+        distance_n = self.distance(sparse_query, sparse_doc_neg)
         delta = distance_n - distance_p
         loss_triplet_val = self.loss_triplet(delta)
 
@@ -359,7 +360,7 @@ class SparseNet(pl.LightningModule):
     def _get_dataloader(self, dataset, test=False):
         # dist_sampler = DistributedSampler(dataset) if self.use_ddp else None
         batch_size = self.hparams.batch_size if not test else 100000
-        num_workers = int(cpu_count() / 4) or 1
+        num_workers = int(cpu_count() / 2) or 1
         # num_workers = 0
         return DataLoader(
             dataset,

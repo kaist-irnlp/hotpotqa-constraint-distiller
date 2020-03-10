@@ -9,6 +9,7 @@ from torch import tensor
 import gc
 import abc
 import numpy as np
+import sys
 
 FLOAT = torch.float32
 
@@ -54,6 +55,20 @@ class BasePretrainedEmbedding(nn.Module):
     def get_dim(self):
         raise NotImplementedError
 
+    def get_embeddings(self, tokens):
+        ids = (
+            tensor([self.word2idx.get(w, -1) for w in tokens])
+            .long()
+            .to(self.embeddings.weight.device)
+        )
+        ids = ids[(ids != -1).nonzero(as_tuple=True)]
+        embeddings = self.embeddings(ids)
+        return (
+            embeddings
+            if len(embeddings) > 0
+            else torch.randn(1, self.emb_dim).to(self.embeddings.weight.device)
+        )
+
     def _tokenize(self, text):
         raise NotImplementedError
 
@@ -92,21 +107,18 @@ class BowEmbedding(BasePretrainedEmbedding):
 
     def _embed(self, text):
         tokens = self._tokenize(text)
-        ids = [self.word2idx.get(w, -1) for w in tokens]
-        ids = (
-            tensor([i for i in ids if i >= 0]).long().to(self.embeddings.weight.device)
-        )
-        if len(ids) > 0:
-            embs = torch.mean(self.embeddings(ids), 0)
-        else:
-            embs = torch.zeros(self.get_dim()).to(self.embeddings.weight.device)
+        # ids = [self.word2idx.get(w, -1) for w in tokens]
+        # ids = (
+        #     tensor([i for i in ids if i >= 0]).long().to(self.embeddings.weight.device)
+        # )
+        embs = self.get_embeddings(tokens)
+        embs = torch.mean(embs, 0)
         return embs
 
 
-class DiscEmbedding(nn.Module):
+class DiscEmbedding(BasePretrainedEmbedding):
     def __init__(self, embedding_path, ngram=3, normalize=True):
         super().__init__(embedding_path)
-        # params
         self.ngram = ngram
         self.normalize = normalize
 
@@ -124,23 +136,19 @@ class DiscEmbedding(nn.Module):
 
     def _embed(self, text):
         blob = TextBlob(text).lower()
-        out_dim = self.emb_dim * self.ngram
-        out = torch.zeros(out_dim)
+        out_dim = self.get_dim()
+        out = torch.zeros(out_dim).to(self.embeddings.weight.device)
         scaling = np.sqrt(self.emb_dim)
+
         for n in range(1, self.ngram + 1):
             ngrams = blob.ngrams(n=n)
-            ngrams_emb = torch.zeros(self.emb_dim)
+            ngrams_emb = torch.zeros(self.emb_dim).to(self.embeddings.weight.device)
             for i, ng in enumerate(ngrams):
-                ng_ids = tensor(
-                    list(
-                        filter(
-                            lambda i: i != -1, [self.word2idx.get(w, -1) for w in ng]
-                        )
-                    ),
-                    dtype=torch.long,
+                ng_embs = self.get_embeddings(ng)
+                ng_embs_reduced = torch.prod(ng_embs, 0) * (
+                    scaling ** (ng_embs.shape[0] - 1)
                 )
-                ng_embs = self.embeddings(ng_ids)
-                ngrams_emb += torch.prod(ng_embs, 0) * (scaling ** (len(ng_ids) - 1))
+                ngrams_emb += ng_embs_reduced
             # out[ngram_range] = ngrams_emb
             out[self.emb_dim * (n - 1) : self.emb_dim * n] = ngrams_emb / n
         return out
