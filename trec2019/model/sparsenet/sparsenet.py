@@ -48,8 +48,8 @@ class SparseNet(pl.LightningModule):
         super(SparseNet, self).__init__()
         self.hparams = hparams
         self.encoded = None
-        # self.dense = BowEmbedding(self.hparams.embedding_path)
-        self.dense = BertEmbedding()
+        self.dense = BowEmbedding(self.hparams.embedding_path)
+        # self.dense = BertEmbedding()
         self.input_dim = self.dense.get_dim()
 
         # dataset
@@ -62,35 +62,106 @@ class SparseNet(pl.LightningModule):
     def distance(self, a, b):
         return F.cosine_similarity(a, b)
 
-    def loss(self, delta):
+    def loss_recovery(self, input, target):
+        return F.l1_loss(input, target)
+
+    def loss_triplet(self, delta):
         return torch.log1p(torch.sum(torch.exp(delta)))
 
-    def forward(self, x):
+    def loss(
+        self,
+        dense_query,
+        dense_doc_pos,
+        dense_doc_neg,
+        sparse_query,
+        sparse_doc_pos,
+        sparse_doc_neg,
+        recovered_query,
+        recovered_doc_pos,
+        recovered_doc_neg,
+    ):
+        # 1. triplet loss
+        distance_p = self.distance(sparse_query, sparse_doc_pos)
+        distance_n = self.distance(sparse_query, sparse_doc_neg)
+        delta = distance_n - distance_p
+        loss_triplet_val = self.loss_triplet(delta)
+
+        # 2. recovery loss
+        loss_recovery_val = (
+            self.loss_recovery(dense_query, recovered_query)
+            + self.loss_recovery(dense_doc_pos, recovered_doc_pos)
+            + self.loss_recovery(dense_doc_neg, recovered_doc_neg)
+        )
+
+        # triplet + recovery
+        return loss_triplet_val + loss_recovery_val
+
+    def forward(self, batch):
+        query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
+
         # dense
         with torch.no_grad():
-            x = self.dense(x)
-        # x = x.to(self.device)
+            dense_query, dense_doc_pos, dense_doc_neg = (
+                self.dense(query),
+                self.dense(doc_pos),
+                self.dense(doc_neg),
+            )
+
         # sparse
-        x = self.linear_sdr(x)
-        # x = self.fc(x)
+        sparse_query, sparse_doc_pos, sparse_doc_neg = (
+            self.linear_sdr(dense_query),
+            self.linear_sdr(dense_doc_pos),
+            self.linear_sdr(dense_doc_neg),
+        )
+
+        # recover
+        recovered_query, recovered_doc_pos, recovered_doc_neg = (
+            self.recover(sparse_query),
+            self.recover(sparse_doc_pos),
+            self.recover(sparse_doc_neg),
+        )
 
         if self.training:
-            batch_size = x.shape[0]
+            batch_size = batch.shape[0]
             self.learning_iterations += batch_size
 
-        return x
+        return (
+            dense_query,
+            dense_doc_pos,
+            dense_doc_neg,
+            sparse_query,
+            sparse_doc_pos,
+            sparse_doc_neg,
+            recovered_query,
+            recovered_doc_pos,
+            recovered_doc_neg,
+        )
 
     def training_step(self, batch, batch_idx):
-        query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
-        query, doc_pos, doc_neg = (
-            self.forward(query),
-            self.forward(doc_pos),
-            self.forward(doc_neg),
+        (
+            dense_query,
+            dense_doc_pos,
+            dense_doc_neg,
+            sparse_query,
+            sparse_doc_pos,
+            sparse_doc_neg,
+            recovered_query,
+            recovered_doc_pos,
+            recovered_doc_neg,
+        ) = self.forward(batch)
+
+        # loss
+        loss_val = self.loss(
+            dense_query,
+            dense_doc_pos,
+            dense_doc_neg,
+            sparse_query,
+            sparse_doc_pos,
+            sparse_doc_neg,
+            recovered_query,
+            recovered_doc_pos,
+            recovered_doc_neg,
         )
-        distance_p = self.distance(query, doc_pos)
-        distance_n = self.distance(query, doc_neg)
-        delta = distance_n - distance_p
-        loss_val = self.loss(delta)
 
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
         if self.trainer.use_dp or self.trainer.use_ddp2:
@@ -155,7 +226,7 @@ class SparseNet(pl.LightningModule):
 
         # Linear layers only (from original code)
         input_features = self.input_dim
-        # output_size = self.input_dim
+        output_size = self.input_dim
         n = self.hparams.n
         k = self.hparams.k
         normalize_weights = self.hparams.normalize_weights
@@ -201,7 +272,7 @@ class SparseNet(pl.LightningModule):
                 input_features = n[i]
 
         # Add one fully connected layer after all hidden layers
-        # self.fc = nn.Linear(input_features, output_size)
+        self.recover = nn.Linear(input_features, output_size)
 
         # if useSoftmax:
         #     self.softmax = nn.LogSoftmax(dim=1)
