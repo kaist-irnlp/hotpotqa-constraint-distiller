@@ -53,7 +53,7 @@ class SparseNet(pl.LightningModule):
         self.input_dim = self.dense.get_dim()
 
         # dataset
-        self._load_dataset()
+        self.prepare_data()
 
         # network
         self._validate_network_params()
@@ -138,6 +138,7 @@ class SparseNet(pl.LightningModule):
         )
 
     def training_step(self, batch, batch_idx):
+        # infer
         (
             dense_query,
             dense_doc_pos,
@@ -174,17 +175,31 @@ class SparseNet(pl.LightningModule):
         return output
 
     def validation_step(self, batch, batch_idx):
-        query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
-        query, doc_pos, doc_neg = (
-            self.forward(query),
-            self.forward(doc_pos),
-            self.forward(doc_neg),
-        )
-        distance_p = self.distance(query, doc_pos)
-        distance_n = self.distance(query, doc_neg)
-        delta = distance_n - distance_p
-        loss_val = self.loss(delta)
+        # infer
+        (
+            dense_query,
+            dense_doc_pos,
+            dense_doc_neg,
+            sparse_query,
+            sparse_doc_pos,
+            sparse_doc_neg,
+            recovered_query,
+            recovered_doc_pos,
+            recovered_doc_neg,
+        ) = self.forward(batch)
 
+        # loss
+        loss_val = self.loss(
+            dense_query,
+            dense_doc_pos,
+            dense_doc_neg,
+            sparse_query,
+            sparse_doc_pos,
+            sparse_doc_neg,
+            recovered_query,
+            recovered_doc_pos,
+            recovered_doc_neg,
+        )
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
         if self.trainer.use_dp or self.trainer.use_ddp2:
             loss_val = loss_val.unsqueeze(0)
@@ -358,7 +373,7 @@ class SparseNet(pl.LightningModule):
         # DEBUG
         print(vars(hparams))
 
-    def _load_dataset(self):
+    def prepare_data(self):
         data_dir = Path(self.hparams.data_dir)
         dset_cls = TRECTripleDataset
         self._train_dataset = dset_cls(data_dir / "train.parquet")
