@@ -103,8 +103,9 @@ class k_winners(torch.autograd.Function):
         # boosted values
         res = torch.zeros_like(x)
         topk, indices = boosted.topk(k, sorted=False)
-        for i in range(x.shape[0]):
-            res[i, indices[i]] = x[i, indices[i]]
+        res = res.scatter(1, indices, topk)
+        # for i in range(x.shape[0]):
+        #     res[i, indices[i]] = x[i, indices[i]]
 
         ctx.save_for_backward(indices)
         return res
@@ -120,8 +121,9 @@ class k_winners(torch.autograd.Function):
 
         # Probably a better way to do it, but this is not terrible as it only loops
         # over the batch size.
-        for i in range(grad_output.size(0)):
-            grad_x[i, indices[i]] = grad_output[i, indices[i]]
+        grad_x = grad_x.scatter(1, indices, grad_output)
+        # for i in range(grad_output.size(0)):
+        #     grad_x[i, indices[i]] = grad_output[i, indices[i]]
 
         return grad_x, None, None, None
 
