@@ -96,8 +96,11 @@ class BowEmbedding(BasePretrainedEmbedding):
         ids = (
             tensor([i for i in ids if i >= 0]).long().to(self.embeddings.weight.device)
         )
-        embs = self.embeddings(ids)
-        return torch.mean(embs, 0)
+        if len(ids) > 0:
+            embs = torch.mean(self.embeddings(ids), 0)
+        else:
+            embs = torch.zeros(self.get_dim()).to(self.embeddings.weight.device)
+        return embs
 
 
 class DiscEmbedding(nn.Module):
