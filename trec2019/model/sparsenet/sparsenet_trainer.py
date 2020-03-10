@@ -7,6 +7,7 @@ from pathlib import Path
 import torch
 from torch.backends import cudnn
 from pytorch_lightning import Trainer
+from pytorch_lightning import loggers
 from pytorch_lightning.utilities.arg_parse import add_default_args
 from test_tube import HyperOptArgumentParser
 from test_tube import Experiment
@@ -40,7 +41,9 @@ def main(hparams):
     # for i, dset in enumerate(loader):
     #     print(dset)
 
+    tt_logger = loggers.TestTubeLogger(root_dir)
     trainer = Trainer(
+        logger=tt_logger,
         default_save_path=root_dir,
         max_nb_epochs=hparams.max_nb_epochs,
         gpus=hparams.gpus,
@@ -69,7 +72,7 @@ if __name__ == "__main__":
 
     # searchable params
     parser.opt_list("--n", type=int, tunable=True, options=[10000])
-    parser.opt_list("--k", type=int, tunable=True, options=[200, 300])
+    parser.opt_list("--k", type=int, tunable=True, options=[500, 1000])
     parser.opt_list("--batch_size", type=int, tunable=True, options=[64])
 
     # parse params

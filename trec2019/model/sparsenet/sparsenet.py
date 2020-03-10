@@ -65,18 +65,19 @@ class SparseNet(pl.LightningModule):
     def loss_triplet(self, delta):
         return torch.log1p(torch.sum(torch.exp(delta)))
 
-    def loss(
-        self,
-        dense_query,
-        dense_doc_pos,
-        dense_doc_neg,
-        sparse_query,
-        sparse_doc_pos,
-        sparse_doc_neg,
-        recovered_query,
-        recovered_doc_pos,
-        recovered_doc_neg,
-    ):
+    def loss(self, out):
+        (
+            dense_query,
+            dense_doc_pos,
+            dense_doc_neg,
+            sparse_query,
+            sparse_doc_pos,
+            sparse_doc_neg,
+            recovered_query,
+            recovered_doc_pos,
+            recovered_doc_neg,
+        ) = out
+
         # 1. triplet loss
         distance_p = self.distance(sparse_query, sparse_doc_pos)
         distance_n = self.distance(sparse_query, sparse_doc_neg)
@@ -85,9 +86,9 @@ class SparseNet(pl.LightningModule):
 
         # 2. recovery loss
         loss_recovery_val = (
-            self.loss_recovery(dense_query, recovered_query)
-            + self.loss_recovery(dense_doc_pos, recovered_doc_pos)
-            + self.loss_recovery(dense_doc_neg, recovered_doc_neg)
+            self.loss_recovery(recovered_query, dense_query)
+            + self.loss_recovery(recovered_doc_pos, dense_doc_pos)
+            + self.loss_recovery(recovered_doc_neg, dense_doc_neg)
         )
 
         # triplet + recovery
@@ -117,7 +118,8 @@ class SparseNet(pl.LightningModule):
         )
 
         if self.training:
-            batch_size = batch.shape[0]
+            # batch_size = batch.shape[0]
+            batch_size = len(query)
             self.learning_iterations += batch_size
 
         return (
@@ -355,15 +357,12 @@ class SparseNet(pl.LightningModule):
             pin_memory=True,
         )
 
-    @pl.data_loader
     def train_dataloader(self):
         return self._get_dataloader(self._train_dataset)
 
-    @pl.data_loader
     def val_dataloader(self):
         return self._get_dataloader(self._val_dataset)
 
-    @pl.data_loader
     def test_dataloader(self):
         return self._get_dataloader(self._test_dataset, test=True)
 
