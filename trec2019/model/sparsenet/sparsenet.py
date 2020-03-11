@@ -35,6 +35,7 @@ from trec2019.utils.dataset import TRECTripleDataset
 from trec2019.model.sparsenet.helper import *
 from trec2019.utils.dense import *
 from collections import OrderedDict
+from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -44,9 +45,10 @@ logger = logging.getLogger(__name__)
 
 
 class SparseNet(pl.LightningModule):
-    def __init__(self, hparams):
+    def __init__(self, hparams, profiler=None):
         super(SparseNet, self).__init__()
         self.hparams = hparams
+        self.profiler = profiler or PassThroughProfiler()
         self.encoded = None
         self.dense = BowEmbedding(self.hparams.embedding_path)
         # self.dense = DiscEmbedding(self.hparams.embedding_path, ngram=1)
@@ -183,13 +185,15 @@ class SparseNet(pl.LightningModule):
         return {"val_loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_epoch_end(self, outputs):
-        val_loss_mean = 0
-        for output in outputs:
-            val_loss_mean += output["val_loss"]
-        val_loss_mean /= len(outputs)
-        tqdm_dict = {"val_loss": val_loss_mean.item()}
+        avg_val_loss = torch.stack([out["val_loss"] for out in outputs]).mean()
 
-        results = {"progress_bar": tqdm_dict, "log": {"val_loss": val_loss_mean.item()}}
+        # val_loss_mean = 0
+        # for output in outputs:
+        #     val_loss_mean += output["val_loss"]
+        # val_loss_mean /= len(outputs)
+        tqdm_dict = {"val_loss": avg_val_loss}
+
+        results = {"progress_bar": tqdm_dict, "log": {"avg_val_loss": avg_val_loss}}
 
         return results
 

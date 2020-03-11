@@ -13,10 +13,11 @@ from test_tube import HyperOptArgumentParser
 from test_tube import Experiment
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
 
 from trec2019.model.sparsenet import SparseNet
 
-cudnn.benchmark = True
+# cudnn.benchmark = True
 root_dir = str(Path(__file__).parent.absolute())
 
 
@@ -36,12 +37,8 @@ def main(hparams):
     early_stop_callback = EarlyStopping(
         monitor="val_loss", patience=5, verbose=True, mode="min"
     )
-
-    # loader = model.val_dataloader()[0]
-    # for i, dset in enumerate(loader):
-    #     print(dset)
-
     tt_logger = loggers.TestTubeLogger(root_dir)
+    profiler = AdvancedProfiler()
     trainer = Trainer(
         logger=tt_logger,
         default_save_path=root_dir,
@@ -53,6 +50,8 @@ def main(hparams):
         use_amp=hparams.use_amp,
         amp_level="O2",
         early_stop_callback=early_stop_callback,
+        benchmark=True,
+        profiler=profiler,
     )
     trainer.fit(model)
 
