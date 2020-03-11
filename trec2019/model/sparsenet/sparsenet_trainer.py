@@ -51,7 +51,7 @@ def main(hparams):
         nb_gpu_nodes=hparams.nodes,
         fast_dev_run=hparams.fast_dev_run,
         use_amp=hparams.use_amp,
-        amp_level="O2",
+        amp_level="O1",
         early_stop_callback=early_stop_callback,
     )
     trainer.fit(model)
