@@ -58,13 +58,13 @@ class SparseNet(pl.LightningModule):
         self._init_sparse()
 
     def distance(self, a, b):
-        return torch.dist(a, b, 2)
+        return torch.pow(a - b, 2).sum(1).sqrt()
 
     def loss_recovery(self, input, target):
         return F.mse_loss(input, target)
 
-    def loss_triplet(self, delta):
-        return torch.log1p(torch.sum(torch.exp(delta)))
+    # def loss_triplet(self, delta):
+    #     return torch.log1p(torch.sum(torch.exp(delta)))
 
     def loss(self, out):
         (
@@ -79,18 +79,22 @@ class SparseNet(pl.LightningModule):
             recovered_doc_neg,
         ) = out
 
+        # triplet loss
+        distance_p = self.distance(sparse_query, sparse_doc_pos)
+        distance_n = self.distance(sparse_query, sparse_doc_neg)
+        # distance_n > distance_p
+        loss_triplet_val = F.margin_ranking_loss(
+            distance_n, distance_p, torch.ones_like(distance_p)
+        )
+        # delta = distance_n - distance_p
+        # loss_triplet_val = self.loss_triplet(delta)
+
         # recovery loss
         loss_recovery_val = (
             self.loss_recovery(recovered_query, dense_query)
             + self.loss_recovery(recovered_doc_pos, dense_doc_pos)
             + self.loss_recovery(recovered_doc_neg, dense_doc_neg)
         )
-
-        # triplet loss
-        distance_p = self.distance(sparse_query, sparse_doc_pos)
-        distance_n = self.distance(sparse_query, sparse_doc_neg)
-        delta = distance_n - distance_p
-        loss_triplet_val = self.loss_triplet(delta)
 
         # loss = triplet + recovery
         return loss_triplet_val + loss_recovery_val
