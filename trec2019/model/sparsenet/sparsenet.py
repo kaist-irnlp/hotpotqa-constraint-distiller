@@ -45,23 +45,17 @@ logger = logging.getLogger(__name__)
 
 
 class SparseNet(pl.LightningModule):
-    def __init__(self, hparams, profiler=None, dense_cls=None):
+    def __init__(self, hparams, profiler=None, dense=None):
         super(SparseNet, self).__init__()
         self.hparams = hparams
         self.profiler = profiler or PassThroughProfiler()
         self.encoded = None
-        self.dense_cls = dense_cls
+        self.dense = dense
 
         # network
-        self._init_dense()
+        # self._init_dense()
         self._clean_sparse_params()
         self._init_sparse()
-
-    def _init_dense(self):
-        if issubclass(self.dense_cls, BasePretrainedEmbedding):
-            self.dense = self.dense_cls(self.hparams.embedding_path)
-        else:
-            self.dense = self.dense_cls()
 
     def distance(self, a, b):
         return torch.dist(a, b, 2)
@@ -394,7 +388,7 @@ class SparseNet(pl.LightningModule):
         Specify the hyperparams for this LightningModule
         """
         # MODEL specific
-        parser = HyperOptArgumentParser(parents=[parent_parser])
+        parser = ArgumentParser(parents=[parent_parser])
         parser.add_argument("--k_inference_factor", default=1.5, type=float)
         parser.add_argument("--weight_sparsity", default=0.3, type=float)
         parser.add_argument("--boost_strength", default=1.5, type=float)
