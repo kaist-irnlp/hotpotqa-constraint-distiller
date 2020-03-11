@@ -1,1 +1,1 @@
-python sparsenet_trainer.py --data_dir ../../data -e ../../data/embedding/glove.840B.300d.gensim --gpus 0
+python sparsenet_trainer.py --data_dir ../../data -e ../../data/embedding/glove.840B.300d.gensim --gpus 0 --use_amp
