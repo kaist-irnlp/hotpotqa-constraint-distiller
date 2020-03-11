@@ -25,7 +25,7 @@ def main(hparams):
     # select dense model
     dense_models = {"bow": BowEmbedding, "disc": DiscEmbedding, "bert": BertEmbedding}
     dense_cls = dense_models[hparams.dense]
-    model = SparseNet(hparams,dense_cls=dense_cls,)
+    model = SparseNet(hparams, dense_cls=dense_cls,)
 
     # early stop
     early_stop_callback = EarlyStopping(
@@ -33,7 +33,7 @@ def main(hparams):
     )
     # logger
     tt_logger = loggers.TestTubeLogger(root_dir)
-    
+
     # profile
     if hparams.profile:
         profiler = AdvancedProfiler()
@@ -50,42 +50,64 @@ def main(hparams):
         nb_gpu_nodes=hparams.nodes,
         fast_dev_run=hparams.fast_dev_run,
         use_amp=hparams.use_amp,
-        amp_level="O1",
+        amp_level=hparams.amp_level,
         early_stop_callback=early_stop_callback,
         benchmark=True,
-        profiler=profiler
+        profiler=profiler,
     )
     trainer.fit(model)
 
 
 if __name__ == "__main__":
-    parser = HyperOptArgumentParser(strategy="grid_search", add_help=False)
+    # parser = HyperOptArgumentParser(strategy="grid_search", add_help=False)
+    parser = ArgumentParser()
     parser.add_argument("--data_dir", type=str, default=None, required=True)
     parser.add_argument("--embedding_path", "-e", type=str, default=None)
-    parser.add_argument("--epochs", dest="max_nb_epochs", default=500, type=int)
-    parser.add_argument("--learning_rate", "-lr", default=0.0001, type=float)
     parser.add_argument("--nodes", type=int, default=1)
     parser.add_argument("--distributed_backend", "-d", type=str, default=None)
+    parser.add_argument("--profile", action="store_true")
+    parser.add_argument("--gpus", default=None, type=str)
+    parser.add_argument("--use_amp", dest="use_amp", action="store_true")
+    parser.add_argument(
+        "--check_grad_nans", dest="check_grad_nans", action="store_true"
+    )
+    parser.add_argument("--amp_level", default="O1", type=str)
+    parser.add_argument(
+        "--fast_dev_run",
+        dest="fast_dev_run",
+        default=False,
+        action="store_true",
+        help="runs validation after 1 training step",
+    )
+
+    # searchable params
+    # parser.opt_list("--n", type=int, tunable=True, options=[10000])
+    # parser.opt_list("--k", type=int, tunable=True, options=[500, 1000])
+    # parser.opt_list("--batch_size", type=int, tunable=True, options=[64])
+
+    # model params
+    parser.add_argument("--n", type=int, nargs="+", required=True)
+    parser.add_argument("--k", type=int, nargs="+", required=True)
+    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--epochs", dest="max_nb_epochs", default=500, type=int)
+    parser.add_argument("--learning_rate", "-lr", default=0.0001, type=float)
     parser.add_argument(
         "--dense", type=str, choices=["bow", "disc", "bert"], default="bow"
     )
-    parser.add_argument("--profile", action="store_true")
-    add_default_args(parser, root_dir)
 
-    # add model params
+    # add default & model params
+    # add_default_args(parser, root_dir)
     parser = SparseNet.add_model_specific_args(parser)
-
-    # searchable params
-    parser.opt_list("--n", type=int, tunable=True, options=[10000])
-    parser.opt_list("--k", type=int, tunable=True, options=[500, 1000])
-    parser.opt_list("--batch_size", type=int, tunable=True, options=[64])
 
     # parse params
     hparams = parser.parse_args()
     if (hparams.gpus is not None) and (hparams.distributed_backend is None):
         hparams.distributed_backend = "ddp"
 
+    # run fixed params
+    main(hparams)
+
     # run trials of random search over the hyperparams
-    N_TRIALS = 3
-    for hparam_trial in hparams.trials(N_TRIALS):
-        main(hparam_trial)
+    # N_TRIALS = 3
+    # for hparam_trial in hparams.trials(N_TRIALS):
+    #     main(hparam_trial)
