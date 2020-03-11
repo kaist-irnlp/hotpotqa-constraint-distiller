@@ -103,7 +103,7 @@ class k_winners(torch.autograd.Function):
         # boosted values
         res = torch.zeros_like(x)
         topk, indices = boosted.topk(k, sorted=False)
-        res = res.scatter(1, indices, topk)
+        res = res.scatter(1, indices, topk.type_as(x))
         # for i in range(x.shape[0]):
         #     res[i, indices[i]] = x[i, indices[i]]
 

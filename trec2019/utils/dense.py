@@ -20,7 +20,8 @@ class BertEmbedding(nn.Module):
         self.max_length = max_length
         self.model = BertModel.from_pretrained(weights)
         self.tokenizer = BertTokenizer.from_pretrained(weights)
-        self.device = next(self.parameters()).device
+        # self.device = next(self.model.parameters()).device
+        # print(self.device)
 
     def forward(self, batch_text):
         batch_token_ids = self.tokenizer.batch_encode_plus(
@@ -29,7 +30,13 @@ class BertEmbedding(nn.Module):
             max_length=self.max_length,
             pad_to_max_length="left",
             return_tensors="pt",
-        )["input_ids"].to(self.device)
+        )["input_ids"]
+        batch_token_ids = (
+            batch_token_ids.clone()
+            .detach()
+            .long()
+            .to(next(self.model.parameters()).device)
+        )
 
         with torch.no_grad():
             last_hidden_states = self.model(batch_token_ids)[0]
