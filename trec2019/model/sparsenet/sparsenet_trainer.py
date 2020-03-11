@@ -21,11 +21,21 @@ from trec2019.model.sparsenet import SparseNet
 root_dir = str(Path(__file__).parent.absolute())
 
 
+def get_dense(dense_name, embedding_path):
+    dense_cls = {"bow": BowEmbedding, "disc": DiscEmbedding, "bert": BertEmbedding}[
+        dense_name
+    ]
+    if issubclass(dense_cls, BasePretrainedEmbedding):
+        dense = dense_cls(embedding_path)
+    else:
+        dense = dense_cls()
+    return dense
+
+
 def main(hparams):
     # select dense model
-    dense_models = {"bow": BowEmbedding, "disc": DiscEmbedding, "bert": BertEmbedding}
-    dense_cls = dense_models[hparams.dense]
-    model = SparseNet(hparams, dense_cls=dense_cls,)
+    dense = get_dense(hparams.dense, hparams.embedding_path)
+    model = SparseNet(hparams, dense=dense)
 
     # early stop
     early_stop_callback = EarlyStopping(
@@ -60,7 +70,7 @@ def main(hparams):
 
 if __name__ == "__main__":
     # parser = HyperOptArgumentParser(strategy="grid_search", add_help=False)
-    parser = ArgumentParser()
+    parser = ArgumentParser(add_help=False)
     parser.add_argument("--data_dir", type=str, default=None, required=True)
     parser.add_argument("--embedding_path", "-e", type=str, default=None)
     parser.add_argument("--nodes", type=int, default=1)
@@ -92,7 +102,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", dest="max_nb_epochs", default=500, type=int)
     parser.add_argument("--learning_rate", "-lr", default=0.0001, type=float)
     parser.add_argument(
-        "--dense", type=str, choices=["bow", "disc", "bert"], default="bow"
+        "--dense", type=str, choices=["bow", "disc", "bert"], default="bert"
     )
 
     # add default & model params
@@ -101,8 +111,6 @@ if __name__ == "__main__":
 
     # parse params
     hparams = parser.parse_args()
-    if (hparams.gpus is not None) and (hparams.distributed_backend is None):
-        hparams.distributed_backend = "ddp"
 
     # run fixed params
     main(hparams)
