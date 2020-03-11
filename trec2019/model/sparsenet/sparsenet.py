@@ -50,9 +50,9 @@ class SparseNet(pl.LightningModule):
         self.hparams = hparams
         self.profiler = profiler or PassThroughProfiler()
         self.encoded = None
-        self.dense = BowEmbedding(self.hparams.embedding_path)
+        # self.dense = BowEmbedding(self.hparams.embedding_path)
         # self.dense = DiscEmbedding(self.hparams.embedding_path, ngram=1)
-        # self.dense = BertEmbedding()
+        self.dense = BertEmbedding()
 
         # network
         self._validate_network_params()
