@@ -14,7 +14,7 @@ from test_tube import Experiment
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
-
+from trec2019.utils.dense import *
 from trec2019.model.sparsenet import SparseNet
 
 # cudnn.benchmark = True
@@ -22,23 +22,25 @@ root_dir = str(Path(__file__).parent.absolute())
 
 
 def main(hparams):
-    # clean hparams to avoid TensorBoard error
-    # hparams_dict = vars(hparams)
-    # for k, v in hparams_dict.items():
-    #     if v is None:
-    #         hparams_dict[k] = ""
-    # hparams_dict["gpus"] = 0
-    # hparams_dict["hpc_exp_number"] = 0
+    # select dense model
+    dense_models = {"bow": BowEmbedding, "disc": DiscEmbedding, "bert": BertEmbedding}
+    dense_cls = dense_models[hparams.dense]
+    model = SparseNet(hparams,dense_cls=dense_cls,)
 
-    # init module
-    # encoder = BertEncoder()
-    model = SparseNet(hparams)
-
+    # early stop
     early_stop_callback = EarlyStopping(
         monitor="val_loss", patience=5, verbose=True, mode="min"
     )
+    # logger
     tt_logger = loggers.TestTubeLogger(root_dir)
-    profiler = AdvancedProfiler()
+    
+    # profile
+    if hparams.profile:
+        profiler = AdvancedProfiler()
+    else:
+        profiler = None
+
+    # train
     trainer = Trainer(
         logger=tt_logger,
         default_save_path=root_dir,
@@ -51,7 +53,7 @@ def main(hparams):
         amp_level="O1",
         early_stop_callback=early_stop_callback,
         benchmark=True,
-        profiler=profiler,
+        profiler=profiler
     )
     trainer.fit(model)
 
@@ -64,6 +66,10 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", "-lr", default=0.0001, type=float)
     parser.add_argument("--nodes", type=int, default=1)
     parser.add_argument("--distributed_backend", "-d", type=str, default=None)
+    parser.add_argument(
+        "--dense", type=str, choices=["bow", "disc", "bert"], default="bow"
+    )
+    parser.add_argument("--profile", action="store_true")
     add_default_args(parser, root_dir)
 
     # add model params
