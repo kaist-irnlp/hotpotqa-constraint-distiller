@@ -57,10 +57,10 @@ class SparseNet(pl.LightningModule):
         self._init_network()
 
     def distance(self, a, b):
-        return F.cosine_similarity(a, b)
+        return torch.dist(a, b, 2)
 
     def loss_recovery(self, input, target):
-        return F.l1_loss(input, target)
+        return F.mse_loss(input, target)
 
     def loss_triplet(self, delta):
         return torch.log1p(torch.sum(torch.exp(delta)))
