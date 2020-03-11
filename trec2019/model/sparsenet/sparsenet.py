@@ -45,18 +45,23 @@ logger = logging.getLogger(__name__)
 
 
 class SparseNet(pl.LightningModule):
-    def __init__(self, hparams, profiler=None):
+    def __init__(self, hparams, profiler=None, dense_cls=None):
         super(SparseNet, self).__init__()
         self.hparams = hparams
         self.profiler = profiler or PassThroughProfiler()
         self.encoded = None
-        # self.dense = BowEmbedding(self.hparams.embedding_path)
-        # self.dense = DiscEmbedding(self.hparams.embedding_path, ngram=1)
-        self.dense = BertEmbedding()
+        self.dense_cls = dense_cls
 
         # network
-        self._validate_network_params()
-        self._init_network()
+        self._init_dense()
+        self._clean_sparse_params()
+        self._init_sparse()
+
+    def _init_dense(self):
+        if issubclass(self.dense_cls, BasePretrainedEmbedding):
+            self.dense = self.dense_cls(self.hparams.embedding_path)
+        else:
+            self.dense = self.dense_cls()
 
     def distance(self, a, b):
         return torch.dist(a, b, 2)
@@ -197,7 +202,7 @@ class SparseNet(pl.LightningModule):
 
         return results
 
-    def _init_network(self):
+    def _init_sparse(self):
         self.learning_iterations = 0
         self.flatten = Flatten()
 
@@ -318,7 +323,7 @@ class SparseNet(pl.LightningModule):
             if hasattr(m, "pruneDutycycles"):
                 m.pruneDutycycles(threshold)
 
-    def _validate_network_params(self):
+    def _clean_sparse_params(self):
         hparams = self.hparams
         if type(hparams.n) is not list:
             hparams.n = [hparams.n]
