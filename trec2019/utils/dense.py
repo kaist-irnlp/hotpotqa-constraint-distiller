@@ -1,6 +1,6 @@
 from textblob import TextBlob
-from transformers import BertModel
-from transformers import BertTokenizer
+from transformers import BertModel, DistilBertModel
+from transformers import BertTokenizer, DistillBertTokenizer
 import gensim
 from gensim.models.keyedvectors import KeyedVectors
 import torch
@@ -15,25 +15,23 @@ FLOAT = torch.float32
 
 
 class BertEmbedding(nn.Module):
-    def __init__(self, weights="bert-base-uncased", max_length=512):
+    def __init__(self, weights="distilbert-base-cased", max_length=512):
         super().__init__()
         self.max_length = max_length
-        self.model = BertModel.from_pretrained(weights)
-        self.tokenizer = BertTokenizer.from_pretrained(weights)
+        self.model = DistilBertModel.from_pretrained(weights)
+        self.tokenizer = DistillBertTokenizer.from_pretrained(weights)
         # self.device = next(self.model.parameters()).device
         # print(self.device)
 
     def forward(self, batch_text):
-        batch_token_ids = self.tokenizer.batch_encode_plus(
-            batch_text,
-            add_special_tokens=True,
-            max_length=self.max_length,
-            pad_to_max_length="left",
-            return_tensors="pt",
-        )["input_ids"]
         batch_token_ids = (
-            batch_token_ids.clone()
-            .detach()
+            self.tokenizer.batch_encode_plus(
+                batch_text,
+                add_special_tokens=True,
+                max_length=self.max_length,
+                pad_to_max_length="left",
+                return_tensors="pt",
+            )["input_ids"]
             .long()
             .to(next(self.model.parameters()).device)
         )
