@@ -36,6 +36,7 @@ from trec2019.model.sparsenet.helper import *
 from trec2019.utils.dense import *
 from collections import OrderedDict
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
+from trec2019.utils.dense import *
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -45,12 +46,10 @@ logger = logging.getLogger(__name__)
 
 
 class SparseNet(pl.LightningModule):
-    def __init__(self, hparams, profiler=None, dense_cls=None):
+    def __init__(self, hparams):
         super(SparseNet, self).__init__()
         self.hparams = hparams
-        self.profiler = profiler or PassThroughProfiler()
         self.encoded = None
-        self.dense_cls = dense_cls
 
         # network
         self._init_dense()
@@ -58,19 +57,22 @@ class SparseNet(pl.LightningModule):
         self._init_sparse()
 
     def _init_dense(self):
-        if issubclass(self.dense_cls, BasePretrainedEmbedding):
-            self.dense = self.dense_cls(self.hparams.embedding_path)
+        dense_cls = {"bow": BowEmbedding, "disc": DiscEmbedding, "bert": BertEmbedding}[
+            self.hparams.dense
+        ]
+        if issubclass(dense_cls, BasePretrainedEmbedding):
+            self.dense = dense_cls(self.hparams.embedding_path)
         else:
-            self.dense = self.dense_cls()
+            self.dense = dense_cls()
 
     def distance(self, a, b):
-        return torch.dist(a, b, 2)
+        return torch.pow(a - b, 2).sum(1).sqrt()
 
     def loss_recovery(self, input, target):
         return F.mse_loss(input, target)
 
-    def loss_triplet(self, delta):
-        return torch.log1p(torch.sum(torch.exp(delta)))
+    # def loss_triplet(self, delta):
+    #     return torch.log1p(torch.sum(torch.exp(delta)))
 
     def loss(self, out):
         (
@@ -85,18 +87,22 @@ class SparseNet(pl.LightningModule):
             recovered_doc_neg,
         ) = out
 
+        # triplet loss
+        distance_p = self.distance(sparse_query, sparse_doc_pos)
+        distance_n = self.distance(sparse_query, sparse_doc_neg)
+        # distance_n > distance_p
+        loss_triplet_val = F.margin_ranking_loss(
+            distance_n, distance_p, torch.ones_like(distance_p)
+        )
+        # delta = distance_n - distance_p
+        # loss_triplet_val = self.loss_triplet(delta)
+
         # recovery loss
         loss_recovery_val = (
             self.loss_recovery(recovered_query, dense_query)
             + self.loss_recovery(recovered_doc_pos, dense_doc_pos)
             + self.loss_recovery(recovered_doc_neg, dense_doc_neg)
         )
-
-        # triplet loss
-        distance_p = self.distance(sparse_query, sparse_doc_pos)
-        distance_n = self.distance(sparse_query, sparse_doc_neg)
-        delta = distance_n - distance_p
-        loss_triplet_val = self.loss_triplet(delta)
 
         # loss = triplet + recovery
         return loss_triplet_val + loss_recovery_val
@@ -394,7 +400,7 @@ class SparseNet(pl.LightningModule):
         Specify the hyperparams for this LightningModule
         """
         # MODEL specific
-        parser = HyperOptArgumentParser(parents=[parent_parser])
+        parser = ArgumentParser(parents=[parent_parser])
         parser.add_argument("--k_inference_factor", default=1.5, type=float)
         parser.add_argument("--weight_sparsity", default=0.3, type=float)
         parser.add_argument("--boost_strength", default=1.5, type=float)
