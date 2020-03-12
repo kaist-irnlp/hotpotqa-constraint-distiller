@@ -71,8 +71,6 @@ def main(hparams):
 if __name__ == "__main__":
     # parser = HyperOptArgumentParser(strategy="grid_search", add_help=False)
     parser = ArgumentParser(add_help=False)
-    parser.add_argument("--data_dir", type=str, default=None, required=True)
-    parser.add_argument("--embedding_path", "-e", type=str, default=None)
     parser.add_argument("--nodes", type=int, default=1)
     parser.add_argument("--distributed_backend", "-d", type=str, default=None)
     parser.add_argument("--profile", action="store_true")
@@ -96,6 +94,8 @@ if __name__ == "__main__":
     # parser.opt_list("--batch_size", type=int, tunable=True, options=[64])
 
     # model params
+    parser.add_argument("--data_dir", type=str, default=None, required=True)
+    parser.add_argument("--embedding_path", "-e", type=str, default=None)
     parser.add_argument("--n", type=int, nargs="+", required=True)
     parser.add_argument("--k", type=int, nargs="+", required=True)
     parser.add_argument("--batch_size", type=int, default=64)
