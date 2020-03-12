@@ -36,6 +36,7 @@ from trec2019.model.sparsenet.helper import *
 from trec2019.utils.dense import *
 from collections import OrderedDict
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
+from trec2019.utils.dense import *
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -45,17 +46,24 @@ logger = logging.getLogger(__name__)
 
 
 class SparseNet(pl.LightningModule):
-    def __init__(self, hparams, profiler=None, dense=None):
+    def __init__(self, hparams):
         super(SparseNet, self).__init__()
         self.hparams = hparams
-        self.profiler = profiler or PassThroughProfiler()
         self.encoded = None
-        self.dense = dense
 
         # network
-        # self._init_dense()
+        self._init_dense()
         self._clean_sparse_params()
         self._init_sparse()
+
+    def _init_dense(self):
+        dense_cls = {"bow": BowEmbedding, "disc": DiscEmbedding, "bert": BertEmbedding}[
+            self.hparams.dense
+        ]
+        if issubclass(dense_cls, BasePretrainedEmbedding):
+            self.dense = dense_cls(self.hparams.embedding_path)
+        else:
+            self.dense = dense_cls()
 
     def distance(self, a, b):
         return torch.pow(a - b, 2).sum(1).sqrt()
