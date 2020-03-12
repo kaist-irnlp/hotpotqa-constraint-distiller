@@ -51,6 +51,8 @@ class BertEmbedding(nn.Module):
 class BasePretrainedEmbedding(nn.Module):
     def __init__(self, embedding_path):
         super().__init__()
+        if embedding_path is None:
+            raise ValueError("embedding_path should be provided.")
         self.embedding_path = str(embedding_path)
         # modules
         self.embeddings = None
