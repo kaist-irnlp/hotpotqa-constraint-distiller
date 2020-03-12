@@ -21,21 +21,20 @@ from trec2019.model.sparsenet import SparseNet
 root_dir = str(Path(__file__).parent.absolute())
 
 
-def get_dense(dense_name, embedding_path):
-    dense_cls = {"bow": BowEmbedding, "disc": DiscEmbedding, "bert": BertEmbedding}[
-        dense_name
-    ]
-    if issubclass(dense_cls, BasePretrainedEmbedding):
-        dense = dense_cls(embedding_path)
-    else:
-        dense = dense_cls()
-    return dense
+# def get_dense(dense_name, embedding_path):
+#     dense_cls = {"bow": BowEmbedding, "disc": DiscEmbedding, "bert": BertEmbedding}[
+#         dense_name
+#     ]
+#     if issubclass(dense_cls, BasePretrainedEmbedding):
+#         dense = dense_cls(embedding_path)
+#     else:
+#         dense = dense_cls()
+#     return dense
 
 
 def main(hparams):
     # select dense model
-    dense = get_dense(hparams.dense, hparams.embedding_path)
-    model = SparseNet(hparams, dense=dense)
+    model = SparseNet(hparams)
 
     # early stop
     early_stop_callback = EarlyStopping(
