@@ -1,6 +1,6 @@
 from textblob import TextBlob
-from transformers import BertModel, DistilBertModel
-from transformers import BertTokenizer, DistilBertTokenizer
+from transformers import BertModel, DistilBertModel, AutoModel
+from transformers import BertTokenizer, DistilBertTokenizer, AutoTokenizer
 import gensim
 from gensim.models.keyedvectors import KeyedVectors
 import torch
@@ -18,8 +18,8 @@ class BertEmbedding(nn.Module):
     def __init__(self, weights="distilbert-base-cased", max_length=512):
         super().__init__()
         self.max_length = max_length
-        self.model = DistilBertModel.from_pretrained(weights)
-        self.tokenizer = DistilBertTokenizer.from_pretrained(weights)
+        self.model = AutoModel.from_pretrained(weights)
+        self.tokenizer = AutoTokenizer.from_pretrained(weights)
         # self.device = next(self.model.parameters()).device
         # print(self.device)
 
