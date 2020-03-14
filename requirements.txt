@@ -11,3 +11,4 @@ textblob
 torchtext
 spacy
 dask[complete]
+zarr
