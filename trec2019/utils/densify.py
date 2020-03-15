@@ -32,7 +32,7 @@ class DensifyModel(pl.LightningModule):
         self.dummy = torch.nn.Linear(1, 1)
         # output
         out_path = self._get_output_path()
-        init_shape = chunks = (self.hparams.batch_size, self.dense.get_dim())
+        init_shape = chunks = (self.hparams.batch_size * 2, self.dense.get_dim())
         self.batch_idx = 0
         # self.fout = zarr.open(zarr.ZipStore(out_path), mode="w")
         self.fout = zarr.open(out_path, mode="w")
@@ -57,10 +57,17 @@ class DensifyModel(pl.LightningModule):
 
         # write when batch_idx = 0 else append
         if batch_idx == 0:
+            # resize to fit the batch size
+            n_rows = len(dense_query)
+            self.out_query.resize(n_rows, None)
+            self.out_doc_pos.resize(n_rows, None)
+            self.out_doc_neg.resize(n_rows, None)
+            # write 1-st data
             self.out_query[:] = dense_query
             self.out_doc_pos[:] = dense_doc_pos
             self.out_doc_neg[:] = dense_doc_neg
         else:
+            # append afterward
             self.out_query.append(dense_query, axis=0)
             self.out_doc_pos.append(dense_doc_pos, axis=0)
             self.out_doc_neg.append(dense_doc_neg, axis=0)
@@ -121,9 +128,9 @@ class DensifyModel(pl.LightningModule):
 
 
 def get_dense_model(model, weights):
-    if model == 'bert':
+    if model == "bert":
         return BertEmbedding(weights=weights)
-    elif model == 'bow':
+    elif model == "bow":
         raise NotImplementedError
 
 
@@ -150,7 +157,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("data_path", type=str)
     parser.add_argument("model", type=str, choices=["bow", "bert"])
-    parser.add_argument("--weights", type=str, default='bert-base-uncased')
+    parser.add_argument("--weights", type=str, default="bert-base-uncased")
     parser.add_argument("--distributed_backend", "-d", type=str, default=None)
     parser.add_argument("--gpus", default=None, type=str)
     parser.add_argument("--use_amp", dest="use_amp", action="store_true")
