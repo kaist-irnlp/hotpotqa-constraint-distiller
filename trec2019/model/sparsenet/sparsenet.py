@@ -33,7 +33,6 @@ import numpy as np
 
 from trec2019.utils.dataset import TRECTripleDataset
 from trec2019.model.sparsenet.helper import *
-from trec2019.utils.dense import *
 from collections import OrderedDict
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
 from trec2019.utils.dense import *
