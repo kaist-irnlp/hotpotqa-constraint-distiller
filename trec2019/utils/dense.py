@@ -6,6 +6,7 @@ from gensim.models.keyedvectors import KeyedVectors
 import torch
 from torch import nn
 from torch import tensor
+from torchtext.data import Field
 import gc
 import abc
 import numpy as np
@@ -13,6 +14,7 @@ import sys
 
 FLOAT = torch.float32
 IDX_CLS = 0
+
 
 class BertEmbedding(nn.Module):
     def __init__(self, weights="bert-base-uncased", max_length=512):
@@ -95,6 +97,11 @@ class BasePretrainedEmbedding(nn.Module):
         # clean
         del model
         gc.collect()
+
+
+TEXT = Field(
+    sequential=True, use_vocab=True, tokenize="spacy", lower=True, batch_first=True
+)
 
 
 class BowEmbedding(BasePretrainedEmbedding):
