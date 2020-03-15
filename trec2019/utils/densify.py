@@ -138,7 +138,7 @@ root_dir = str(Path(__file__).parent.absolute())
 
 
 def main(hparams):
-    dense = get_dense_model(hparams.model, hparams.weigths)
+    dense = get_dense_model(hparams.model, hparams.weights)
     model = DensifyModel(hparams, dense)
     tt_logger = loggers.TestTubeLogger(root_dir)
     trainer = Trainer(
