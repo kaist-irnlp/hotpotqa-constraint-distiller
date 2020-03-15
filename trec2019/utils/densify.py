@@ -41,22 +41,13 @@ class DensifyModel(pl.LightningModule):
         nd_sync = zarr.ProcessSynchronizer("sync/doc_neg.sync")
 
         self.out_query = self.fout.zeros(
-            "query",
-            shape=init_shape,
-            chunks=chunks,
-            synchronizer=zarr.ThreadSynchronizer(),
+            "query", shape=init_shape, chunks=chunks, synchronizer=q_sync,
         )
         self.out_doc_pos = self.fout.zeros(
-            "doc_pos",
-            shape=init_shape,
-            chunks=chunks,
-            synchronizer=zarr.ThreadSynchronizer(),
+            "doc_pos", shape=init_shape, chunks=chunks, synchronizer=pd_sync,
         )
         self.out_doc_neg = self.fout.zeros(
-            "doc_neg",
-            shape=init_shape,
-            chunks=chunks,
-            synchronizer=zarr.ThreadSynchronizer(),
+            "doc_neg", shape=init_shape, chunks=chunks, synchronizer=nd_sync,
         )
 
     def _write_outputs(self, outputs, batch_idx):
@@ -81,8 +72,7 @@ class DensifyModel(pl.LightningModule):
             data_name.replace(".tsv", "").replace(".zarr", "").replace(".zip", "")
         )
         fout_path = (
-            Path("output")
-            / f"{fout_name}_{hparams.model}_{self.dense.weights}.zarr"
+            Path("output") / f"{fout_name}_{hparams.model}_{self.dense.weights}.zarr"
         )
         if not fout_path.parent.exists():
             fout_path.parent.mkdir(parents=True)
