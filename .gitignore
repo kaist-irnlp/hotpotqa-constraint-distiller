@@ -2,6 +2,7 @@
 **/settings.json
 **/lightning_logs
 **/*.ckpt
+**/*.part
 **/*.sync
 **/output/
 
