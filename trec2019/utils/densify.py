@@ -25,10 +25,10 @@ class TripleDataset(Dataset):
 
 
 class DensifyModel(pl.LightningModule):
-    def __init__(self, hparams, dense_cls):
+    def __init__(self, hparams, dense):
         super().__init__()
         self.hparams = hparams
-        self.dense = dense_cls()
+        self.dense = dense
         self.dummy = torch.nn.Linear(1, 1)
         # output
         out_path = self._get_output_path()
@@ -120,17 +120,19 @@ class DensifyModel(pl.LightningModule):
         return [optimizer], [scheduler]
 
 
-def get_dense_model(model):
-    model = {"bert": BertEmbedding, "bow": BowEmbedding}[model]
-    return model
+def get_dense_model(model, weights):
+    if model == 'bert':
+        return BertEmbedding(weights=weights)
+    elif model == 'bow':
+        raise NotImplementedError
 
 
 root_dir = str(Path(__file__).parent.absolute())
 
 
 def main(hparams):
-    dense_cls = get_dense_model(hparams.model)
-    model = DensifyModel(hparams, dense_cls)
+    dense = get_dense_model(hparams.model, hparams.weigths)
+    model = DensifyModel(hparams, dense)
     tt_logger = loggers.TestTubeLogger(root_dir)
     trainer = Trainer(
         logger=tt_logger,
@@ -148,6 +150,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("data_path", type=str)
     parser.add_argument("model", type=str, choices=["bow", "bert"])
+    parser.add_argument("--weights", type=str, default='bert-base-uncased')
     parser.add_argument("--distributed_backend", "-d", type=str, default=None)
     parser.add_argument("--gpus", default=None, type=str)
     parser.add_argument("--use_amp", dest="use_amp", action="store_true")
