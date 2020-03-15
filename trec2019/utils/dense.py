@@ -12,16 +12,15 @@ import numpy as np
 import sys
 
 FLOAT = torch.float32
-
+IDX_CLS = 0
 
 class BertEmbedding(nn.Module):
-    def __init__(self, weights="distilbert-base-cased", max_length=512):
+    def __init__(self, weights="bert-base-uncased", max_length=512):
         super().__init__()
         self.max_length = max_length
         self.model = AutoModel.from_pretrained(weights)
         self.tokenizer = AutoTokenizer.from_pretrained(weights)
-        # self.device = next(self.model.parameters()).device
-        # print(self.device)
+        self.weights = weights
 
     def forward(self, batch_text):
         batch_token_ids = (
@@ -39,7 +38,6 @@ class BertEmbedding(nn.Module):
         with torch.no_grad():
             last_hidden_states = self.model(batch_token_ids)[0]
 
-        IDX_CLS = 0
         return last_hidden_states[:, IDX_CLS, :]
 
     def get_dim(self):
