@@ -99,11 +99,6 @@ class BasePretrainedEmbedding(nn.Module):
         gc.collect()
 
 
-TEXT = Field(
-    sequential=True, use_vocab=True, tokenize="spacy", lower=True, batch_first=True
-)
-
-
 class BowEmbedding(BasePretrainedEmbedding):
     def __init__(self, embedding_path):
         super().__init__(embedding_path)
