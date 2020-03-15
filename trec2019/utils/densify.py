@@ -34,10 +34,30 @@ class DensifyModel(pl.LightningModule):
         out_path = self._get_output_path()
         init_shape = chunks = (self.hparams.batch_size, self.dense.get_dim())
         self.batch_idx = 0
-        self.fout = zarr.open(zarr.ZipStore(out_path), mode="w")
-        self.out_query = self.fout.zeros("query", shape=init_shape, chunks=chunks)
-        self.out_doc_pos = self.fout.zeros("doc_pos", shape=init_shape, chunks=chunks)
-        self.out_doc_neg = self.fout.zeros("doc_neg", shape=init_shape, chunks=chunks)
+        # self.fout = zarr.open(zarr.ZipStore(out_path), mode="w")
+        self.fout = zarr.open(out_path, mode="w")
+        q_sync = zarr.ProcessSynchronizer("sync/query.sync")
+        pd_sync = zarr.ProcessSynchronizer("sync/doc_pos.sync")
+        nd_sync = zarr.ProcessSynchronizer("sync/doc_neg.sync")
+
+        self.out_query = self.fout.zeros(
+            "query",
+            shape=init_shape,
+            chunks=chunks,
+            synchronizer=zarr.ThreadSynchronizer(),
+        )
+        self.out_doc_pos = self.fout.zeros(
+            "doc_pos",
+            shape=init_shape,
+            chunks=chunks,
+            synchronizer=zarr.ThreadSynchronizer(),
+        )
+        self.out_doc_neg = self.fout.zeros(
+            "doc_neg",
+            shape=init_shape,
+            chunks=chunks,
+            synchronizer=zarr.ThreadSynchronizer(),
+        )
 
     def _write_outputs(self, outputs, batch_idx):
         dense_query = outputs["dense_query"].detach().cpu().numpy()
@@ -61,9 +81,12 @@ class DensifyModel(pl.LightningModule):
             data_name.replace(".tsv", "").replace(".zarr", "").replace(".zip", "")
         )
         fout_path = (
-            Path(".") / f"{fout_name}_{hparams.model}_{self.dense.weights}.zarr.zip"
+            Path("output")
+            / f"{fout_name}_{hparams.model}_{self.dense.weights}.zarr"
         )
-        return fout_path
+        if not fout_path.parent.exists():
+            fout_path.parent.mkdir(parents=True)
+        return str(fout_path)
 
     def prepare_data(self):
         self.train_dataset = TripleDataset(self.hparams.data_path)
