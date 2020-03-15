@@ -10,6 +10,7 @@ from argparse import ArgumentParser
 
 from trec2019.utils.dense import *
 from torch import optim
+from pytorch_lightning.overrides.data_parallel import LightningDistributedDataParallel
 
 
 class TripleDataset(Dataset):
@@ -51,9 +52,9 @@ class DensifyModel(pl.LightningModule):
         )
 
     def _write_outputs(self, outputs, batch_idx):
-        dense_query = outputs["dense_query"].detach().cpu().numpy()
-        dense_doc_pos = outputs["dense_doc_pos"].detach().cpu().numpy()
-        dense_doc_neg = outputs["dense_doc_neg"].detach().cpu().numpy()
+        dense_query = outputs["dense_query"]
+        dense_doc_pos = outputs["dense_doc_pos"]
+        dense_doc_neg = outputs["dense_doc_neg"]
 
         # write when batch_idx = 0 else append
         if batch_idx == 0:
@@ -85,19 +86,32 @@ class DensifyModel(pl.LightningModule):
             fout_path.parent.mkdir(parents=True)
         return str(fout_path)
 
+    # def configure_ddp(self, model, device_ids):
+    #     # Lightning DDP simply routes to test_step, val_step, etc...
+    #     model = LightningDistributedDataParallel(
+    #         model, device_ids=device_ids, find_unused_parameters=False
+    #     )
+    #     return model
+
     def prepare_data(self):
         self.train_dataset = TripleDataset(self.hparams.data_path)
 
-    def forward(self, query, doc_pos, doc_neg):
+    def forward(self, query, doc_pos, doc_neg, dummy_val):
         with torch.no_grad():
-            Qe = self.dense(query)
-            PDe = self.dense(doc_pos)
-            NDe = self.dense(doc_neg)
-        return {"dense_query": Qe, "dense_doc_pos": PDe, "dense_doc_neg": NDe}
+            Qe = self.dense(query).detach().cpu().numpy()
+            PDe = self.dense(doc_pos).detach().cpu().numpy()
+            NDe = self.dense(doc_neg).detach().cpu().numpy()
+        return {
+            "dense_query": Qe,
+            "dense_doc_pos": PDe,
+            "dense_doc_neg": NDe,
+            "dummy": self.dummy(dummy_val),
+        }
 
     def training_step(self, batch, batch_idx):
         query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
-        return self.forward(query, doc_pos, doc_neg)
+        dummy_val = torch.randn(5, 1, dtype=torch.float).to(self.dummy.weight.device)
+        return self.forward(query, doc_pos, doc_neg, dummy_val)
 
     def training_step_end(self, outputs):
         # save
@@ -105,9 +119,9 @@ class DensifyModel(pl.LightningModule):
         self.batch_idx += 1
 
         # return dummy
-        t = torch.tensor([1.0]).to(self.dummy.weight.device)
-        y = self.dummy(t)
-        return {"loss": y}
+        dummy = outputs['dummy']
+        loss = F.mse_loss(dummy, dummy)
+        return {"loss": loss}
 
     def train_dataloader(self):
         N_WORKERS = 0
