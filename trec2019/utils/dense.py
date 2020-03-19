@@ -6,7 +6,7 @@ from gensim.models.keyedvectors import KeyedVectors
 import torch
 from torch import nn
 from torch import tensor
-from torchtext.data import Field
+from torchtext.vocab import Vocab
 import gc
 import abc
 import numpy as np
