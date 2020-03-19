@@ -66,7 +66,8 @@ class SparseNet(pl.LightningModule):
             self.dense = dense_cls()
 
     def distance(self, a, b):
-        return torch.pow(a - b, 2).sum(1).sqrt()
+        # return torch.pow(a - b, 2).sum(1).sqrt()
+        return F.cosine_similarity(a, b)
 
     def loss_recovery(self, input, target):
         return F.mse_loss(input, target)
@@ -82,15 +83,15 @@ class SparseNet(pl.LightningModule):
             sparse_query,
             sparse_doc_pos,
             sparse_doc_neg,
-            recovered_query,
-            recovered_doc_pos,
-            recovered_doc_neg,
+            # recovered_query,
+            # recovered_doc_pos,
+            # recovered_doc_neg,
         ) = out
 
         # triplet loss
         distance_p = self.distance(sparse_query, sparse_doc_pos)
         distance_n = self.distance(sparse_query, sparse_doc_neg)
-        # distance_n > distance_p
+        # Should be distance_n > distance_p, so mark all as 1 (not -1)
         loss_triplet_val = F.margin_ranking_loss(
             distance_n, distance_p, torch.ones_like(distance_p)
         )
@@ -98,14 +99,15 @@ class SparseNet(pl.LightningModule):
         # loss_triplet_val = self.loss_triplet(delta)
 
         # recovery loss
-        loss_recovery_val = (
-            self.loss_recovery(recovered_query, dense_query)
-            + self.loss_recovery(recovered_doc_pos, dense_doc_pos)
-            + self.loss_recovery(recovered_doc_neg, dense_doc_neg)
-        )
+        # loss_recovery_val = (
+        #     self.loss_recovery(recovered_query, dense_query)
+        #     + self.loss_recovery(recovered_doc_pos, dense_doc_pos)
+        #     + self.loss_recovery(recovered_doc_neg, dense_doc_neg)
+        # )
 
-        # loss = triplet + recovery
-        return loss_triplet_val + loss_recovery_val
+        # loss = triplet
+        # return loss_triplet_val + loss_recovery_val
+        return loss_triplet_val
 
     def forward(self, query, doc_pos, doc_neg):
         # dense
@@ -124,11 +126,11 @@ class SparseNet(pl.LightningModule):
         )
 
         # recover
-        recovered_query, recovered_doc_pos, recovered_doc_neg = (
-            self.recover(sparse_query),
-            self.recover(sparse_doc_pos),
-            self.recover(sparse_doc_neg),
-        )
+        # recovered_query, recovered_doc_pos, recovered_doc_neg = (
+        #     self.recover(sparse_query),
+        #     self.recover(sparse_doc_pos),
+        #     self.recover(sparse_doc_neg),
+        # )
 
         if self.training:
             # batch_size = batch.shape[0]
@@ -142,9 +144,9 @@ class SparseNet(pl.LightningModule):
             sparse_query,
             sparse_doc_pos,
             sparse_doc_neg,
-            recovered_query,
-            recovered_doc_pos,
-            recovered_doc_neg,
+            # recovered_query,
+            # recovered_doc_pos,
+            # recovered_doc_neg,
         )
 
     def training_step(self, batch, batch_idx):
@@ -210,7 +212,7 @@ class SparseNet(pl.LightningModule):
 
     def _init_sparse(self):
         self.learning_iterations = 0
-        self.flatten = Flatten()
+        # self.flatten = Flatten()
 
         # Linear layers only (from original code)
         input_features = self.input_dim
@@ -260,7 +262,7 @@ class SparseNet(pl.LightningModule):
                 input_features = n[i]
 
         # Add one fully connected layer after all hidden layers
-        self.recover = nn.Linear(input_features, output_size)
+        # self.recover = nn.Linear(input_features, output_size)
 
         # if useSoftmax:
         #     self.softmax = nn.LogSoftmax(dim=1)
