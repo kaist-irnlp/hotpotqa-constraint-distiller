@@ -52,7 +52,7 @@ class SparseNet(pl.LightningModule):
 
         # network
         self._init_dense()
-        self._clean_sparse_params()
+        self._preprocess_sparse_params()
         self._init_sparse()
 
     def _init_dense(self):
@@ -330,7 +330,7 @@ class SparseNet(pl.LightningModule):
             if hasattr(m, "pruneDutycycles"):
                 m.pruneDutycycles(threshold)
 
-    def _clean_sparse_params(self):
+    def _preprocess_sparse_params(self):
         hparams = self.hparams
         if type(hparams.n) is not list:
             hparams.n = [hparams.n]
