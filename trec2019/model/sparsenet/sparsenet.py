@@ -31,7 +31,7 @@ import gensim
 from gensim.models.keyedvectors import KeyedVectors
 import numpy as np
 
-from trec2019.utils.dataset import TRECTripleDataset
+from trec2019.utils.dataset import *
 from trec2019.model.sparsenet.helper import *
 from collections import OrderedDict
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
@@ -56,10 +56,8 @@ class SparseNet(pl.LightningModule):
         self._init_sparse()
 
     def _init_dense(self):
-        dense_cls = {"bow": BowEmbedding, "disc": DiscEmbedding, "bert": BertEmbedding}[
-            self.hparams.dense
-        ]
-        if issubclass(dense_cls, BasePretrainedEmbedding):
+        dense_cls = {"bow": BowEmbedding, "bert": BertEmbedding}[self.hparams.dense]
+        if issubclass(dense_cls, BowEmbedding):
             self.dense = dense_cls(self.hparams.embedding_path)
         else:
             self.dense = dense_cls()
