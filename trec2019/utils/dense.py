@@ -13,38 +13,9 @@ import numpy as np
 import pandas as pd
 import sys
 
+
 FLOAT = torch.float32
 IDX_CLS = 0
-
-
-class BertEmbedding(nn.Module):
-    def __init__(self, weights="bert-base-uncased", max_length=512):
-        super().__init__()
-        self.max_length = max_length
-        self.model = AutoModel.from_pretrained(weights)
-        self.tokenizer = AutoTokenizer.from_pretrained(weights)
-        self.weights = weights
-
-    def forward(self, batch_text):
-        batch_token_ids = (
-            self.tokenizer.batch_encode_plus(
-                batch_text,
-                add_special_tokens=True,
-                max_length=self.max_length,
-                pad_to_max_length="left",
-                return_tensors="pt",
-            )["input_ids"]
-            .long()
-            .to(next(self.model.parameters()).device)
-        )
-
-        with torch.no_grad():
-            last_hidden_states = self.model(batch_token_ids)[0]
-
-        return last_hidden_states[:, IDX_CLS, :]
-
-    def get_dim(self):
-        return self.model.config.hidden_size
 
 
 class BowEmbedding(nn.Module):
@@ -85,6 +56,36 @@ class BowEmbedding(nn.Module):
         embs = self.get_embeddings(tokens)
         embs = torch.mean(embs, 0)
         return embs
+
+
+class BertEmbedding(nn.Module):
+    def __init__(self, weights="bert-base-uncased", max_length=512):
+        super().__init__()
+        self.max_length = max_length
+        self.model = AutoModel.from_pretrained(weights)
+        self.tokenizer = AutoTokenizer.from_pretrained(weights)
+        self.weights = weights
+
+    def forward(self, batch_text):
+        batch_token_ids = (
+            self.tokenizer.batch_encode_plus(
+                batch_text,
+                add_special_tokens=True,
+                max_length=self.max_length,
+                pad_to_max_length="left",
+                return_tensors="pt",
+            )["input_ids"]
+            .long()
+            .to(next(self.model.parameters()).device)
+        )
+
+        with torch.no_grad():
+            last_hidden_states = self.model(batch_token_ids)[0]
+
+        return last_hidden_states[:, IDX_CLS, :]
+
+    def get_dim(self):
+        return self.model.config.hidden_size
 
 
 # class OldBowEmbedding(BasePretrainedEmbedding):
