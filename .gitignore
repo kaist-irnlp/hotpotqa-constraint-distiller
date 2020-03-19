@@ -2,6 +2,9 @@
 **/settings.json
 **/lightning_logs
 **/*.ckpt
+**/*.part
+**/*.sync
+**/output/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
