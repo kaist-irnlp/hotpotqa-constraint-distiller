@@ -19,42 +19,22 @@ IDX_CLS = 0
 
 
 class BowEmbedding(nn.Module):
-    def __init__(self, vocab_path, vectors="fasttext.en.300d"):
+    def __init__(self, vocab):
         super().__init__()
-        self._init_embedding(vocab_path, vectors)
-        # self.device = self.embeddings.weight.device
+        self.vocab = vocab
+        self._init_embedding()
+        # self.device = self.embedding.weight.device
 
-    def _init_embedding(self, vocab_path, vectors):
-        self.vocab = self._load_vocab(vocab_path)
-        self.vocab.load_vectors(vectors)
-        self.embeddings = nn.EmbeddingBag.from_pretrained(
+    def _init_embedding(self):
+        self.embedding = nn.EmbeddingBag.from_pretrained(
             self.vocab.vectors, freeze=True, sparse=True
         )
-
-    def _load_vocab(self, vocab_path):
-        """load vocab as dictionary
-        """
-        vocab_counts = pd.read_parquet(vocab_path).as_dict()
-        return Vocab(vocab_counts)
 
     def get_dim(self):
         return self.vocab.vectors.shape[1]
 
-    def forward(self, batch_text):
-        batch_embeddings = torch.stack([self._embed(text) for text in batch_text])
-        return batch_embeddings
-
-    def get_ids(self, text):
-        return list(TextBlob(text).lower().tokens)
-
-    def _embed(self, text):
-        tokens = self.get_ids(text)
-        # ids = [self.word2idx.get(w, -1) for w in tokens]
-        # ids = (
-        #     tensor([i for i in ids if i >= 0]).long().to(self.embeddings.weight.device)
-        # )
-        embs = self.get_embeddings(tokens)
-        embs = torch.mean(embs, 0)
+    def forward(self, batch):
+        embs = self.embedding(batch)
         return embs
 
 
