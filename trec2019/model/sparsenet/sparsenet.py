@@ -362,8 +362,8 @@ class SparseNet(pl.LightningModule):
         return train, val, test
 
     def prepare_data(self):
-        data_dir = Path(self.hparams.data_dir)
-        data_path = str(data_dir / "all.zarr.zip")
+        # data_dir = Path(self.hparams.data_dir)
+        data_path = self.hparams.data_path
         train, val, test = self.get_train_val_test(data_path)
         self._train_dataset = TripleDataset(data_path, train, self.vocab)
         self._val_dataset = TripleDataset(data_path, val, self.vocab)
