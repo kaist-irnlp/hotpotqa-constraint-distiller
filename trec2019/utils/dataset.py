@@ -10,27 +10,38 @@ from transformers import BertTokenizer
 import gc
 import zarr
 from torchtext.vocab import Vocab
-from torchtext.data import Field, BucketIterator, Example
 import torchtext
-
-TEXT = Field(sequential=True, tokenize="spacy", lower=True)
-
-
-class TripleDataset(torchtext.data.Dataset):
-    def __init__(self, data_path):
-        fields = [
-            ("query", TEXT),
-            ("doc_pos", TEXT),
-            ("doc_neg", TEXT),
-        ]
-        data = zarr.open(data_path, "r")
-        super().__init__(data, fields)
+from collections import Counter
+from textblob import TextBlob
 
 
-class TRECTripleDataset(Dataset):
-    def __init__(self, data_path):
+class TripleDataset(Dataset):
+    UNK_IDX = 0
+    PAD_IDX = 1
+
+    def __init__(self, data_path, vocab, max_length=512):
         super().__init__()
-        self.data = zarr.open(data_path, "r")
+        self.data = zarr.open(str(data_path), "r")
+        self.vocab = vocab
+        self.max_length = max_length
+        self.unk_token = self.vocab.itos[self.UNK_IDX]
+        self.pad_token = self.vocab.itos[self.PAD_IDX]
+
+    def numericalize(self, arr):
+        return torch.tensor([self.vocab.stoi[x] for x in arr], dtype=torch.long)
+        # arr = [[self.vocab.stoi[x] for x in ex] for ex in arr]
+        # var = torch.tensor(arr, dtype=torch.long).contiguous()
+        # return var
+
+    def pad(self, x):
+        # Do real-time tokenization here
+        x = [str(tok) for tok in TextBlob(x).lower().tokens]
+
+        # pad & numericalize
+        pad_length = max(0, self.max_length - len(x))
+        padded = x[: self.max_length] + [self.pad_token] * pad_length
+
+        return padded
 
     def __len__(self):
         return len(self.data)
@@ -38,33 +49,23 @@ class TRECTripleDataset(Dataset):
     def __getitem__(self, index):
         # return a sample
         query, doc_pos, doc_neg = self.data[index]
-        # sample["index"] = index
-        # for k, v in sample.items():
-        #     blob = TextBlob(v)
-        #     if self.lower:
-        #         blob = blob.lower()
-        #     sample[k] = np.array(
-        #         list(
-        #             filter(
-        #                 lambda i: i >= 0,
-        #                 [self.word2idx.get(w, -1) for w in blob.tokens],
-        #             )
-        #         ),
-        #         dtype=np.int32,
-        #     )
-        return {"query": query, "doc_pos": doc_pos, "doc_neg": doc_neg}
+        query, doc_pos, doc_neg = self.pad(query), self.pad(doc_pos), self.pad(doc_neg)
+        query_ids, doc_pos_ids, doc_neg_ids = (
+            self.numericalize(query),
+            self.numericalize(doc_pos),
+            self.numericalize(doc_neg),
+        )
+        return {"query": query_ids, "doc_pos": doc_pos_ids, "doc_neg": doc_neg_ids}
 
 
 if __name__ == "__main__":
+    counts = Counter({"q": 2, "a": 3})
+    vocab = Vocab(counts, vectors="fasttext.simple.300d")
     data_path = Path(
         "/Users/kyoungrok/Resilio Sync/Dataset/2019 TREC/passage_ranking/triples.train.small.tsv.zarr.zip"
     )
-    dataset = TripleDataset(str(data_path))
-    train, val, test = dataset.splits(
-        stratified=True, strata_field="query", random_state=2020
-    )
-    # loader = DataLoader(dset, batch_size=32, num_workers=2)
-    # for batch in loader:
-    #     res = batch["doc_pos"]
-    #     print(res, len(res))
-    #     break
+    dataset = TripleDataset(data_path, vocab)
+    loader = DataLoader(dataset, batch_size=2)
+    for i, sample in enumerate(loader):
+        print(sample)
+        break
