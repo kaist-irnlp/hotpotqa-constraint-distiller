@@ -21,7 +21,7 @@ if __name__ == "__main__":
             names=["query", "doc_pos", "doc_neg"],
         )
         arr = d.to_dask_array(lengths=True)
-        arr.rechunk({0: 1024}).to_zarr(
+        arr.rechunk({0: 32}).to_zarr(
             zarr.ZipStore(str(fout)), object_codec=numcodecs.VLenUTF8()
         )
 
