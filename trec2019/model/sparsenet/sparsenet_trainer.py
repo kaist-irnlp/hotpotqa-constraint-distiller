@@ -33,14 +33,14 @@ root_dir = str(Path(__file__).parent.absolute())
 #     return dense
 
 
+VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.parquet"
+VECTORS = "fasttext.simple.300d"
+MIN_FREQ = 2
+
+
 def load_vocab_counts(vocab_count_path):
     df = pd.read_parquet(vocab_count_path)
     return Counter({row.word: row.count for row in df.itertuples()})
-
-
-VOCAB_PATH = "../../vocab/vocab.parquet"
-VECTORS = "fasttext.simple.300d"
-MIN_FREQ = 2
 
 
 def init_vocab():
@@ -119,7 +119,6 @@ if __name__ == "__main__":
 
     # model params
     parser.add_argument("--data_dir", type=str, default=None, required=True)
-    parser.add_argument("--embedding_path", "-e", type=str, default=None)
     parser.add_argument("--n", type=int, nargs="+", required=True)
     parser.add_argument("--k", type=int, nargs="+", required=True)
     parser.add_argument("--batch_size", type=int, default=64)
