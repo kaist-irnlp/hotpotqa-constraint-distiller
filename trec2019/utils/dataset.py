@@ -19,9 +19,9 @@ class TripleDataset(Dataset):
     UNK_IDX = 0
     PAD_IDX = 1
 
-    def __init__(self, data, indices, vocab, max_length=512):
+    def __init__(self, data_path, indices, vocab, max_length=512):
         super().__init__()
-        self.data = data
+        self.data = zarr.open(data_path, "r")
         self.indices = indices
         self.vocab = vocab
         self.max_length = max_length
