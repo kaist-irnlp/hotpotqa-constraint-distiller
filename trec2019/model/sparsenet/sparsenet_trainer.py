@@ -3,6 +3,7 @@ This file runs the main training/val loop, etc... using Lightning Trainer
 """
 from argparse import ArgumentParser
 from pathlib import Path
+from collections import Counter
 
 import torch
 from torch.backends import cudnn
@@ -32,9 +33,33 @@ root_dir = str(Path(__file__).parent.absolute())
 #     return dense
 
 
+def load_vocab_counts(vocab_count_path):
+    df = pd.read_parquet(vocab_count_path)
+    return Counter({row.word: row.count for row in df.itertuples()})
+
+
+VOCAB_PATH = "../../vocab/vocab.parquet"
+VECTORS = "fasttext.simple.300d"
+MIN_FREQ = 2
+
+
+def init_vocab():
+    counts = load_vocab_counts(VOCAB_PATH)
+    return Vocab(counts, vectors=VECTORS, min_freq=MIN_FREQ)
+
+
+def init_dense(dense_name, vocab):
+    if dense_name == "bow":
+        return BowEmbedding(vocab)
+
+
 def main(hparams):
-    # select dense model
-    model = SparseNet(hparams)
+    # vocab & dense
+    vocab = init_vocab()
+    dense = init_dense(hparams.dense, vocab)
+
+    # init model
+    model = SparseNet(hparams, dense, vocab)
 
     # early stop
     early_stop_callback = EarlyStopping(
@@ -100,9 +125,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--epochs", dest="max_nb_epochs", default=500, type=int)
     parser.add_argument("--learning_rate", "-lr", default=0.0001, type=float)
-    parser.add_argument(
-        "--dense", type=str, choices=["bow", "disc", "bert"], default="bert"
-    )
+    parser.add_argument("--dense", type=str, choices=["bow", "bert"], default="bow")
 
     # add default & model params
     # add_default_args(parser, root_dir)

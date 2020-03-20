@@ -21,6 +21,8 @@ from nltk.util import ngrams
 from textblob import TextBlob
 
 import logging
+import zarr
+from sklearn.model_selection import train_test_split
 from multiprocessing import cpu_count
 from pathlib import Path
 from torch.utils.data import DataLoader
@@ -45,22 +47,16 @@ logger = logging.getLogger(__name__)
 
 
 class SparseNet(pl.LightningModule):
-    def __init__(self, hparams):
+    def __init__(self, hparams, dense, vocab):
         super(SparseNet, self).__init__()
         self.hparams = hparams
         self.encoded = None
+        self.dense = dense
+        self.vocab = vocab
 
         # network
-        self._init_dense()
         self._preprocess_sparse_params()
         self._init_sparse()
-
-    def _init_dense(self):
-        dense_cls = {"bow": BowEmbedding, "bert": BertEmbedding}[self.hparams.dense]
-        if issubclass(dense_cls, BowEmbedding):
-            self.dense = dense_cls(self.hparams.embedding_path)
-        else:
-            self.dense = dense_cls()
 
     def distance(self, a, b):
         # return torch.pow(a - b, 2).sum(1).sqrt()
@@ -360,10 +356,14 @@ class SparseNet(pl.LightningModule):
 
     def prepare_data(self):
         data_dir = Path(self.hparams.data_dir)
-        dset_cls = TRECTripleDataset
-        self._train_dataset = dset_cls(data_dir / "train.parquet")
-        self._val_dataset = dset_cls(data_dir / "valid.parquet")
-        self._test_dataset = dset_cls(data_dir / "test.parquet")
+        dataset = zarr.open(data_dir / "all.zarr.zip", "r")
+        indices = list(range(len(dataset)))
+        train, val_test = train_test_split(indices, test_size=0.2)
+        val, test = train_test_split(val_test, test_size=0.5)
+        # train, val, test = dataset[train], dataset[val], dataset[test]
+        self._train_dataset = TripleDataset(dataset, train, vocab)
+        self._val_dataset = TripleDataset(dataset, val, vocab)
+        self._test_dataset = TripleDataset(dataset, test, vocab)
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers
