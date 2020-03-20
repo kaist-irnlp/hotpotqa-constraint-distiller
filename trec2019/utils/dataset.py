@@ -58,9 +58,14 @@ class TripleDataset(Dataset):
         return {"query": query_ids, "doc_pos": doc_pos_ids, "doc_neg": doc_neg_ids}
 
 
+def load_vocab_counts(vocab_count_path):
+    df = pd.read_parquet(vocab_count_path)
+    return Counter({row.word: row.count for row in df.itertuples()})
+
+
 if __name__ == "__main__":
-    counts = Counter({"q": 2, "a": 3})
-    vocab = Vocab(counts, vectors="fasttext.simple.300d")
+    counts = load_vocab_counts("vocab/vocab.parquet")
+    vocab = Vocab(counts, vectors="fasttext.simple.300d", min_freq=2,)
     data_path = Path(
         "/Users/kyoungrok/Resilio Sync/Dataset/2019 TREC/passage_ranking/triples.train.small.tsv.zarr.zip"
     )
