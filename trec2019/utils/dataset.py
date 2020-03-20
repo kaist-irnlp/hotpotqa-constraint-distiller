@@ -19,9 +19,10 @@ class TripleDataset(Dataset):
     UNK_IDX = 0
     PAD_IDX = 1
 
-    def __init__(self, data_path, vocab, max_length=512):
+    def __init__(self, data, indices, vocab, max_length=512):
         super().__init__()
-        self.data = zarr.open(str(data_path), "r")
+        self.data = data
+        self.indices = indices
         self.vocab = vocab
         self.max_length = max_length
         self.unk_token = self.vocab.itos[self.UNK_IDX]
@@ -44,10 +45,12 @@ class TripleDataset(Dataset):
         return padded
 
     def __len__(self):
-        return len(self.data)
+        return len(self.indices)
 
     def __getitem__(self, index):
-        # return a sample
+        # get real index
+        index = self.indices[index]
+        # get a sample
         query, doc_pos, doc_neg = self.data[index]
         query, doc_pos, doc_neg = self.pad(query), self.pad(doc_pos), self.pad(doc_neg)
         query_ids, doc_pos_ids, doc_neg_ids = (
@@ -65,7 +68,7 @@ def load_vocab_counts(vocab_count_path):
 
 if __name__ == "__main__":
     counts = load_vocab_counts("vocab/vocab.parquet")
-    vocab = Vocab(counts, vectors="fasttext.simple.300d", min_freq=2,)
+    vocab = Vocab(counts, vectors="fasttext.simple.300d", min_freq=2)
     data_path = Path(
         "/Users/kyoungrok/Resilio Sync/Dataset/2019 TREC/passage_ranking/triples.train.small.tsv.zarr.zip"
     )
