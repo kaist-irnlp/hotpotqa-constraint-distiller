@@ -33,33 +33,9 @@ root_dir = str(Path(__file__).parent.absolute())
 #     return dense
 
 
-VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.parquet"
-VECTORS = "fasttext.en.300d"
-MIN_FREQ = 2
-
-
-def load_vocab_counts(vocab_count_path):
-    df = pd.read_parquet(vocab_count_path)
-    return Counter({row.word: row.count for row in df.itertuples()})
-
-
-def init_vocab():
-    counts = load_vocab_counts(VOCAB_PATH)
-    return Vocab(counts, vectors=VECTORS, min_freq=MIN_FREQ)
-
-
-def init_dense(dense_name, vocab):
-    if dense_name == "bow":
-        return BowEmbedding(vocab)
-
-
 def main(hparams):
-    # vocab & dense
-    vocab = init_vocab()
-    dense = init_dense(hparams.dense, vocab)
-
     # init model
-    model = SparseNet(hparams, dense, vocab)
+    model = SparseNet(hparams)
 
     # early stop
     early_stop_callback = EarlyStopping(

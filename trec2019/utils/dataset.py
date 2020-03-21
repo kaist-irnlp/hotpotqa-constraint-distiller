@@ -13,35 +13,15 @@ from torchtext.vocab import Vocab
 import torchtext
 from collections import Counter
 from textblob import TextBlob
+from transformers.tokenization_auto import AutoTokenizer
+from trec2019.utils.dense import *
 
 
 class TripleDataset(Dataset):
-    UNK_IDX = 0
-    PAD_IDX = 1
-
-    def __init__(self, data, vocab, max_length=512):
+    def __init__(self, data, tokenizer):
         super().__init__()
         self.data = data
-        self.vocab = vocab
-        self.max_length = max_length
-        self.unk_token = self.vocab.itos[self.UNK_IDX]
-        self.pad_token = self.vocab.itos[self.PAD_IDX]
-
-    def numericalize(self, arr):
-        return torch.tensor([self.vocab.stoi[x] for x in arr], dtype=torch.long)
-        # arr = [[self.vocab.stoi[x] for x in ex] for ex in arr]
-        # var = torch.tensor(arr, dtype=torch.long).contiguous()
-        # return var
-
-    def pad(self, x):
-        # Do real-time tokenization here
-        x = [str(tok) for tok in TextBlob(x).lower().tokens]
-
-        # pad & numericalize
-        pad_length = max(0, self.max_length - len(x))
-        padded = x[: self.max_length] + [self.pad_token] * pad_length
-
-        return padded
+        self.tokenizer = tokenizer
 
     def __len__(self):
         return len(self.data)
@@ -49,12 +29,9 @@ class TripleDataset(Dataset):
     def __getitem__(self, index):
         # get a sample
         query, doc_pos, doc_neg = self.data[index]
-        query, doc_pos, doc_neg = self.pad(query), self.pad(doc_pos), self.pad(doc_neg)
-        query_ids, doc_pos_ids, doc_neg_ids = (
-            self.numericalize(query),
-            self.numericalize(doc_pos),
-            self.numericalize(doc_neg),
-        )
+        query_ids = self.tokenizer.encode(query, 128)
+        doc_pos_ids = self.tokenizer.encode(doc_pos)
+        doc_neg_ids = self.tokenizer.encode(doc_neg)
         return {"query": query_ids, "doc_pos": doc_pos_ids, "doc_neg": doc_neg_ids}
 
 
@@ -64,12 +41,15 @@ def load_vocab_counts(vocab_count_path):
 
 
 if __name__ == "__main__":
-    counts = load_vocab_counts("vocab/vocab.parquet")
+    # tokenizer
+    counts = load_vocab_counts("../vocab/vocab.parquet")
     vocab = Vocab(counts, vectors="fasttext.simple.300d", min_freq=2)
-    data_path = Path(
-        "/Users/kyoungrok/Resilio Sync/Dataset/2019 TREC/passage_ranking/triples.train.small.tsv.zarr.zip"
-    )
-    dataset = TripleDataset(data_path, vocab)
+    tokenizer = BowTokenizer(vocab)
+    # data
+    data_path = "/Users/kyoungrok/Dropbox/Project/naver/data/2019 TREC/passage/triples.train.small.tsv.zarr.zip"
+    data = zarr.open(data_path, "r")
+    dataset = TripleDataset(data, tokenizer)
+    # test
     loader = DataLoader(dataset, batch_size=2)
     for i, sample in enumerate(loader):
         print(sample)

@@ -15,19 +15,62 @@ import sys
 
 
 FLOAT = torch.float32
-IDX_CLS = 0
+
+
+class BowTokenizer:
+    UNK_IDX = 0
+    PAD_IDX = 1
+
+    def __init__(self, vocab):
+        self.stoi = vocab.stoi.copy()
+        self.itos = vocab.itos.copy()
+        self.unk_token = self.itos[self.UNK_IDX]
+        self.pad_token = self.itos[self.PAD_IDX]
+
+    def encode(self, text, max_length=512):
+        tokens = self.tokenize(text)
+        padded = self.pad(tokens, max_length)
+        ids = self.numericalize(padded)
+        return ids
+
+    def tokenize(self, text):
+        return [str(tok) for tok in TextBlob(text).lower().tokens]
+
+    def pad(self, tokens, max_length):
+        # pad & numericalize
+        pad_length = max(0, self.max_length - len(tokens))
+        padded = tokens[:max_length] + [self.pad_token] * pad_length
+
+        return padded
+
+    def numericalize(self, tokens):
+        return torch.tensor([self.stoi[x] for x in tokens], dtype=torch.long)
+
+
+class BertTokenizer:
+    def __init__(self, weights):
+        self.tokenizer = AutoModel.from_pretrained(weights)
+
+    def encode(self, text, max_length=512):
+        ids = self.tokenizer.encode(
+            text,
+            add_special_tokens=True,
+            pad_to_max_length=True,
+            max_length=max_length,
+        )
+        return ids
 
 
 class BowEmbedding(nn.Module):
-    def __init__(self, vocab):
+    def __init__(self, vectors):
         super().__init__()
-        self.vocab = vocab
+        self.vectors = vectors
         self.embedding = nn.EmbeddingBag.from_pretrained(
-            self.vocab.vectors, sparse=True
+            self.vectors, freeze=True, sparse=True
         )
 
     def get_dim(self):
-        return self.vocab.vectors.shape[1]
+        return self.vectors.shape[1]
 
     def forward(self, batch):
         embs = self.embedding(batch)
@@ -35,30 +78,18 @@ class BowEmbedding(nn.Module):
 
 
 class BertEmbedding(nn.Module):
-    def __init__(self, weights="bert-base-uncased", max_length=512):
+    IDX_CLS = 0
+
+    def __init__(self, weights):
         super().__init__()
-        self.max_length = max_length
         self.model = AutoModel.from_pretrained(weights)
-        self.tokenizer = AutoTokenizer.from_pretrained(weights)
         self.weights = weights
 
-    def forward(self, batch_text):
-        batch_token_ids = (
-            self.tokenizer.batch_encode_plus(
-                batch_text,
-                add_special_tokens=True,
-                max_length=self.max_length,
-                pad_to_max_length="left",
-                return_tensors="pt",
-            )["input_ids"]
-            .long()
-            .to(next(self.model.parameters()).device)
-        )
-
+    def forward(self, batch_ids):
         with torch.no_grad():
-            last_hidden_states = self.model(batch_token_ids)[0]
+            last_hidden_states = self.model(batch_ids)[0]
 
-        return last_hidden_states[:, IDX_CLS, :]
+        return last_hidden_states[:, self.IDX_CLS, :]
 
     def get_dim(self):
         return self.model.config.hidden_size
