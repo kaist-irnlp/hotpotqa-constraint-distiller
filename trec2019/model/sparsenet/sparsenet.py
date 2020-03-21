@@ -49,7 +49,7 @@ root_dir = str(Path(__file__).parent.absolute())
 
 
 class SparseNet(pl.LightningModule):
-    def __init__(self, hparams, dense, vocab):
+    def __init__(self, hparams):
         super(SparseNet, self).__init__()
         self.hparams = hparams
         self.encoded = None
@@ -59,45 +59,39 @@ class SparseNet(pl.LightningModule):
         self._preprocess_sparse_params()
         self._init_sparse()
 
-    def _get_dataset_cls(self):
-        return {"bow": BowDataset, "bert": BERTDataset}[self.hparams.dense]
-
     def prepare_data(self):
-        # data_dir = Path(self.hparams.data_dir)
         data_path = self.hparams.data_path
-        train, val, test = self.get_train_val_test(data_path)
-        dataset_cls = self._get_dataset_cls()
-        self._train_dataset = dataset_cls(train, self.vocab)
-        self._val_dataset = dataset_cls(val, self.vocab)
-        self._test_dataset = dataset_cls(test, self.vocab)
+        train, val, test = self.split_train_val_test()
+        self._train_dataset = TripleDataset(data_path, train, self.tokenizer)
+        self._val_dataset = TripleDataset(data_path, val, self.tokenizer)
+        self._test_dataset = TripleDataset(data_path, test, self.tokenizer)
 
     def _get_dense_vocab(self):
         VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.parquet"
-        VECTORS = "fasttext.en.300d"
-        MIN_FREQ = 2
+        VECTORS = "fasttext.simple.300d"
+        MIN_FREQ = 10
+        MAX_SIZE = 100000
         vocab_counts = Counter(
             {row.word: row.count for row in pd.read_parquet(VOCAB_PATH).itertuples()}
         )
-        return Vocab(vocab_counts, vectors=VECTORS, min_freq=MIN_FREQ)
-
-    def _get_dense_bow(self, vectors):
-        return BowEmbedding(vectors)
-
-    def _get_dense_bert(self, weights):
-        return BertEmbedding(weights)
+        return Vocab(
+            vocab_counts, vectors=VECTORS, min_freq=MIN_FREQ, max_size=MAX_SIZE
+        )
 
     def _init_dense(self):
         # init vocab
         if self.hparams.dense == "bow":
-            self.dense_vocab = self._get_dense_vocab()
-            self.dense = self._get_dense_bow(self.dense_vocab.vectors)
+            vocab = self._get_dense_vocab()
+            self.tokenizer = BowTokenizer(vocab)
+            self.dense = BowEmbedding(vocab)
         elif self.hparams.dense == "bert":
-            self.dense_weights = "bert-base-uncased"
-            self.dense = self._get_dense_bert(self.dense_weights)
+            weights = "bert-base-uncased"
+            self.tokenizer = BertTokenizer(weights)
+            self.dense = BertEmbedding(weights)
 
     def distance(self, a, b):
-        # return torch.pow(a - b, 2).sum(1).sqrt()
-        return F.cosine_similarity(a, b)
+        return torch.pow(a - b, 2).sum(1).sqrt()
+        # return F.cosine_similarity(a, b)
 
     def loss_recovery(self, input, target):
         return F.mse_loss(input, target)
@@ -199,7 +193,7 @@ class SparseNet(pl.LightningModule):
         #     loss_val = loss_val.unsqueeze(0)
 
         # logging
-        tqdm_dict = {"training_loss": loss_val}
+        tqdm_dict = {"train_loss": loss_val}
         log_dict = {"losses": tqdm_dict}
         return {"loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
@@ -292,7 +286,7 @@ class SparseNet(pl.LightningModule):
                 input_features = n[i]
 
         # Add one fully connected layer after all hidden layers
-        # self.recover = nn.Linear(input_features, output_size)
+        self.recover = nn.Linear(input_features, output_size)
 
         # if useSoftmax:
         #     self.softmax = nn.LogSoftmax(dim=1)
@@ -391,12 +385,13 @@ class SparseNet(pl.LightningModule):
         self.boostStrength = hparams.boost_strength
         self.learning_iterations = 0
 
-    def get_train_val_test(self, data_path):
+    def split_train_val_test(self):
+        data_path = self.hparams.data_path
         dataset = zarr.open(data_path, "r")
         indices = np.array(range(len(dataset)))
         train, val_test = train_test_split(indices, test_size=0.2)
         val, test = train_test_split(val_test, test_size=0.5)
-        return dataset.oindex[train, :], dataset.oindex[val, :], dataset.oindex[test, :]
+        return train, val, test
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers

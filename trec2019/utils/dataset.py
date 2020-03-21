@@ -18,16 +18,18 @@ from trec2019.utils.dense import *
 
 
 class TripleDataset(Dataset):
-    def __init__(self, data, tokenizer):
+    def __init__(self, data_path, indices, tokenizer):
         super().__init__()
-        self.data = data
+        self.data = zarr.open(data_path, "r")
+        self.indices = indices
         self.tokenizer = tokenizer
 
     def __len__(self):
-        return len(self.data)
+        return len(self.indices)
 
     def __getitem__(self, index):
         # get a sample
+        index = self.indices[index]
         query, doc_pos, doc_neg = self.data[index]
         query_ids = self.tokenizer.encode(query, 128)
         doc_pos_ids = self.tokenizer.encode(doc_pos)
