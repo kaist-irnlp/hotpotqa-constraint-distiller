@@ -354,9 +354,9 @@ class SparseNet(pl.LightningModule):
         self.boostStrength = hparams.boost_strength
         self.learning_iterations = 0
 
-    def get_train_val_test(self, data_path):
+    def get_train_val_test(self, data_path, ratio=0.1):
         dataset = zarr.open(data_path, "r")
-        indices = list(range(len(dataset)))
+        indices = np.array(range(len(dataset)))
         train, val_test = train_test_split(indices, test_size=0.2)
         val, test = train_test_split(val_test, test_size=0.5)
         return train, val, test
