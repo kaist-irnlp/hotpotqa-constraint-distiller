@@ -22,12 +22,8 @@ class BowEmbedding(nn.Module):
     def __init__(self, vocab):
         super().__init__()
         self.vocab = vocab
-        self._init_embedding()
-        # self.device = self.embedding.weight.device
-
-    def _init_embedding(self):
         self.embedding = nn.EmbeddingBag.from_pretrained(
-            self.vocab.vectors, freeze=True, sparse=True
+            self.vocab.vectors, sparse=True
         )
 
     def get_dim(self):

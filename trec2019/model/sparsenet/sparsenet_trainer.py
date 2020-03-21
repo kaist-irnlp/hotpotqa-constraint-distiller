@@ -34,7 +34,7 @@ root_dir = str(Path(__file__).parent.absolute())
 
 
 VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.parquet"
-VECTORS = "fasttext.simple.300d"
+VECTORS = "fasttext.en.300d"
 MIN_FREQ = 2
 
 
