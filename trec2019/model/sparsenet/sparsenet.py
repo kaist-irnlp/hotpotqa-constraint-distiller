@@ -354,20 +354,20 @@ class SparseNet(pl.LightningModule):
         self.boostStrength = hparams.boost_strength
         self.learning_iterations = 0
 
-    def get_train_val_test(self, data_path, ratio=0.1):
+    def get_train_val_test(self, data_path):
         dataset = zarr.open(data_path, "r")
         indices = np.array(range(len(dataset)))
         train, val_test = train_test_split(indices, test_size=0.2)
         val, test = train_test_split(val_test, test_size=0.5)
-        return train, val, test
+        return dataset.oindex[train, :], dataset.oindex[val, :], dataset.oindex[test, :]
 
     def prepare_data(self):
         # data_dir = Path(self.hparams.data_dir)
         data_path = self.hparams.data_path
         train, val, test = self.get_train_val_test(data_path)
-        self._train_dataset = TripleDataset(data_path, train, self.vocab)
-        self._val_dataset = TripleDataset(data_path, val, self.vocab)
-        self._test_dataset = TripleDataset(data_path, test, self.vocab)
+        self._train_dataset = TripleDataset(train, self.vocab)
+        self._val_dataset = TripleDataset(val, self.vocab)
+        self._test_dataset = TripleDataset(test, self.vocab)
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers

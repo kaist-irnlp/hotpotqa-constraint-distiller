@@ -19,10 +19,9 @@ class TripleDataset(Dataset):
     UNK_IDX = 0
     PAD_IDX = 1
 
-    def __init__(self, data_path, indices, vocab, max_length=512):
+    def __init__(self, data, vocab, max_length=512):
         super().__init__()
-        self.data = zarr.open(data_path, "r")
-        self.indices = indices
+        self.data = data
         self.vocab = vocab
         self.max_length = max_length
         self.unk_token = self.vocab.itos[self.UNK_IDX]
@@ -45,11 +44,9 @@ class TripleDataset(Dataset):
         return padded
 
     def __len__(self):
-        return len(self.indices)
+        return len(self.data)
 
     def __getitem__(self, index):
-        # get real index
-        index = self.indices[index]
         # get a sample
         query, doc_pos, doc_neg = self.data[index]
         query, doc_pos, doc_neg = self.pad(query), self.pad(doc_pos), self.pad(doc_neg)
