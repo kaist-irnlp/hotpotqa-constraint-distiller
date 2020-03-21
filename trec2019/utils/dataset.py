@@ -44,13 +44,13 @@ def load_vocab_counts(vocab_count_path):
 
 if __name__ == "__main__":
     # tokenizer
-    counts = load_vocab_counts("../vocab/vocab.parquet")
-    vocab = Vocab(counts, vectors="fasttext.simple.300d", min_freq=2)
-    tokenizer = BowTokenizer(vocab)
+    weights = "bert-base-uncased"
+    tokenizer = BertTokenizer(weights=weights)
     # data
-    data_path = "/Users/kyoungrok/Dropbox/Project/naver/data/2019 TREC/passage/triples.train.small.tsv.zarr.zip"
+    data_path = "C:/Users/kyoun/Desktop/triples.train.small.tsv.zarr.zip"
     data = zarr.open(data_path, "r")
-    dataset = TripleDataset(data, tokenizer)
+    indices = np.array(range(len(data)))
+    dataset = TripleDataset(data_path, indices, tokenizer)
     # test
     loader = DataLoader(dataset, batch_size=2)
     for i, sample in enumerate(loader):

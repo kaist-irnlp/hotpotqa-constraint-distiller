@@ -49,7 +49,7 @@ class BowTokenizer:
 
 class BertTokenizer:
     def __init__(self, weights):
-        self.tokenizer = AutoModel.from_pretrained(weights)
+        self.tokenizer = AutoTokenizer.from_pretrained(weights)
 
     def encode(self, text, max_length=512):
         ids = self.tokenizer.encode(
@@ -57,7 +57,8 @@ class BertTokenizer:
             add_special_tokens=True,
             pad_to_max_length=True,
             max_length=max_length,
-        )
+            return_tensors="pt",
+        ).squeeze()
         return ids
 
 
