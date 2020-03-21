@@ -38,7 +38,7 @@ class BowTokenizer:
 
     def pad(self, tokens, max_length):
         # pad & numericalize
-        pad_length = max(0, self.max_length - len(tokens))
+        pad_length = max(0, max_length - len(tokens))
         padded = tokens[:max_length] + [self.pad_token] * pad_length
 
         return padded
@@ -62,15 +62,14 @@ class BertTokenizer:
 
 
 class BowEmbedding(nn.Module):
-    def __init__(self, vectors):
+    def __init__(self, vocab):
         super().__init__()
-        self.vectors = vectors
         self.embedding = nn.EmbeddingBag.from_pretrained(
-            self.vectors, freeze=True, sparse=True
+            vocab.vectors, freeze=True, sparse=True
         )
 
     def get_dim(self):
-        return self.vectors.shape[1]
+        return self.embedding.embedding_dim
 
     def forward(self, batch):
         embs = self.embedding(batch)
