@@ -76,9 +76,9 @@ class SparseNet(pl.LightningModule):
             sparse_query,
             sparse_doc_pos,
             sparse_doc_neg,
-            # recovered_query,
-            # recovered_doc_pos,
-            # recovered_doc_neg,
+            recovered_query,
+            recovered_doc_pos,
+            recovered_doc_neg,
         ) = out
 
         # triplet loss
@@ -92,15 +92,15 @@ class SparseNet(pl.LightningModule):
         # loss_triplet_val = self.loss_triplet(delta)
 
         # recovery loss
-        # loss_recovery_val = (
-        #     self.loss_recovery(recovered_query, dense_query)
-        #     + self.loss_recovery(recovered_doc_pos, dense_doc_pos)
-        #     + self.loss_recovery(recovered_doc_neg, dense_doc_neg)
-        # )
+        loss_recovery_val = (
+            self.loss_recovery(recovered_query, dense_query)
+            + self.loss_recovery(recovered_doc_pos, dense_doc_pos)
+            + self.loss_recovery(recovered_doc_neg, dense_doc_neg)
+        )
 
         # loss = triplet
-        # return loss_triplet_val + loss_recovery_val
-        return loss_triplet_val
+        return loss_triplet_val + loss_recovery_val
+        # return loss_triplet_val
 
     def forward(self, query, doc_pos, doc_neg):
         # dense
@@ -119,11 +119,11 @@ class SparseNet(pl.LightningModule):
         )
 
         # recover
-        # recovered_query, recovered_doc_pos, recovered_doc_neg = (
-        #     self.recover(sparse_query),
-        #     self.recover(sparse_doc_pos),
-        #     self.recover(sparse_doc_neg),
-        # )
+        recovered_query, recovered_doc_pos, recovered_doc_neg = (
+            self.recover(sparse_query),
+            self.recover(sparse_doc_pos),
+            self.recover(sparse_doc_neg),
+        )
 
         if self.training:
             # batch_size = batch.shape[0]
@@ -137,9 +137,9 @@ class SparseNet(pl.LightningModule):
             sparse_query,
             sparse_doc_pos,
             sparse_doc_neg,
-            # recovered_query,
-            # recovered_doc_pos,
-            # recovered_doc_neg,
+            recovered_query,
+            recovered_doc_pos,
+            recovered_doc_neg,
         )
 
     def training_step(self, batch, batch_idx):
@@ -381,11 +381,7 @@ class SparseNet(pl.LightningModule):
         num_workers = int(cpu_count() / 2) or 1
         # num_workers = 0
         return DataLoader(
-            dataset,
-            # sampler=dist_sampler,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=True,
+            dataset, batch_size=batch_size, num_workers=num_workers, pin_memory=True,
         )
 
     def train_dataloader(self):
