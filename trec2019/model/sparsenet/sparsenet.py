@@ -253,6 +253,7 @@ class SparseNet(pl.LightningModule):
                         linear.apply(normalizeSparseWeights)
                 self.sparse.add_module(f"sparse_{i+1}", linear)
                 # Weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
+                # Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
                 # class TiedAutoEncoderOffTheShelf(nn.Module):
                 #     def __init__(self, inp, out, weight):
                 #         super().__init__()
