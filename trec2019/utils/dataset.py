@@ -23,8 +23,8 @@ blosc.use_threads = False
 class TripleDataset(Dataset):
     def __init__(self, data_path, indices, tokenizer):
         super().__init__()
-        synchronizer = zarr.ProcessSynchronizer("sync/triple_dataset.sync")
-        self.data = zarr.open(data_path, "r", synchronizer=synchronizer)
+        self.synchronizer = zarr.ProcessSynchronizer("sync/triple_dataset.sync")
+        self.data_path = data_path
         self.indices = indices
         self.tokenizer = tokenizer
 
@@ -32,6 +32,8 @@ class TripleDataset(Dataset):
         return len(self.indices)
 
     def __getitem__(self, index):
+        if self.data is None:
+            self.data = zarr.open(self.data_path, "r", synchronizer=self.synchronizer)
         # get a sample
         index = self.indices[index]
         query, doc_pos, doc_neg = self.data[index]
