@@ -9,12 +9,15 @@ import numpy as np
 from transformers import BertTokenizer
 import gc
 import zarr
+from numcodecs import blosc
 from torchtext.vocab import Vocab
 import torchtext
 from collections import Counter
 from textblob import TextBlob
 from transformers.tokenization_auto import AutoTokenizer
 from trec2019.utils.dense import *
+
+blosc.use_threads = False
 
 
 class TripleDataset(Dataset):
