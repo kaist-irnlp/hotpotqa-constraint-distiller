@@ -20,7 +20,8 @@ from trec2019.utils.dense import *
 class TripleDataset(Dataset):
     def __init__(self, data_path, indices, tokenizer):
         super().__init__()
-        self.data = zarr.open(data_path, "r")
+        self.data = None
+        self.data_path = data_path
         self.indices = indices
         self.tokenizer = tokenizer
 
@@ -28,6 +29,9 @@ class TripleDataset(Dataset):
         return len(self.indices)
 
     def __getitem__(self, index):
+        # init data
+        if self.data is None:
+            self.data = zarr.open(self.data_path, "r")
         # get a sample
         index = self.indices[index]
         query, doc_pos, doc_neg = self.data[index]
