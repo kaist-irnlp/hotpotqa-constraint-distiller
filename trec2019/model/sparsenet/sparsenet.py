@@ -90,8 +90,8 @@ class SparseNet(pl.LightningModule):
             self.dense = BertEmbedding(weights)
 
     def distance(self, a, b):
-        return torch.pow(a - b, 2).sum(1).sqrt()
-        # return F.cosine_similarity(a, b)
+        # return torch.pow(a - b, 2).sum(1).sqrt()
+        return F.cosine_similarity(a, b)
 
     def loss_recovery(self, input, target):
         return F.mse_loss(input, target)
@@ -144,9 +144,9 @@ class SparseNet(pl.LightningModule):
 
         # sparse
         sparse_query, sparse_doc_pos, sparse_doc_neg = (
-            self.linear_sdr(dense_query),
-            self.linear_sdr(dense_doc_pos),
-            self.linear_sdr(dense_doc_neg),
+            self.sparse(dense_query),
+            self.sparse(dense_doc_pos),
+            self.sparse(dense_doc_neg),
         )
 
         # recover
@@ -251,7 +251,7 @@ class SparseNet(pl.LightningModule):
         boost_strength = self.boostStrength
         boost_strength_factor = self.boostStrengthFactor
 
-        self.linear_sdr = nn.Sequential()
+        self.sparse = nn.Sequential()
         for i in range(len(n)):
             if n[i] != 0:
                 linear = nn.Linear(input_features, n[i])
@@ -259,17 +259,15 @@ class SparseNet(pl.LightningModule):
                     linear = SparseWeights(linear, weightSparsity=weight_sparsity[i])
                     if normalize_weights:
                         linear.apply(normalizeSparseWeights)
-                self.linear_sdr.add_module(f"linear_sdr{i+1}", linear)
+                self.sparse.add_module(f"sparse_{i+1}", linear)
 
                 if use_batch_norm:
-                    self.linear_sdr.add_module(
-                        f"linear_sdr{i+1}_bn", nn.BatchNorm1d(n[i], affine=False)
+                    self.sparse.add_module(
+                        f"sparse_{i+1}_bn", nn.BatchNorm1d(n[i], affine=False)
                     )
 
                 if dropout > 0.0:
-                    self.linear_sdr.add_module(
-                        f"linear_sdr{i+1}_dropout", nn.Dropout(dropout)
-                    )
+                    self.sparse.add_module(f"sparse_{i+1}_dropout", nn.Dropout(dropout))
 
                 if 0 < k[i] < n[i]:
                     kwinner = KWinners(
@@ -279,9 +277,9 @@ class SparseNet(pl.LightningModule):
                         boostStrength=boost_strength,
                         boostStrengthFactor=boost_strength_factor,
                     )
-                    self.linear_sdr.add_module(f"linear_sdr{i+1}_kwinner", kwinner)
+                    self.sparse.add_module(f"sparse_{i+1}_kwinner", kwinner)
                 else:
-                    self.linear_sdr.add_module(f"linear_sdr{i+1}_relu", nn.ReLU())
+                    self.sparse.add_module(f"sparse_{i+1}_relu", nn.ReLU())
                 # Feed this layer output into next layer input
                 input_features = n[i]
 
