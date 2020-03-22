@@ -68,7 +68,7 @@ class SparseNet(pl.LightningModule):
 
     def _get_dense_vocab(self):
         VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.parquet"
-        VECTORS = "fasttext.simple.300d"
+        VECTORS = "fasttext.en.300d"
         MIN_FREQ = 10
         MAX_SIZE = 100000
         vocab_counts = Counter(
@@ -188,10 +188,6 @@ class SparseNet(pl.LightningModule):
         # loss
         loss_val = self.loss(out)
 
-        # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
-        # if self.trainer.use_dp or self.trainer.use_ddp2:
-        #     loss_val = loss_val.unsqueeze(0)
-
         # logging
         tqdm_dict = {"train_loss": loss_val}
         log_dict = {"losses": tqdm_dict}
@@ -211,10 +207,6 @@ class SparseNet(pl.LightningModule):
 
         # loss
         loss_val = self.loss(out)
-
-        # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
-        # if self.trainer.use_dp or self.trainer.use_ddp2:
-        #     loss_val = loss_val.unsqueeze(0)
 
         # logging
         tqdm_dict = {"val_loss": loss_val}
