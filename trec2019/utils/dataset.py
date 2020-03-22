@@ -24,7 +24,7 @@ class TripleDataset(Dataset):
     def __init__(self, data_path, indices, tokenizer):
         super().__init__()
         synchronizer = zarr.ProcessSynchronizer("sync/triple_dataset.sync")
-        self.data = zarr.open(self.data_path, "r", synchronizer=synchronizer)
+        self.data = zarr.open(data_path, "r", synchronizer=synchronizer)
         self.indices = indices
         self.tokenizer = tokenizer
 

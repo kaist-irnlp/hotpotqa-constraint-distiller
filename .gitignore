@@ -3,7 +3,7 @@
 **/lightning_logs
 **/*.ckpt
 **/*.part
-**/*.sync
+**/sync
 **/output/
 **/*_cache
 
