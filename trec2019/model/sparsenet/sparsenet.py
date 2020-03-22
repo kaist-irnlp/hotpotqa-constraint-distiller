@@ -66,7 +66,7 @@ class SparseNet(pl.LightningModule):
         self._val_dataset = TripleDataset(data_path, val, self.tokenizer)
         self._test_dataset = TripleDataset(data_path, test, self.tokenizer)
 
-    def _get_dense_vocab(self):
+    def _get_bow_vocab(self):
         VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.parquet"
         VECTORS = "fasttext.en.300d"
         MIN_FREQ = 10
@@ -75,13 +75,17 @@ class SparseNet(pl.LightningModule):
             {row.word: row.count for row in pd.read_parquet(VOCAB_PATH).itertuples()}
         )
         return Vocab(
-            vocab_counts, vectors=VECTORS, min_freq=MIN_FREQ, max_size=MAX_SIZE
+            vocab_counts,
+            vectors=VECTORS,
+            min_freq=MIN_FREQ,
+            max_size=MAX_SIZE, 
+            unk_init=torch.Tensor.normal_,
         )
 
     def _init_dense(self):
         # init vocab
         if self.hparams.dense == "bow":
-            vocab = self._get_dense_vocab()
+            vocab = self._get_bow_vocab()
             self.tokenizer = BowTokenizer(vocab)
             self.dense = BowEmbedding(vocab)
         elif self.hparams.dense == "bert":
@@ -279,7 +283,6 @@ class SparseNet(pl.LightningModule):
                 #         encoded_feats = self.encoder(input)
                 #         reconstructed_output = F.linear(encoded_feats, self.encoder.weight.t())
                 #         return encoded_feats, reconstructed_output
-
 
                 if use_batch_norm:
                     self.sparse.add_module(
