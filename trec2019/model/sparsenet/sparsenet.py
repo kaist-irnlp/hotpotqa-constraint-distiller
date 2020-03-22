@@ -93,9 +93,10 @@ class SparseNet(pl.LightningModule):
             self.tokenizer = BertTokenizer(weights)
             self.dense = BertEmbedding(weights)
 
-    def distance(self, a, b):
+    def distance(self, x1, x2):
         # return torch.pow(a - b, 2).sum(1).sqrt()
-        return F.cosine_similarity(a, b)
+        # return F.cosine_similarity(a, b)
+        return torch.norm(x1 - x2, dim=1)
 
     def loss_recovery(self, input, target):
         return F.mse_loss(input, target)
