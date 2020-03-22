@@ -78,7 +78,7 @@ class SparseNet(pl.LightningModule):
             vocab_counts,
             vectors=VECTORS,
             min_freq=MIN_FREQ,
-            max_size=MAX_SIZE, 
+            max_size=MAX_SIZE,
             unk_init=torch.Tensor.normal_,
         )
 
@@ -309,11 +309,6 @@ class SparseNet(pl.LightningModule):
         # Add one fully connected layer after all hidden layers
         self.recover = nn.Linear(input_features, output_size)
 
-        # if useSoftmax:
-        #     self.softmax = nn.LogSoftmax(dim=1)
-        # else:
-        #     self.softmax = None
-
     def on_epoch_end(self):
         self.apply(updateBoostStrength)
         self.apply(rezeroWeights)
@@ -453,6 +448,6 @@ class SparseNet(pl.LightningModule):
         )
         parser.add_argument("--dropout", default=0.0, type=float)
         parser.add_argument("--use_batch_norm", default=True, type=bool)
-        parser.add_argument("--normalize_weights", default=False, type=bool)
+        parser.add_argument("--normalize_weights", default=True, type=bool)
 
         return parser
