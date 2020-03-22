@@ -252,6 +252,33 @@ class SparseNet(pl.LightningModule):
                     if normalize_weights:
                         linear.apply(normalizeSparseWeights)
                 self.sparse.add_module(f"sparse_{i+1}", linear)
+                # Weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
+                # class TiedAutoEncoderOffTheShelf(nn.Module):
+                #     def __init__(self, inp, out, weight):
+                #         super().__init__()
+                #         self.encoder = nn.Linear(inp, out, bias=False)
+                #         self.decoder = nn.Linear(out, inp, bias=False)
+
+                #         # tie the weights
+                #         self.encoder.weight.data = weight.clone()
+                #         self.decoder.weight.data = self.encoder.weight.data.transpose(0,1)
+
+                #     def forward(self, input):
+                #         encoded_feats = self.encoder(input)
+                #         reconstructed_output = self.decoder(encoded_feats)
+                #         return encoded_feats, reconstructed_output
+
+                # class MixedAppraochTiedAutoEncoder(nn.Module):
+                #     def __init__(self, inp, out, weight):
+                #         super().__init__()
+                #         self.encoder = nn.Linear(inp, out, bias=False)
+                #         self.encoder.weight.data = weight.clone()
+
+                #     def forward(self, input):
+                #         encoded_feats = self.encoder(input)
+                #         reconstructed_output = F.linear(encoded_feats, self.encoder.weight.t())
+                #         return encoded_feats, reconstructed_output
+
 
                 if use_batch_norm:
                     self.sparse.add_module(
