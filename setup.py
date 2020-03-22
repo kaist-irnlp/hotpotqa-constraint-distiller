@@ -22,7 +22,8 @@ setup(
         "textblob",
         "torchtext",
         "spacy",
-        "dask[complete]"
+        "dask[complete]",
+        "scikit-learn"
     ],
     packages=find_packages(),
 )

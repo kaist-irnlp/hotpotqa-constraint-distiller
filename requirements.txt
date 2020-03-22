@@ -12,3 +12,4 @@ torchtext
 spacy
 dask[complete]
 zarr
+scikit-learn
