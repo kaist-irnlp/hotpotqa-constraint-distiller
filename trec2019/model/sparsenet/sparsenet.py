@@ -122,7 +122,7 @@ class SparseNet(pl.LightningModule):
         distance_n = self.distance(sparse_query, sparse_doc_neg)
         # Should be distance_n > distance_p, so mark all as 1 (not -1)
         loss_triplet_val = F.margin_ranking_loss(
-            distance_n, distance_p, torch.ones_like(distance_p)
+            distance_n, distance_p, torch.ones_like(distance_p), margin=1.0
         )
         # delta = distance_n - distance_p
         # loss_triplet_val = self.loss_triplet(delta)
@@ -134,10 +134,14 @@ class SparseNet(pl.LightningModule):
             + self.loss_recovery(recovered_doc_neg, dense_doc_neg)
         )
 
-        # loss = triplet
+        # return
+        loss = loss_triplet_val + loss_recovery_val
         return (
-            loss_triplet_val + loss_recovery_val,
-            (distance_p, distance_n, loss_triplet_val, loss_recovery_val),
+            loss,
+            distance_p.mean(),
+            distance_n.mean(),
+            loss_triplet_val,
+            loss_recovery_val,
         )
         # return loss_triplet_val
 
@@ -196,19 +200,24 @@ class SparseNet(pl.LightningModule):
         # loss
         (
             loss_val,
-            (distance_p, distance_n, loss_triplet_val, loss_recovery_val),
+            distance_p,
+            distance_n,
+            loss_triplet_val,
+            loss_recovery_val,
         ) = self.loss(out)
 
         # logging
         tqdm_dict = {
             "train_loss": loss_val,
-            "distance_p": distance_p,
-            "distance_n": distance_n,
-            "loss_triplet_val": loss_triplet_val,
-            "loss_recovery_val": loss_recovery_val,
+            "train_loss_triplet": loss_triplet_val,
+            "train_loss_recovery": loss_recovery_val,
         }
-        log_dict = {"losses": tqdm_dict}
-        return {"loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
+        log_dict = {
+            "train_losses": tqdm_dict,
+            "train_distance_p": distance_p,
+            "train_distance_n": distance_n,
+        }
+        return {"train_loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_step(self, batch, batch_idx):
         query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
@@ -225,18 +234,23 @@ class SparseNet(pl.LightningModule):
         # loss
         (
             loss_val,
-            (distance_p, distance_n, loss_triplet_val, loss_recovery_val),
+            distance_p,
+            distance_n,
+            loss_triplet_val,
+            loss_recovery_val,
         ) = self.loss(out)
 
         # logging
         tqdm_dict = {
             "val_loss": loss_val,
-            "distance_p": distance_p,
-            "distance_n": distance_n,
-            "loss_triplet_val": loss_triplet_val,
-            "loss_recovery_val": loss_recovery_val,
+            "val_loss_triplet": loss_triplet_val,
+            "val_loss_recovery": loss_recovery_val,
         }
-        log_dict = {"val_losses": tqdm_dict}
+        log_dict = {
+            "val_losses": tqdm_dict,
+            "val_distance_p": distance_p,
+            "val_distance_n": distance_n,
+        }
         return {"val_loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_epoch_end(self, outputs):
