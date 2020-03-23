@@ -59,7 +59,6 @@ def main(hparams):
         distributed_backend=hparams.distributed_backend,
         nb_gpu_nodes=hparams.nodes,
         fast_dev_run=hparams.fast_dev_run,
-        use_amp=hparams.use_amp,
         amp_level=hparams.amp_level,
         early_stop_callback=early_stop_callback,
         benchmark=True,
@@ -75,11 +74,11 @@ if __name__ == "__main__":
     parser.add_argument("--distributed_backend", "-d", type=str, default=None)
     parser.add_argument("--profile", action="store_true")
     parser.add_argument("--gpus", default=None, type=str)
-    parser.add_argument("--use_amp", dest="use_amp", action="store_true")
     parser.add_argument(
         "--check_grad_nans", dest="check_grad_nans", action="store_true"
     )
-    parser.add_argument("--amp_level", default="O1", type=str)
+    parser.add_argument("--amp_level", default=None, type=str)
+    parser.add_argument("--precision", default=32, type=int)
     parser.add_argument(
         "--fast_dev_run",
         dest="fast_dev_run",
