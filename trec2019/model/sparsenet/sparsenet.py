@@ -13,12 +13,14 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST
 import torchvision.transforms as transforms
 from argparse import ArgumentParser
+import gzip
 
 import pytorch_lightning as pl
 from test_tube import HyperOptArgumentParser
 import spacy
 from nltk.util import ngrams
 from textblob import TextBlob
+import json
 
 import logging
 import zarr
@@ -66,13 +68,15 @@ class SparseNet(pl.LightningModule):
         self._test_dataset = TripleDataset(data_path, test, self.tokenizer)
 
     def _get_bow_vocab(self):
-        VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.parquet"
+        VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.json.gz"
         VECTORS = "fasttext.en.300d"
         MIN_FREQ = 10
         MAX_SIZE = 100000
-        vocab_counts = Counter(
-            {row.word: row.count for row in pd.read_parquet(VOCAB_PATH).itertuples()}
-        )
+        with gzip.open(VOCAB_PATH, "rt", encoding="utf-8") as f:
+            vocab_counts = Counter(json.load(f))
+            # vocab_counts = Counter(
+            #     {row.word: row.count for row in pd.read_parquet(VOCAB_PATH).itertuples()}
+            # )
         return Vocab(
             vocab_counts,
             vectors=VECTORS,
