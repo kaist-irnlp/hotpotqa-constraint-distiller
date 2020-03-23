@@ -61,6 +61,7 @@ def main(hparams):
         nb_gpu_nodes=hparams.nodes,
         fast_dev_run=hparams.fast_dev_run,
         amp_level=hparams.amp_level,
+        precision=hparams.precision,
         early_stop_callback=early_stop_callback,
         benchmark=True,
         profiler=profiler,
