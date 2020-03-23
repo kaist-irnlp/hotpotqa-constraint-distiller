@@ -51,6 +51,7 @@ def main(hparams):
         profiler = None
 
     # train
+    # trainer = Trainer.from_argparse_args(hparams)
     trainer = Trainer(
         logger=tt_logger,
         default_save_path=root_dir,
@@ -70,6 +71,9 @@ def main(hparams):
 if __name__ == "__main__":
     # parser = HyperOptArgumentParser(strategy="grid_search", add_help=False)
     parser = ArgumentParser(add_help=False)
+
+    # parser = Trainer.add_argparse_args(parser)
+
     parser.add_argument("--nodes", type=int, default=1)
     parser.add_argument("--distributed_backend", "-d", type=str, default=None)
     parser.add_argument("--profile", action="store_true")
