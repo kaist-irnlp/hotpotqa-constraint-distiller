@@ -13,3 +13,4 @@ spacy
 dask[complete]
 zarr
 scikit-learn
+test_tube
