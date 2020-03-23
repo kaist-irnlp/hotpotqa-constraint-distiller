@@ -83,38 +83,10 @@ class BertEmbedding(nn.Module):
     def __init__(self, weights):
         super().__init__()
         self.model = AutoModel.from_pretrained(weights)
-        self.weights = weights
 
     def forward(self, batch_ids):
-        with torch.no_grad():
-            last_hidden_states = self.model(batch_ids)[0]
-
+        last_hidden_states = self.model(batch_ids)[0]
         return last_hidden_states[:, self.IDX_CLS, :]
 
     def get_dim(self):
         return self.model.config.hidden_size
-
-
-# class OldBowEmbedding(BasePretrainedEmbedding):
-#     def __init__(self, embedding_path):
-#         super().__init__(embedding_path)
-
-#     def forward(self, batch_text):
-#         batch_embeddings = torch.stack([self._embed(text) for text in batch_text])
-#         return batch_embeddings
-
-#     def get_dim(self):
-#         return self.emb_dim
-
-#     def _tokenize(self, text):
-#         return list(TextBlob(text).lower().tokens)
-
-#     def _embed(self, text):
-#         tokens = self._tokenize(text)
-#         # ids = [self.word2idx.get(w, -1) for w in tokens]
-#         # ids = (
-#         #     tensor([i for i in ids if i >= 0]).long().to(self.embeddings.weight.device)
-#         # )
-#         embs = self.get_embeddings(tokens)
-#         embs = torch.mean(embs, 0)
-#         return embs

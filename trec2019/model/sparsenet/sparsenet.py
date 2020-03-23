@@ -79,7 +79,7 @@ class SparseNet(pl.LightningModule):
             vectors=VECTORS,
             min_freq=MIN_FREQ,
             max_size=MAX_SIZE,
-            unk_init=torch.Tensor.normal_,
+            # unk_init=torch.Tensor.normal_,
         )
 
     def _init_dense(self):
@@ -135,7 +135,10 @@ class SparseNet(pl.LightningModule):
         )
 
         # loss = triplet
-        return loss_triplet_val + loss_recovery_val
+        return (
+            loss_triplet_val + loss_recovery_val,
+            (distance_p, distance_n, loss_triplet_val, loss_recovery_val),
+        )
         # return loss_triplet_val
 
     def forward(self, query, doc_pos, doc_neg):
@@ -191,10 +194,19 @@ class SparseNet(pl.LightningModule):
         out = outputs["out"]
 
         # loss
-        loss_val = self.loss(out)
+        (
+            loss_val,
+            (distance_p, distance_n, loss_triplet_val, loss_recovery_val),
+        ) = self.loss(out)
 
         # logging
-        tqdm_dict = {"train_loss": loss_val}
+        tqdm_dict = {
+            "train_loss": loss_val,
+            "distance_p": distance_p,
+            "distance_n": distance_n,
+            "loss_triplet_val": loss_triplet_val,
+            "loss_recovery_val": loss_recovery_val,
+        }
         log_dict = {"losses": tqdm_dict}
         return {"loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
@@ -211,10 +223,19 @@ class SparseNet(pl.LightningModule):
         out = outputs["out"]
 
         # loss
-        loss_val = self.loss(out)
+        (
+            loss_val,
+            (distance_p, distance_n, loss_triplet_val, loss_recovery_val),
+        ) = self.loss(out)
 
         # logging
-        tqdm_dict = {"val_loss": loss_val}
+        tqdm_dict = {
+            "val_loss": loss_val,
+            "distance_p": distance_p,
+            "distance_n": distance_n,
+            "loss_triplet_val": loss_triplet_val,
+            "loss_recovery_val": loss_recovery_val,
+        }
         log_dict = {"val_losses": tqdm_dict}
         return {"val_loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
