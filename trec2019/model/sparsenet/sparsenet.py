@@ -56,7 +56,6 @@ class SparseNet(pl.LightningModule):
 
         # network
         self._init_dense()
-        self._preprocess_sparse_params()
         self._init_sparse()
 
     def prepare_data(self):
@@ -99,7 +98,8 @@ class SparseNet(pl.LightningModule):
         return torch.norm(x1 - x2, dim=1)
 
     def loss_recovery(self, input, target):
-        return F.mse_loss(input, target)
+        # return F.mse_loss(input, target)
+        return F.l1_loss(input, target)
 
     # def loss_triplet(self, delta):
     #     return torch.log1p(torch.sum(torch.exp(delta)))
@@ -267,6 +267,9 @@ class SparseNet(pl.LightningModule):
         return results
 
     def _init_sparse(self):
+        # check params
+        self._preprocess_sparse_params()
+
         self.learning_iterations = 0
         # self.flatten = Flatten()
 
