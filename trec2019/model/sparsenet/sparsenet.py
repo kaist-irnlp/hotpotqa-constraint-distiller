@@ -217,7 +217,7 @@ class SparseNet(pl.LightningModule):
             "train_distance_p": distance_p,
             "train_distance_n": distance_n,
         }
-        return {"train_loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
+        return {"loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_step(self, batch, batch_idx):
         query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
