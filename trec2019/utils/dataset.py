@@ -36,8 +36,8 @@ class News20Dataset(Dataset):
 class TripleDataset(Dataset):
     def __init__(self, data_path, tokenizer):
         super().__init__()
-        synchronizer = zarr.ProcessSynchronizer("./sync/triple_dataset.sync")
-        self.data = zarr.open(data_path, "r", synchronizer=synchronizer)
+        # synchronizer = zarr.ProcessSynchronizer("./sync/triple_dataset.sync")
+        self.data = zarr.open(data_path, "r")
         self.tokenizer = tokenizer
 
     def __len__(self):
