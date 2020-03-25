@@ -50,6 +50,13 @@ logger = logging.getLogger(__name__)
 root_dir = str(Path(__file__).parent.absolute())
 
 
+class SparseNetModel(nn.Module):
+    def __init__(self, hparams):
+        super().__init__()
+        self.hparams = hparams
+        self.encoded = None
+
+
 class SparseNet(pl.LightningModule):
     def __init__(self, hparams):
         super(SparseNet, self).__init__()
@@ -172,11 +179,6 @@ class SparseNet(pl.LightningModule):
             self.recover(sparse_doc_neg),
         )
 
-        if self.training:
-            # batch_size = batch.shape[0]
-            batch_size = len(query)
-            self.learning_iterations += batch_size
-
         return (
             dense_query,
             dense_doc_pos,
@@ -274,9 +276,6 @@ class SparseNet(pl.LightningModule):
         # check params
         self._preprocess_sparse_params()
 
-        self.learning_iterations = 0
-        # self.flatten = Flatten()
-
         # Linear layers only (from original code)
         input_features = self.input_dim
         output_size = self.input_dim
@@ -359,9 +358,6 @@ class SparseNet(pl.LightningModule):
     def get_encoded(self):
         return self.encoded
 
-    def get_learning_iterations(self):
-        return self.learning_iterations
-
     def maxEntropy(self):
         entropy = 0
         for module in self.modules():
@@ -442,7 +438,6 @@ class SparseNet(pl.LightningModule):
         )  # Pct of weights that are non-zero
         self.boostStrengthFactor = hparams.boost_strength_factor
         self.boostStrength = hparams.boost_strength
-        self.learning_iterations = 0
 
     def split_train_val_test(self):
         data_path = self.hparams.data_path
@@ -455,7 +450,7 @@ class SparseNet(pl.LightningModule):
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers
         optimizer = optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return [optimizer], [scheduler]
 
     def _get_dataloader(self, dataset, test=False):
