@@ -89,7 +89,7 @@ class SparseNetModel(nn.Module):
 
         # extract params
         hparams = self.hparams
-        input_size = self.dense.get_dim()
+        input_size = hparams.input_size
         n = hparams.n
         k = hparams.k
         normalize_weights = self.hparams.normalize_weights
@@ -228,10 +228,15 @@ class SparseNet(pl.LightningModule):
         self._init_out_layer()
 
     def _init_out_layer(self):
-        output_size = self.hparams.output_size or self.hparams.input_size
+        output_size = (
+            self.hparams.output_size or self.hparams.input_size
+        )  # autoencoder if `output_size` is not provided else classifier
         self.out = nn.Linear(self.sparse.output_size, output_size)
 
     def _init_sparse_layer(self):
+        self.hparams.input_size = (
+            self.dense.get_dim()
+        )  # TODO: is it safe to do this automatically?
         self.sparse = SparseNetModel(self.hparams)
 
     def _init_dense_layer(self):
@@ -250,6 +255,7 @@ class SparseNet(pl.LightningModule):
         # return F.cosine_similarity(a, b)
         return torch.norm(x1 - x2, dim=1)
 
+    # TODO Need to be CrossEntropyLoss() if classifier
     def loss_out(self, input, target):
         # return F.mse_loss(input, target)
         return F.l1_loss(input, target)
@@ -281,20 +287,20 @@ class SparseNet(pl.LightningModule):
         # loss_triplet_val = self.loss_triplet(delta)
 
         # recovery loss
-        loss_recovery_val = (
+        loss_out_val = (
             self.loss_out(out_query, dense_query)
             + self.loss_out(out_doc_pos, dense_doc_pos)
             + self.loss_out(out_doc_neg, dense_doc_neg)
         )
 
         # return
-        loss = loss_triplet_val + loss_recovery_val
+        loss = loss_triplet_val + loss_out_val
         return (
             loss,
             distance_p.mean(),
             distance_n.mean(),
             loss_triplet_val,
-            loss_recovery_val,
+            loss_out_val,
         )
         # return loss_triplet_val
 
@@ -345,19 +351,15 @@ class SparseNet(pl.LightningModule):
         }
 
         # loss
-        (
-            loss_val,
-            distance_p,
-            distance_n,
-            loss_triplet_val,
-            loss_recovery_val,
-        ) = self.loss(out)
+        (loss_val, distance_p, distance_n, loss_triplet_val, loss_out_val,) = self.loss(
+            out
+        )
 
         # logging
         tqdm_dict = {
             "train_loss": loss_val,
             "train_loss_triplet": loss_triplet_val,
-            "train_loss_recovery": loss_recovery_val,
+            "train_loss_out": loss_out_val,
         }
         log_dict = {
             "train_losses": tqdm_dict,
@@ -400,19 +402,15 @@ class SparseNet(pl.LightningModule):
         }
 
         # loss
-        (
-            loss_val,
-            distance_p,
-            distance_n,
-            loss_triplet_val,
-            loss_recovery_val,
-        ) = self.loss(out)
+        (loss_val, distance_p, distance_n, loss_triplet_val, loss_out_val,) = self.loss(
+            out
+        )
 
         # logging
         tqdm_dict = {
             "val_loss": loss_val,
             "val_loss_triplet": loss_triplet_val,
-            "val_loss_recovery": loss_recovery_val,
+            "val_loss_out": loss_out_val,
         }
         log_dict = {
             "val_losses": tqdm_dict,
