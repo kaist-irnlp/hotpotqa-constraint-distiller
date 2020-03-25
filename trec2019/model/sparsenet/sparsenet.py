@@ -56,6 +56,86 @@ class SparseNetModel(nn.Module):
         self.hparams = hparams
         self.encoded = None
 
+        # init
+        self._preprocess_params()
+        self._init_layers()
+
+    def forward(self, x):
+        return self.layers(x)
+
+    def _preprocess_params(self):
+        hparams = self.hparams
+        if type(hparams.n) is not list:
+            hparams.n = [hparams.n]
+        if type(hparams.k) is not list:
+            hparams.k = [hparams.k] * len(hparams.n)
+        assert len(hparams.n) == len(hparams.k)
+        for i in range(len(hparams.n)):
+            assert hparams.k[i] <= hparams.n[i]
+        if type(hparams.weight_sparsity) is not list:
+            hparams.weight_sparsity = [hparams.weight_sparsity] * len(hparams.n)
+        assert len(hparams.n) == len(hparams.weight_sparsity)
+        for i in range(len(hparams.weight_sparsity)):
+            assert hparams.weight_sparsity[i] >= 0
+
+        # DEBUG
+        print(vars(hparams))
+
+    def _init_layers(self):
+        # May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
+        # Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
+
+        # check params
+        self._preprocess_sparse_params()
+
+        # extract params
+        hparams = self.hparams
+        input_size = self.dense.get_dim()
+        n = hparams.n
+        k = hparams.k
+        normalize_weights = self.hparams.normalize_weights
+        use_batch_norm = self.hparams.use_batch_norm
+        dropout = self.hparams.dropout
+        weight_sparsity = self.weightSparsity = hparams.weight_sparsity
+        k_inference_factor = self.kInferenceFactor = hparams.k_inference_factor
+        boost_strength = self.boostStrength = hparams.boost_strength
+        boost_strength_factor = self.boostStrengthFactor = hparams.boost_strength_factor
+
+        # define network
+        self.layers = nn.Sequential()
+        for i in range(len(n)):
+            if n[i] != 0:
+                linear = nn.Linear(input_size, n[i])
+                if 0 < weight_sparsity[i] < 1:
+                    linear = SparseWeights(linear, weightSparsity=weight_sparsity[i])
+                    if normalize_weights:
+                        linear.apply(normalizeSparseWeights)
+                self.layers.add_module(f"sparse_{i+1}", linear)
+
+                if use_batch_norm:
+                    self.layers.add_module(
+                        f"sparse_{i+1}_bn", nn.BatchNorm1d(n[i], affine=False)
+                    )
+
+                if dropout > 0.0:
+                    self.layers.add_module(f"sparse_{i+1}_dropout", nn.Dropout(dropout))
+
+                if 0 < k[i] < n[i]:
+                    kwinner = KWinners(
+                        n=n[i],
+                        k=k[i],
+                        kInferenceFactor=k_inference_factor,
+                        boostStrength=boost_strength,
+                        boostStrengthFactor=boost_strength_factor,
+                    )
+                    self.layers.add_module(f"sparse_{i+1}_kwinner", kwinner)
+                else:
+                    self.layers.add_module(f"sparse_{i+1}_relu", nn.ReLU())
+                # Feed this layer output into next layer input
+                input_size = n[i]
+
+        self.output_size = input_size
+
 
 class SparseNet(pl.LightningModule):
     def __init__(self, hparams):
@@ -64,15 +144,14 @@ class SparseNet(pl.LightningModule):
         self.encoded = None
 
         # network
-        self._init_dense()
-        self._init_sparse()
+        self._init_layers()
 
     def prepare_data(self):
-        data_path = self.hparams.data_path
-        train, val, test = self.split_train_val_test()
-        self._train_dataset = TripleDataset(data_path, train, self.tokenizer)
-        self._val_dataset = TripleDataset(data_path, val, self.tokenizer)
-        self._test_dataset = TripleDataset(data_path, test, self.tokenizer)
+        data_dir = Path(self.hparams.data_dir)
+        # train, val, test = self.split_train_val_test()
+        self._train_dataset = TripleDataset(data_dir / "train.zarr", self.tokenizer)
+        self._val_dataset = TripleDataset(data_dir / "val.zarr", self.tokenizer)
+        self._test_dataset = TripleDataset(data_dir / "test.zarr", self.tokenizer)
 
     def _get_bow_vocab(self):
         VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.json.gz"
@@ -92,6 +171,17 @@ class SparseNet(pl.LightningModule):
             # unk_init=torch.Tensor.normal_,
         )
 
+    def _init_layers(self):
+        self._init_dense()
+        self._init_sparse()
+
+        # final layer
+        output_size = self.hparams.output_size or self.hparams.input_size
+        self.fc = nn.Linear(self.sparse.output_size, output_size)
+
+    def _init_sparse(self):
+        self.sparse = SparseNetModel(self.hparams)
+
     def _init_dense(self):
         # init vocab
         if self.hparams.dense == "bow":
@@ -108,7 +198,7 @@ class SparseNet(pl.LightningModule):
         # return F.cosine_similarity(a, b)
         return torch.norm(x1 - x2, dim=1)
 
-    def loss_recovery(self, input, target):
+    def loss_out(self, input, target):
         # return F.mse_loss(input, target)
         return F.l1_loss(input, target)
 
@@ -123,9 +213,9 @@ class SparseNet(pl.LightningModule):
             sparse_query,
             sparse_doc_pos,
             sparse_doc_neg,
-            recovered_query,
-            recovered_doc_pos,
-            recovered_doc_neg,
+            out_query,
+            out_doc_pos,
+            out_doc_neg,
         ) = out
 
         # triplet loss
@@ -140,9 +230,9 @@ class SparseNet(pl.LightningModule):
 
         # recovery loss
         loss_recovery_val = (
-            self.loss_recovery(recovered_query, dense_query)
-            + self.loss_recovery(recovered_doc_pos, dense_doc_pos)
-            + self.loss_recovery(recovered_doc_neg, dense_doc_neg)
+            self.loss_out(out_query, dense_query)
+            + self.loss_out(out_doc_pos, dense_doc_pos)
+            + self.loss_out(out_doc_neg, dense_doc_neg)
         )
 
         # return
@@ -173,10 +263,10 @@ class SparseNet(pl.LightningModule):
         )
 
         # recover
-        recovered_query, recovered_doc_pos, recovered_doc_neg = (
-            self.recover(sparse_query),
-            self.recover(sparse_doc_pos),
-            self.recover(sparse_doc_neg),
+        out_query, out_doc_pos, out_doc_neg = (
+            self.fc(sparse_query),
+            self.fc(sparse_doc_pos),
+            self.fc(sparse_doc_neg),
         )
 
         return (
@@ -186,9 +276,9 @@ class SparseNet(pl.LightningModule):
             sparse_query,
             sparse_doc_pos,
             sparse_doc_neg,
-            recovered_query,
-            recovered_doc_pos,
-            recovered_doc_neg,
+            out_query,
+            out_doc_pos,
+            out_doc_neg,
         )
 
     def training_step(self, batch, batch_idx):
@@ -272,85 +362,6 @@ class SparseNet(pl.LightningModule):
 
         return results
 
-    def _init_sparse(self):
-        # check params
-        self._preprocess_sparse_params()
-
-        # Linear layers only (from original code)
-        input_size = self.input_size
-        output_size = self.input_size
-        n = self.n
-        k = self.k
-        normalize_weights = self.hparams.normalize_weights
-        weight_sparsity = self.weightSparsity
-        use_batch_norm = self.hparams.use_batch_norm
-        dropout = self.hparams.dropout
-        k_inference_factor = self.kInferenceFactor
-        boost_strength = self.boostStrength
-        boost_strength_factor = self.boostStrengthFactor
-
-        self.sparse = nn.Sequential()
-        for i in range(len(n)):
-            if n[i] != 0:
-                linear = nn.Linear(input_size, n[i])
-                if 0 < weight_sparsity[i] < 1:
-                    linear = SparseWeights(linear, weightSparsity=weight_sparsity[i])
-                    if normalize_weights:
-                        linear.apply(normalizeSparseWeights)
-                self.sparse.add_module(f"sparse_{i+1}", linear)
-                # Weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
-                # Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
-                # class TiedAutoEncoderOffTheShelf(nn.Module):
-                #     def __init__(self, inp, out, weight):
-                #         super().__init__()
-                #         self.encoder = nn.Linear(inp, out, bias=False)
-                #         self.decoder = nn.Linear(out, inp, bias=False)
-
-                #         # tie the weights
-                #         self.encoder.weight.data = weight.clone()
-                #         self.decoder.weight.data = self.encoder.weight.data.transpose(0,1)
-
-                #     def forward(self, input):
-                #         encoded_feats = self.encoder(input)
-                #         reconstructed_output = self.decoder(encoded_feats)
-                #         return encoded_feats, reconstructed_output
-
-                # class MixedAppraochTiedAutoEncoder(nn.Module):
-                #     def __init__(self, inp, out, weight):
-                #         super().__init__()
-                #         self.encoder = nn.Linear(inp, out, bias=False)
-                #         self.encoder.weight.data = weight.clone()
-
-                #     def forward(self, input):
-                #         encoded_feats = self.encoder(input)
-                #         reconstructed_output = F.linear(encoded_feats, self.encoder.weight.t())
-                #         return encoded_feats, reconstructed_output
-
-                if use_batch_norm:
-                    self.sparse.add_module(
-                        f"sparse_{i+1}_bn", nn.BatchNorm1d(n[i], affine=False)
-                    )
-
-                if dropout > 0.0:
-                    self.sparse.add_module(f"sparse_{i+1}_dropout", nn.Dropout(dropout))
-
-                if 0 < k[i] < n[i]:
-                    kwinner = KWinners(
-                        n=n[i],
-                        k=k[i],
-                        kInferenceFactor=k_inference_factor,
-                        boostStrength=boost_strength,
-                        boostStrengthFactor=boost_strength_factor,
-                    )
-                    self.sparse.add_module(f"sparse_{i+1}_kwinner", kwinner)
-                else:
-                    self.sparse.add_module(f"sparse_{i+1}_relu", nn.ReLU())
-                # Feed this layer output into next layer input
-                input_size = n[i]
-
-        # Add one fully connected layer after all hidden layers
-        self.recover = nn.Linear(input_size, output_size)
-
     def on_epoch_end(self):
         self.apply(updateBoostStrength)
         self.apply(rezeroWeights)
@@ -409,36 +420,6 @@ class SparseNet(pl.LightningModule):
                 continue
             if hasattr(m, "pruneDutycycles"):
                 m.pruneDutycycles(threshold)
-
-    def _preprocess_sparse_params(self):
-        hparams = self.hparams
-        if type(hparams.n) is not list:
-            hparams.n = [hparams.n]
-        if type(hparams.k) is not list:
-            hparams.k = [hparams.k] * len(hparams.n)
-        assert len(hparams.n) == len(hparams.k)
-        for i in range(len(hparams.n)):
-            assert hparams.k[i] <= hparams.n[i]
-        if type(hparams.weight_sparsity) is not list:
-            hparams.weight_sparsity = [hparams.weight_sparsity] * len(hparams.n)
-        assert len(hparams.n) == len(hparams.weight_sparsity)
-        for i in range(len(hparams.weight_sparsity)):
-            assert hparams.weight_sparsity[i] >= 0
-
-        # DEBUG
-        print(vars(hparams))
-
-        # assign
-        self.input_size = self.dense.get_dim()
-        self.output_size = hparams.output_size or self.input_size
-        self.k = hparams.k
-        self.kInferenceFactor = hparams.k_inference_factor
-        self.n = hparams.n
-        self.weightSparsity = (
-            hparams.weight_sparsity
-        )  # Pct of weights that are non-zero
-        self.boostStrengthFactor = hparams.boost_strength_factor
-        self.boostStrength = hparams.boost_strength
 
     def split_train_val_test(self):
         data_path = self.hparams.data_path

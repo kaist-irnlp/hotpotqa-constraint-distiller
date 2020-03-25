@@ -34,19 +34,17 @@ class News20Dataset(Dataset):
 
 
 class TripleDataset(Dataset):
-    def __init__(self, data_path, indices, tokenizer):
+    def __init__(self, data_path, tokenizer):
         super().__init__()
         synchronizer = zarr.ProcessSynchronizer("./sync/triple_dataset.sync")
         self.data = zarr.open(data_path, "r", synchronizer=synchronizer)
-        self.indices = indices
         self.tokenizer = tokenizer
 
     def __len__(self):
-        return len(self.indices)
+        return len(self.data)
 
     def __getitem__(self, index):
         # get a sample
-        index = self.indices[index]
         query, doc_pos, doc_neg = self.data[index]
         query_ids = self.tokenizer.encode(query, 128)
         doc_pos_ids = self.tokenizer.encode(doc_pos)
