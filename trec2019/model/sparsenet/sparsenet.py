@@ -255,13 +255,20 @@ class SparseNet(pl.LightningModule):
         # return F.cosine_similarity(a, b)
         return torch.norm(x1 - x2, dim=1)
 
-    # TODO Need to be CrossEntropyLoss() if classifier
-    def loss_out(self, input, target):
-        # return F.mse_loss(input, target)
-        return F.l1_loss(input, target)
+    def loss_recovery(self, output, target):
+        # return F.mse_loss(output, target)
+        return F.l1_loss(output, target)
 
-    # def loss_triplet(self, delta):
-    #     return torch.log1p(torch.sum(torch.exp(delta)))
+    def loss_triplet(self, q, pos, neg):
+        distance_p = self.distance(q, pos)
+        distance_n = self.distance(q, neg)
+        # Should be distance_n > distance_p, so mark all as 1 (not -1)
+        loss_triplet_val = F.margin_ranking_loss(
+            distance_n, distance_p, torch.ones_like(distance_p), margin=1.0
+        )
+
+    def loss_classification(self, output, target):
+        pass
 
     def loss(self, out):
         (
@@ -277,30 +284,26 @@ class SparseNet(pl.LightningModule):
         ) = out
 
         # triplet loss
-        distance_p = self.distance(sparse_query, sparse_doc_pos)
-        distance_n = self.distance(sparse_query, sparse_doc_neg)
-        # Should be distance_n > distance_p, so mark all as 1 (not -1)
-        loss_triplet_val = F.margin_ranking_loss(
-            distance_n, distance_p, torch.ones_like(distance_p), margin=1.0
+        # TODO Need to be CrossEntropyLoss() if classifier
+        loss_triplet_val = self.loss_triplet(
+            sparse_query, sparse_doc_pos, sparse_doc_neg
         )
-        # delta = distance_n - distance_p
-        # loss_triplet_val = self.loss_triplet(delta)
 
         # recovery loss
-        loss_out_val = (
-            self.loss_out(out_query, dense_query)
-            + self.loss_out(out_doc_pos, dense_doc_pos)
-            + self.loss_out(out_doc_neg, dense_doc_neg)
+        loss_recovery_val = (
+            self.loss_recovery(out_query, dense_query)
+            + self.loss_recovery(out_doc_pos, dense_doc_pos)
+            + self.loss_recovery(out_doc_neg, dense_doc_neg)
         )
 
         # return
-        loss = loss_triplet_val + loss_out_val
+        loss = loss_triplet_val + loss_recovery_val
         return (
             loss,
             distance_p.mean(),
             distance_n.mean(),
             loss_triplet_val,
-            loss_out_val,
+            loss_recovery_val,
         )
         # return loss_triplet_val
 
@@ -351,15 +354,19 @@ class SparseNet(pl.LightningModule):
         }
 
         # loss
-        (loss_val, distance_p, distance_n, loss_triplet_val, loss_out_val,) = self.loss(
-            out
-        )
+        (
+            loss_val,
+            distance_p,
+            distance_n,
+            loss_triplet_val,
+            loss_recovery_val,
+        ) = self.loss(out)
 
         # logging
         tqdm_dict = {
             "train_loss": loss_val,
             "train_loss_triplet": loss_triplet_val,
-            "train_loss_out": loss_out_val,
+            "train_loss_recovery": loss_recovery_val,
         }
         log_dict = {
             "train_losses": tqdm_dict,
@@ -402,15 +409,19 @@ class SparseNet(pl.LightningModule):
         }
 
         # loss
-        (loss_val, distance_p, distance_n, loss_triplet_val, loss_out_val,) = self.loss(
-            out
-        )
+        (
+            loss_val,
+            distance_p,
+            distance_n,
+            loss_triplet_val,
+            loss_recovery_val,
+        ) = self.loss(out)
 
         # logging
         tqdm_dict = {
             "val_loss": loss_val,
             "val_loss_triplet": loss_triplet_val,
-            "val_loss_out": loss_out_val,
+            "val_loss_recovery": loss_recovery_val,
         }
         log_dict = {
             "val_losses": tqdm_dict,
