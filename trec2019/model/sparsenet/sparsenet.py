@@ -246,52 +246,51 @@ class SparseNet(pl.LightningModule):
         )
         # return loss_triplet_val
 
-    def forward(self, query, doc_pos, doc_neg):
+    def forward(self, x):
         # dense
         with torch.no_grad():
-            dense_query, dense_doc_pos, dense_doc_neg = (
-                self.dense(query),
-                self.dense(doc_pos),
-                self.dense(doc_neg),
-            )
+            dense_x = self.dense(x)
 
         # sparse
-        sparse_query, sparse_doc_pos, sparse_doc_neg = (
-            self.sparse(dense_query),
-            self.sparse(dense_doc_pos),
-            self.sparse(dense_doc_neg),
-        )
+        sparse_x = self.sparse(dense_x)
 
-        # recover
-        out_query, out_doc_pos, out_doc_neg = (
-            self.fc(sparse_query),
-            self.fc(sparse_doc_pos),
-            self.fc(sparse_doc_neg),
-        )
+        # out
+        out_x = self.fc(sparse_x)
 
-        return (
-            dense_query,
-            dense_doc_pos,
-            dense_doc_neg,
-            sparse_query,
-            sparse_doc_pos,
-            sparse_doc_neg,
-            out_query,
-            out_doc_pos,
-            out_doc_neg,
-        )
+        return {"dense": dense_x, "sparse": sparse_x, "out": out_x}
 
     def training_step(self, batch, batch_idx):
         query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
 
-        # infer
-        out = self.forward(query, doc_pos, doc_neg)
+        # forward
+        out_query = self.forward(query)
+        out_doc_pos = self.forward(doc_pos)
+        out_doc_neg = self.forward(doc_neg)
 
-        return {"out": out}
+        return {
+            "out_query": out_query,
+            "out_doc_pos": out_doc_pos,
+            "out_doc_neg": out_doc_neg,
+        }
 
     def training_step_end(self, outputs):
         # aggregate (dp or ddp)
-        out = outputs["out"]
+        out_query, out_doc_pos, out_doc_neg = (
+            outputs["out_query"],
+            outputs["out_doc_pos"],
+            outputs["out_doc_neg"],
+        )
+        out = {
+            out_query["dense"],
+            out_doc_pos["dense"],
+            out_doc_neg["dense"],
+            out_query["sparse"],
+            out_doc_pos["sparse"],
+            out_doc_neg["sparse"],
+            out_query["out"],
+            out_doc_pos["out"],
+            out_doc_neg["out"],
+        }
 
         # loss
         (
@@ -318,14 +317,35 @@ class SparseNet(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
 
-        # infer
-        out = self.forward(query, doc_pos, doc_neg)
+        # forward
+        out_query = self.forward(query)
+        out_doc_pos = self.forward(doc_pos)
+        out_doc_neg = self.forward(doc_neg)
 
-        return {"out": out}
+        return {
+            "out_query": out_query,
+            "out_doc_pos": out_doc_pos,
+            "out_doc_neg": out_doc_neg,
+        }
 
     def validation_step_end(self, outputs):
         # aggregate (dp or ddp)
-        out = outputs["out"]
+        out_query, out_doc_pos, out_doc_neg = (
+            outputs["out_query"],
+            outputs["out_doc_pos"],
+            outputs["out_doc_neg"],
+        )
+        out = {
+            out_query["dense"],
+            out_doc_pos["dense"],
+            out_doc_neg["dense"],
+            out_query["sparse"],
+            out_doc_pos["sparse"],
+            out_doc_neg["sparse"],
+            out_query["out"],
+            out_doc_pos["out"],
+            out_doc_neg["out"],
+        }
 
         # loss
         (
@@ -356,7 +376,7 @@ class SparseNet(pl.LightningModule):
         # for output in outputs:
         #     val_loss_mean += output["val_loss"]
         # val_loss_mean /= len(outputs)
-        tqdm_dict = {"val_loss": avg_val_loss}
+        tqdm_dict = {"avg_val_loss": avg_val_loss}
 
         results = {"progress_bar": tqdm_dict, "log": {"avg_val_loss": avg_val_loss}}
 
@@ -367,7 +387,7 @@ class SparseNet(pl.LightningModule):
         self.apply(rezeroWeights)
 
     def get_encoded(self):
-        return self.encoded
+        return self.encoded.detach()
 
     def maxEntropy(self):
         entropy = 0
@@ -421,13 +441,13 @@ class SparseNet(pl.LightningModule):
             if hasattr(m, "pruneDutycycles"):
                 m.pruneDutycycles(threshold)
 
-    def split_train_val_test(self):
-        data_path = self.hparams.data_path
-        dataset = zarr.open(data_path, "r")
-        indices = np.array(range(len(dataset)))
-        train, val_test = train_test_split(indices, test_size=0.2)
-        val, test = train_test_split(val_test, test_size=0.5)
-        return train, val, test
+    # def split_train_val_test(self):
+    #     data_path = self.hparams.data_path
+    #     dataset = zarr.open(data_path, "r")
+    #     indices = np.array(range(len(dataset)))
+    #     train, val_test = train_test_split(indices, test_size=0.2)
+    #     val, test = train_test_split(val_test, test_size=0.5)
+    #     return train, val, test
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers
