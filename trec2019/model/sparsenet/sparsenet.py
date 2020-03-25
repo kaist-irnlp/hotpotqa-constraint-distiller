@@ -81,12 +81,11 @@ class SparseNetModel(nn.Module):
         # DEBUG
         print(vars(hparams))
 
+        self.hparams = hparams
+
     def _init_layers(self):
         # May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
         # Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
-
-        # check params
-        self._preprocess_sparse_params()
 
         # extract params
         hparams = self.hparams
@@ -136,6 +135,58 @@ class SparseNetModel(nn.Module):
 
         self.output_size = input_size
 
+    def maxEntropy(self):
+        entropy = 0
+        for module in self.modules():
+            if module == self:
+                continue
+            if hasattr(module, "maxEntropy"):
+                entropy += module.maxEntropy()
+        return entropy
+
+    def entropy(self):
+        entropy = 0
+        for module in self.modules():
+            if module == self:
+                continue
+            if hasattr(module, "entropy"):
+                entropy += module.entropy()
+        return entropy
+
+    def pruneWeights(self, minWeight):
+        """
+        Prune all the weights whose absolute magnitude is less than minWeight
+        :param minWeight: min weight to prune. If zero then no pruning
+        :type minWeight: float
+        """
+        if minWeight == 0.0:
+            return
+
+        # Collect all weights
+        weights = [v for k, v in self.named_parameters() if "weight" in k]
+        for w in weights:
+            # Filter weights above threshold
+            mask = torch.ge(torch.abs(w.data), minWeight)
+            # Zero other weights
+            w.data.mul_(mask.type(torch.float32))
+
+    def pruneDutycycles(self, threshold=0.0):
+        """
+        Prune all the units with dutycycles whose absolute magnitude is less than
+        the given threshold
+        :param threshold: min threshold to prune. If less than zero then no pruning
+        :type threshold: float
+        """
+        if threshold < 0.0:
+            return
+
+        # Collect all layers with 'dutyCycle'
+        for m in self.modules():
+            if m == self:
+                continue
+            if hasattr(m, "pruneDutycycles"):
+                m.pruneDutycycles(threshold)
+
 
 class SparseNet(pl.LightningModule):
     def __init__(self, hparams):
@@ -172,17 +223,18 @@ class SparseNet(pl.LightningModule):
         )
 
     def _init_layers(self):
-        self._init_dense()
-        self._init_sparse()
+        self._init_dense_layer()
+        self._init_sparse_layer()
+        self._init_out_layer()
 
-        # final layer
+    def _init_out_layer(self):
         output_size = self.hparams.output_size or self.hparams.input_size
-        self.fc = nn.Linear(self.sparse.output_size, output_size)
+        self.out = nn.Linear(self.sparse.output_size, output_size)
 
-    def _init_sparse(self):
+    def _init_sparse_layer(self):
         self.sparse = SparseNetModel(self.hparams)
 
-    def _init_dense(self):
+    def _init_dense_layer(self):
         # init vocab
         if self.hparams.dense == "bow":
             vocab = self._get_bow_vocab()
@@ -255,7 +307,7 @@ class SparseNet(pl.LightningModule):
         sparse_x = self.sparse(dense_x)
 
         # out
-        out_x = self.fc(sparse_x)
+        out_x = self.out(sparse_x)
 
         return {"dense": dense_x, "sparse": sparse_x, "out": out_x}
 
@@ -383,63 +435,11 @@ class SparseNet(pl.LightningModule):
         return results
 
     def on_epoch_end(self):
-        self.apply(updateBoostStrength)
-        self.apply(rezeroWeights)
+        self.sparse.apply(updateBoostStrength)
+        self.sparse.apply(rezeroWeights)
 
     def get_encoded(self):
         return self.encoded.detach()
-
-    def maxEntropy(self):
-        entropy = 0
-        for module in self.modules():
-            if module == self:
-                continue
-            if hasattr(module, "maxEntropy"):
-                entropy += module.maxEntropy()
-        return entropy
-
-    def entropy(self):
-        entropy = 0
-        for module in self.modules():
-            if module == self:
-                continue
-            if hasattr(module, "entropy"):
-                entropy += module.entropy()
-        return entropy
-
-    def pruneWeights(self, minWeight):
-        """
-        Prune all the weights whose absolute magnitude is less than minWeight
-        :param minWeight: min weight to prune. If zero then no pruning
-        :type minWeight: float
-        """
-        if minWeight == 0.0:
-            return
-
-        # Collect all weights
-        weights = [v for k, v in self.named_parameters() if "weight" in k]
-        for w in weights:
-            # Filter weights above threshold
-            mask = torch.ge(torch.abs(w.data), minWeight)
-            # Zero other weights
-            w.data.mul_(mask.type(torch.float32))
-
-    def pruneDutycycles(self, threshold=0.0):
-        """
-        Prune all the units with dutycycles whose absolute magnitude is less than
-        the given threshold
-        :param threshold: min threshold to prune. If less than zero then no pruning
-        :type threshold: float
-        """
-        if threshold < 0.0:
-            return
-
-        # Collect all layers with 'dutyCycle'
-        for m in self.modules():
-            if m == self:
-                continue
-            if hasattr(m, "pruneDutycycles"):
-                m.pruneDutycycles(threshold)
 
     # def split_train_val_test(self):
     #     data_path = self.hparams.data_path
