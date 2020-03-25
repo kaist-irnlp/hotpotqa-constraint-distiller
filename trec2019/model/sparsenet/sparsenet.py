@@ -277,8 +277,8 @@ class SparseNet(pl.LightningModule):
         self._preprocess_sparse_params()
 
         # Linear layers only (from original code)
-        input_features = self.input_dim
-        output_size = self.input_dim
+        input_size = self.input_size
+        output_size = self.input_size
         n = self.n
         k = self.k
         normalize_weights = self.hparams.normalize_weights
@@ -292,7 +292,7 @@ class SparseNet(pl.LightningModule):
         self.sparse = nn.Sequential()
         for i in range(len(n)):
             if n[i] != 0:
-                linear = nn.Linear(input_features, n[i])
+                linear = nn.Linear(input_size, n[i])
                 if 0 < weight_sparsity[i] < 1:
                     linear = SparseWeights(linear, weightSparsity=weight_sparsity[i])
                     if normalize_weights:
@@ -346,10 +346,10 @@ class SparseNet(pl.LightningModule):
                 else:
                     self.sparse.add_module(f"sparse_{i+1}_relu", nn.ReLU())
                 # Feed this layer output into next layer input
-                input_features = n[i]
+                input_size = n[i]
 
         # Add one fully connected layer after all hidden layers
-        self.recover = nn.Linear(input_features, output_size)
+        self.recover = nn.Linear(input_size, output_size)
 
     def on_epoch_end(self):
         self.apply(updateBoostStrength)
@@ -429,7 +429,8 @@ class SparseNet(pl.LightningModule):
         print(vars(hparams))
 
         # assign
-        self.input_dim = self.dense.get_dim()
+        self.input_size = self.dense.get_dim()
+        self.output_size = hparams.output_size or self.input_size
         self.k = hparams.k
         self.kInferenceFactor = hparams.k_inference_factor
         self.n = hparams.n
@@ -476,8 +477,8 @@ class SparseNet(pl.LightningModule):
         """
         Specify the hyperparams for this LightningModule
         """
-        # MODEL specific
         parser = ArgumentParser(parents=[parent_parser])
+        parser.add_argument("--output_size", default=None, type=int)
         parser.add_argument("--k_inference_factor", default=1.5, type=float)
         parser.add_argument("--weight_sparsity", default=0.3, type=float)
         parser.add_argument("--boost_strength", default=1.5, type=float)
