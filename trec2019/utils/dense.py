@@ -58,6 +58,7 @@ class BertTokenizer:
             pad_to_max_length=True,
             max_length=max_length,
             return_tensors="pt",
+            padding_side="right",
         ).squeeze()
         return ids
 

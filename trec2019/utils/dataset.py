@@ -18,6 +18,21 @@ from transformers.tokenization_auto import AutoTokenizer
 from trec2019.utils.dense import *
 
 
+class News20Dataset(Dataset):
+    def __init__(self, data_path, tokenizer):
+        super().__init__()
+        self.data = pd.read_parquet(data_path)
+        self.tokenizer = tokenizer
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        row = self.data.iloc[index]
+        text_ids = self.tokenizer.encode(row.text)
+        return {"text": text_ids, "label": row.label}
+
+
 class TripleDataset(Dataset):
     def __init__(self, data_path, indices, tokenizer):
         super().__init__()
@@ -49,10 +64,8 @@ if __name__ == "__main__":
     weights = "bert-base-uncased"
     tokenizer = BertTokenizer(weights=weights)
     # data
-    data_path = "C:/Users/kyoun/Desktop/triples.train.small.tsv.zarr.zip"
-    data = zarr.open(data_path, "r")
-    indices = np.array(range(len(data)))
-    dataset = TripleDataset(data_path, indices, tokenizer)
+    data_path = "/Users/kyoungrok/Dropbox/Project/naver/data/20newsgroup/train.parquet"
+    dataset = News20Dataset(data_path, tokenizer)
     # test
     loader = DataLoader(dataset, batch_size=2)
     for i, sample in enumerate(loader):
