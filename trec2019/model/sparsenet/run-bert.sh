@@ -8,6 +8,6 @@ for n in $N
 do
     for k in $K
     do
-        python sparsenet_trainer.py --data_dir ${DATA_DIR} --gpus 0 --n ${n} --k ${k}
+        python sparsenet_trainer.py --data_dir ${DATA_DIR} --gpus -1 --n ${n} --k ${k} -d ddp --fine_tune
     done
 done
