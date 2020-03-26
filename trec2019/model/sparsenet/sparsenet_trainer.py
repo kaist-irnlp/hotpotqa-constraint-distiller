@@ -105,6 +105,9 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", dest="max_nb_epochs", default=500, type=int)
     parser.add_argument("--learning_rate", "-lr", default=0.0002, type=float)
     parser.add_argument("--dense", type=str, choices=["bow", "bert"], default="bow")
+    parser.add_argument(
+        "--fine_tune", "-ft", action="store_true", help="Fine-tune dense models"
+    )
 
     # add default & model params
     # add_default_args(parser, root_dir)

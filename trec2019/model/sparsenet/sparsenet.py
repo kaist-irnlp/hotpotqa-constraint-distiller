@@ -284,8 +284,11 @@ class SparseNet(pl.LightningModule):
 
     def forward(self, x):
         # dense
-        with torch.no_grad():
+        if self.hparams.fine_tune:
             dense_x = self.dense(x)
+        else:
+            with torch.no_grad():
+                dense_x = self.dense(x)
 
         # sparse
         sparse_x = self.sparse(dense_x)
