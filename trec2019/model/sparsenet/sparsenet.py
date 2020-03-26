@@ -28,7 +28,6 @@ from sklearn.model_selection import train_test_split
 from multiprocessing import cpu_count
 from pathlib import Path
 from torch.utils.data import DataLoader
-from torch.utils.data.distributed import DistributedSampler
 from transformers import BertModel
 from transformers import BertTokenizer
 import gensim
@@ -65,6 +64,8 @@ class SparseNetModel(nn.Module):
 
     def _preprocess_params(self):
         hparams = self.hparams
+
+        # clean
         if type(hparams.n) is not list:
             hparams.n = [hparams.n]
         if type(hparams.k) is not list:
@@ -81,10 +82,11 @@ class SparseNetModel(nn.Module):
         # DEBUG
         print(vars(hparams))
 
+        # save cleaned values
         self.hparams = hparams
 
     def _init_layers(self):
-        # May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
+        # TODO: May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
         # Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
 
         # extract params
@@ -133,7 +135,7 @@ class SparseNetModel(nn.Module):
                 # Feed this layer output into next layer input
                 input_size = n[i]
 
-        self.output_size = input_size
+        self.output_size = self.layers[-1].shape[1]
 
     def maxEntropy(self):
         entropy = 0
@@ -200,9 +202,9 @@ class SparseNet(pl.LightningModule):
     def prepare_data(self):
         data_dir = Path(self.hparams.data_dir)
         # train, val, test = self.split_train_val_test()
-        self._train_dataset = TripleDataset(data_dir / "train.zarr", self.tokenizer)
-        self._val_dataset = TripleDataset(data_dir / "val.zarr", self.tokenizer)
-        self._test_dataset = TripleDataset(data_dir / "test.zarr", self.tokenizer)
+        self._train_dataset = News20Dataset(data_dir / "train.parquet", self.tokenizer)
+        self._val_dataset = News20Dataset(data_dir / "val.parquet", self.tokenizer)
+        self._test_dataset = News20Dataset(data_dir / "test.parquet", self.tokenizer)
 
     def _get_bow_vocab(self):
         VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.json.gz"
@@ -228,10 +230,10 @@ class SparseNet(pl.LightningModule):
         self._init_out_layer()
 
     def _init_out_layer(self):
-        output_size = (
+        last_output_size = (
             self.hparams.output_size or self.hparams.input_size
         )  # autoencoder if `output_size` is not provided else classifier
-        self.out = nn.Linear(self.sparse.output_size, output_size)
+        self.out = nn.Linear(self.sparse.output_size, last_output_size)
 
     def _init_sparse_layer(self):
         self.hparams.input_size = (
@@ -255,20 +257,20 @@ class SparseNet(pl.LightningModule):
         # return F.cosine_similarity(a, b)
         return torch.norm(x1 - x2, dim=1)
 
-    def loss_recovery(self, output, target):
-        # return F.mse_loss(output, target)
-        return F.l1_loss(output, target)
+    def loss_recovery(self, input, target):
+        # return F.mse_loss(input, target)
+        return F.l1_loss(input, target)
 
     def loss_triplet(self, q, pos, neg):
         distance_p = self.distance(q, pos)
         distance_n = self.distance(q, neg)
         # Should be distance_n > distance_p, so mark all as 1 (not -1)
-        loss_triplet_val = F.margin_ranking_loss(
+        return F.margin_ranking_loss(
             distance_n, distance_p, torch.ones_like(distance_p), margin=1.0
         )
 
-    def loss_classification(self, output, target):
-        pass
+    def loss_classify(self, input, target):
+        return F.cross_entropy(input, target)
 
     def loss(self, out):
         (
@@ -283,7 +285,7 @@ class SparseNet(pl.LightningModule):
             out_doc_neg,
         ) = out
 
-        # triplet loss
+        # task loss
         # TODO Need to be CrossEntropyLoss() if classifier
         loss_triplet_val = self.loss_triplet(
             sparse_query, sparse_doc_pos, sparse_doc_neg
@@ -444,8 +446,8 @@ class SparseNet(pl.LightningModule):
         return results
 
     def on_epoch_end(self):
-        self.sparse.apply(updateBoostStrength)
-        self.sparse.apply(rezeroWeights)
+        self.apply(updateBoostStrength)
+        self.apply(rezeroWeights)
 
     def get_encoded(self):
         return self.encoded.detach()
