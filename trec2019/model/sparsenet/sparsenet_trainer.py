@@ -66,9 +66,9 @@ def main(hparams):
     trainer.fit(model)
 
 
-if __name__ == "__main__":
-    main_hydra()
-    sys.exit(-1)
+# if __name__ == "__main__":
+#     main_hydra()
+#     sys.exit(-1)
 
 
 if __name__ == "__main__":
