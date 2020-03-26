@@ -1,4 +1,5 @@
 defaults:
   - dataset: news20
-  - model: single_10000_100
-  - train: cpu
+  - model: defaults
+  - train: defaults
+  - device: cpu

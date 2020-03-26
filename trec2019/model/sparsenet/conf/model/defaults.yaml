@@ -1,0 +1,11 @@
+model:
+  n: 10000
+  k: 100
+  output_size: 20
+  k_inference_factor: 1.5
+  weight_sparsity: 0.3
+  boost_strength: 1.5
+  boost_strength_factor: 0.85
+  dropout: 0.0
+  use_batch_norm: true
+  normalize_weights: true

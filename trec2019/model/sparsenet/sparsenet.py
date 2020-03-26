@@ -404,6 +404,8 @@ class SparseNet(pl.LightningModule):
         Specify the hyperparams for this LightningModule
         """
         parser = ArgumentParser(parents=[parent_parser])
+        parser.add_argument("--n", type=int, nargs="+", required=True)
+        parser.add_argument("--k", type=int, nargs="+", required=True)
         parser.add_argument("--output_size", default=None, type=int)
         parser.add_argument("--k_inference_factor", default=1.5, type=float)
         parser.add_argument("--weight_sparsity", default=0.3, type=float)
