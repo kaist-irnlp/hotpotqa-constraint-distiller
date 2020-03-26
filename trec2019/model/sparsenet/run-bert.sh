@@ -9,6 +9,6 @@ for n in $N
 do
     for k in $K
     do
-        python sparsenet_trainer.py --data_dir ${DATA_DIR} --gpus ${GPU} --n ${n} --k ${k} --dense bert --amp_level O1 --precision 16 --batch_size 64
+        python sparsenet_trainer.py --data_dir ${DATA_DIR} --gpus ${GPU} --n ${n} --k ${k} --dense bert --batch_size 32
     done
 done
