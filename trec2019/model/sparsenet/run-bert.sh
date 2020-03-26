@@ -1,13 +1,14 @@
 #!/usr/bin/env sh
 
 DATA_DIR=$1
-N="1000 3000 5000 10000"
-K="50 100 200 300 500"
+GPU=$2
+N=$3
+K=$4
 
 for n in $N
 do
     for k in $K
     do
-        python sparsenet_trainer.py --data_dir ${DATA_DIR} --gpus -1 --n ${n} --k ${k} -d ddp --fine_tune
+        python sparsenet_trainer.py --data_dir ${DATA_DIR} --gpus ${GPU} --n ${n} --k ${k} --dense bert --amp_level O1 --precision 16 --batch_size 64
     done
 done
