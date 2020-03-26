@@ -202,11 +202,13 @@ class SparseNet(pl.LightningModule):
     def prepare_data(self):
         data_dir = Path(self.hparams.data_dir)
         # train, val, test = self.split_train_val_test()
-        self._train_dataset = TripleDataset(
-            str(data_dir / "train.zarr"), self.tokenizer
+        self._train_dataset = News20Dataset(
+            str(data_dir / "train.parquet"), self.tokenizer
         )
-        self._val_dataset = TripleDataset(str(data_dir / "val.zarr"), self.tokenizer)
-        self._test_dataset = TripleDataset(str(data_dir / "test.zarr"), self.tokenizer)
+        self._val_dataset = News20Dataset(str(data_dir / "val.parquet"), self.tokenizer)
+        self._test_dataset = News20Dataset(
+            str(data_dir / "test.parquet"), self.tokenizer
+        )
 
     def _get_bow_vocab(self):
         VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.json.gz"
@@ -274,38 +276,11 @@ class SparseNet(pl.LightningModule):
     def loss_classify(self, input, target):
         return F.cross_entropy(input, target)
 
-    def loss(self, out):
-        (
-            dense_query,
-            dense_doc_pos,
-            dense_doc_neg,
-            sparse_query,
-            sparse_doc_pos,
-            sparse_doc_neg,
-            out_query,
-            out_doc_pos,
-            out_doc_neg,
-        ) = out
-
+    def loss(self, dense_x, sparse_x, out_x, target):
         # task loss
-        # TODO Need to be CrossEntropyLoss() if classifier
-        loss_task_val = self.loss_triplet(sparse_query, sparse_doc_pos, sparse_doc_neg)
+        loss = self.loss_classify(out_x, target.type(torch.long))
 
-        # recovery loss
-        loss_recovery_val = (
-            self.loss_recovery(out_query, dense_query)
-            + self.loss_recovery(out_doc_pos, dense_doc_pos)
-            + self.loss_recovery(out_doc_neg, dense_doc_neg)
-        )
-
-        # return
-        loss = loss_task_val + loss_recovery_val
-        return (
-            loss,
-            loss_task_val,
-            loss_recovery_val,
-        )
-        # return loss_triplet_val
+        return loss
 
     def forward(self, x):
         # dense
@@ -318,49 +293,26 @@ class SparseNet(pl.LightningModule):
         # out
         out_x = self.out(sparse_x)
 
-        return {"dense": dense_x, "sparse": sparse_x, "out": out_x}
+        return dense_x, sparse_x, out_x
 
     def training_step(self, batch, batch_idx):
-        query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
+        text, target = batch["text"], batch["target"]
 
         # forward
-        outputs_query = self.forward(query)
-        outputs_doc_pos = self.forward(doc_pos)
-        outputs_doc_neg = self.forward(doc_neg)
+        dense_x, sparse_x, out_x = self.forward(text)
 
-        return {
-            "query": outputs_query,
-            "doc_pos": outputs_doc_pos,
-            "doc_neg": outputs_doc_neg,
-        }
+        return dense_x, sparse_x, out_x, target
 
     def training_step_end(self, outputs):
         # aggregate (dp or ddp)
-        outputs_query, outputs_doc_pos, outputs_doc_neg = (
-            outputs["query"],
-            outputs["doc_pos"],
-            outputs["doc_neg"],
-        )
-        out = {
-            outputs_query["dense"],
-            outputs_doc_pos["dense"],
-            outputs_doc_neg["dense"],
-            outputs_query["sparse"],
-            outputs_doc_pos["sparse"],
-            outputs_doc_neg["sparse"],
-            outputs_query["out"],
-            outputs_doc_pos["out"],
-            outputs_doc_neg["out"],
-        }
+        dense_x, sparse_x, out_x, target = outputs
 
         # loss
-        (loss_val, loss_task_val, loss_recovery_val,) = self.loss(out)
+        loss_val = self.loss(dense_x, sparse_x, out_x, target)
 
         # logging
         tqdm_dict = {
             "train_loss": loss_val,
-            "train_loss_task": loss_task_val,
-            "train_loss_recovery": loss_recovery_val,
         }
         log_dict = {
             "train_losses": tqdm_dict,
@@ -368,46 +320,23 @@ class SparseNet(pl.LightningModule):
         return {"loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_step(self, batch, batch_idx):
-        query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
+        text, target = batch["text"], batch["target"]
 
         # forward
-        outputs_query = self.forward(query)
-        outputs_doc_pos = self.forward(doc_pos)
-        outputs_doc_neg = self.forward(doc_neg)
+        dense_x, sparse_x, out_x = self.forward(text)
 
-        return {
-            "query": outputs_query,
-            "doc_pos": outputs_doc_pos,
-            "doc_neg": outputs_doc_neg,
-        }
+        return dense_x, sparse_x, out_x, target
 
     def validation_step_end(self, outputs):
         # aggregate (dp or ddp)
-        outputs_query, outputs_doc_pos, outputs_doc_neg = (
-            outputs["query"],
-            outputs["doc_pos"],
-            outputs["doc_neg"],
-        )
-        out = {
-            outputs_query["dense"],
-            outputs_doc_pos["dense"],
-            outputs_doc_neg["dense"],
-            outputs_query["sparse"],
-            outputs_doc_pos["sparse"],
-            outputs_doc_neg["sparse"],
-            outputs_query["out"],
-            outputs_doc_pos["out"],
-            outputs_doc_neg["out"],
-        }
+        dense_x, sparse_x, out_x, target = outputs
 
         # loss
-        (loss_val, loss_task_val, loss_recovery_val,) = self.loss(out)
+        loss_val = self.loss(dense_x, sparse_x, out_x, target)
 
         # logging
         tqdm_dict = {
-            "val_loss": loss_val,
-            "val_loss_task": loss_task_val,
-            "val_loss_recovery": loss_recovery_val,
+            "train_loss": loss_val,
         }
         log_dict = {
             "val_losses": tqdm_dict,
@@ -421,7 +350,7 @@ class SparseNet(pl.LightningModule):
         # for output in outputs:
         #     val_loss_mean += output["val_loss"]
         # val_loss_mean /= len(outputs)
-        tqdm_dict = {"avg_val_loss": avg_val_loss}
+        tqdm_dict = {"val_loss": avg_val_loss}
         log_dict = tqdm_dict
         results = {"progress_bar": tqdm_dict, "log": log_dict}
 
