@@ -202,9 +202,9 @@ class SparseNet(pl.LightningModule):
     def prepare_data(self):
         data_dir = Path(self.hparams.data_dir)
         # train, val, test = self.split_train_val_test()
-        self._train_dataset = News20Dataset(data_dir / "train.parquet", self.tokenizer)
-        self._val_dataset = News20Dataset(data_dir / "val.parquet", self.tokenizer)
-        self._test_dataset = News20Dataset(data_dir / "test.parquet", self.tokenizer)
+        self._train_dataset = TripleDataset(data_dir / "train.parquet", self.tokenizer)
+        self._val_dataset = TripleDataset(data_dir / "val.parquet", self.tokenizer)
+        self._test_dataset = TripleDataset(data_dir / "test.parquet", self.tokenizer)
 
     def _get_bow_vocab(self):
         VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.json.gz"
@@ -302,8 +302,6 @@ class SparseNet(pl.LightningModule):
         loss = loss_triplet_val + loss_recovery_val
         return (
             loss,
-            distance_p.mean(),
-            distance_n.mean(),
             loss_triplet_val,
             loss_recovery_val,
         )
@@ -356,13 +354,7 @@ class SparseNet(pl.LightningModule):
         }
 
         # loss
-        (
-            loss_val,
-            distance_p,
-            distance_n,
-            loss_triplet_val,
-            loss_recovery_val,
-        ) = self.loss(out)
+        (loss_val, loss_triplet_val, loss_recovery_val,) = self.loss(out)
 
         # logging
         tqdm_dict = {
@@ -372,8 +364,6 @@ class SparseNet(pl.LightningModule):
         }
         log_dict = {
             "train_losses": tqdm_dict,
-            "train_distance_p": distance_p,
-            "train_distance_n": distance_n,
         }
         return {"loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
@@ -411,13 +401,7 @@ class SparseNet(pl.LightningModule):
         }
 
         # loss
-        (
-            loss_val,
-            distance_p,
-            distance_n,
-            loss_triplet_val,
-            loss_recovery_val,
-        ) = self.loss(out)
+        (loss_val, loss_triplet_val, loss_recovery_val,) = self.loss(out)
 
         # logging
         tqdm_dict = {
@@ -427,8 +411,6 @@ class SparseNet(pl.LightningModule):
         }
         log_dict = {
             "val_losses": tqdm_dict,
-            "val_distance_p": distance_p,
-            "val_distance_n": distance_n,
         }
         return {"val_loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
@@ -468,7 +450,7 @@ class SparseNet(pl.LightningModule):
 
     def _get_dataloader(self, dataset, test=False):
         # dist_sampler = DistributedSampler(dataset) if self.use_ddp else None
-        batch_size = self.hparams.batch_size if not test else 100000
+        batch_size = self.hparams.batch_size if not test else 10000
         num_workers = int(cpu_count() / 4) or 1
         # num_workers = 0
         return DataLoader(
