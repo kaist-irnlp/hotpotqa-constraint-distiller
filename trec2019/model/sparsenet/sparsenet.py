@@ -415,6 +415,6 @@ class SparseNet(pl.LightningModule):
         )
         parser.add_argument("--dropout", default=0.0, type=float)
         parser.add_argument("--use_batch_norm", default=True, type=bool)
-        parser.add_argument("--normalize_weights", default=True, type=bool)
+        parser.add_argument("--normalize_weights", default=False, type=bool)
 
         return parser
