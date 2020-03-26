@@ -17,6 +17,8 @@ from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
 from trec2019.utils.dense import *
 from trec2019.model.sparsenet import SparseNet
+import hydra
+from omegaconf import DictConfig
 
 # cudnn.benchmark = True
 root_dir = str(Path(__file__).parent.absolute())
