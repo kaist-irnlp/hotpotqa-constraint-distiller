@@ -421,9 +421,13 @@ class SparseNet(pl.LightningModule):
         # for output in outputs:
         #     val_loss_mean += output["val_loss"]
         # val_loss_mean /= len(outputs)
-        tqdm_dict = {"avg_val_loss": avg_val_loss}
+        tqdm_dict = {"val_loss": avg_val_loss}
 
-        results = {"progress_bar": tqdm_dict, "log": {"avg_val_loss": avg_val_loss}}
+        results = {
+            "val_loss": avg_val_loss,
+            "progress_bar": tqdm_dict,
+            "log": {"val_loss": avg_val_loss},
+        }
 
         return results
 
