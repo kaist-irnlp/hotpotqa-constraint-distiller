@@ -1,0 +1,5 @@
+defaults:
+  - dataset: news20
+  - model: defaults
+  - train: defaults
+  - device: cpu

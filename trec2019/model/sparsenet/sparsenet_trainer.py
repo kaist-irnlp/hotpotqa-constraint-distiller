@@ -17,20 +17,18 @@ from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
 from trec2019.utils.dense import *
 from trec2019.model.sparsenet import SparseNet
+import hydra
+from omegaconf import DictConfig
+import os
 
 # cudnn.benchmark = True
 root_dir = str(Path(__file__).parent.absolute())
 
 
-# def get_dense(dense_name, embedding_path):
-#     dense_cls = {"bow": BowEmbedding, "disc": DiscEmbedding, "bert": BertEmbedding}[
-#         dense_name
-#     ]
-#     if issubclass(dense_cls, BasePretrainedEmbedding):
-#         dense = dense_cls(embedding_path)
-#     else:
-#         dense = dense_cls()
-#     return dense
+@hydra.main(config_path="conf/config.yaml")
+def main_hydra(cfg: DictConfig) -> None:
+    print(cfg.pretty())
+    print(os.getcwd())
 
 
 def main(hparams):
@@ -39,7 +37,7 @@ def main(hparams):
 
     # early stop
     early_stop_callback = EarlyStopping(
-        monitor="val_loss", patience=5, verbose=True, mode="min"
+        monitor="val_loss", patience=20, verbose=True, mode="min"
     )
     # logger
     tt_logger = loggers.TestTubeLogger(root_dir)
@@ -58,7 +56,6 @@ def main(hparams):
         max_nb_epochs=hparams.max_nb_epochs,
         gpus=hparams.gpus,
         distributed_backend=hparams.distributed_backend,
-        nb_gpu_nodes=hparams.nodes,
         fast_dev_run=hparams.fast_dev_run,
         amp_level=hparams.amp_level,
         precision=hparams.precision,
@@ -69,13 +66,17 @@ def main(hparams):
     trainer.fit(model)
 
 
+# if __name__ == "__main__":
+#     main_hydra()
+#     sys.exit(-1)
+
+
 if __name__ == "__main__":
     # parser = HyperOptArgumentParser(strategy="grid_search", add_help=False)
     parser = ArgumentParser(add_help=False)
 
     # parser = Trainer.add_argparse_args(parser)
 
-    parser.add_argument("--nodes", type=int, default=1)
     parser.add_argument("--distributed_backend", "-d", type=str, default=None)
     parser.add_argument("--profile", action="store_true")
     parser.add_argument("--gpus", default=None, type=str)
@@ -99,12 +100,13 @@ if __name__ == "__main__":
 
     # model params
     parser.add_argument("--data_dir", type=str, default=None, required=True)
-    parser.add_argument("--n", type=int, nargs="+", required=True)
-    parser.add_argument("--k", type=int, nargs="+", required=True)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--epochs", dest="max_nb_epochs", default=500, type=int)
-    parser.add_argument("--learning_rate", "-lr", default=0.0002, type=float)
+    parser.add_argument("--learning_rate", "-lr", default=0.0001, type=float)
     parser.add_argument("--dense", type=str, choices=["bow", "bert"], default="bow")
+    parser.add_argument(
+        "--fine_tune", "-ft", action="store_true", help="Fine-tune dense models"
+    )
 
     # add default & model params
     # add_default_args(parser, root_dir)

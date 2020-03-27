@@ -1,0 +1,4 @@
+dataset:
+  root_dir: "./data"
+  data_dir: "news20"
+  data_cls: "news20"

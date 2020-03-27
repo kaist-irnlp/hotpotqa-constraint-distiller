@@ -13,9 +13,12 @@ from numcodecs import blosc
 from torchtext.vocab import Vocab
 import torchtext
 from collections import Counter
+import json
 from textblob import TextBlob
 from transformers.tokenization_auto import AutoTokenizer
 from trec2019.utils.dense import *
+
+root_dir = str(Path(__file__).parent.absolute())
 
 
 class News20Dataset(Dataset):
@@ -30,7 +33,7 @@ class News20Dataset(Dataset):
     def __getitem__(self, index):
         row = self.data.iloc[index]
         text_ids = self.tokenizer.encode(row.text)
-        return {"text": text_ids, "label": row.label}
+        return {"text": text_ids, "target": row.label}
 
 
 class TripleDataset(Dataset):
@@ -59,10 +62,15 @@ def load_vocab_counts(vocab_count_path):
 
 if __name__ == "__main__":
     # tokenizer
-    weights = "bert-base-uncased"
-    tokenizer = BertTokenizer(weights=weights)
+    vocab_path = Path(root_dir) / "../vocab/vocab.json.gz"
+    with gzip.open(vocab_path, "rt", encoding="utf-8") as f:
+        vocab_counts = Counter(json.load(f))
+    vocab = Vocab(
+        vocab_counts, vectors="fasttext.en.300d", min_freq=10, max_size=100000,
+    )
+    tokenizer = BowTokenizer(vocab)
     # data
-    data_path = "/Users/kyoungrok/Dropbox/Project/naver/data/20newsgroup/train.parquet"
+    data_path = "D:/Dropbox/Project/naver/data/20newsgroup/train.parquet"
     dataset = News20Dataset(data_path, tokenizer)
     # test
     loader = DataLoader(dataset, batch_size=2)

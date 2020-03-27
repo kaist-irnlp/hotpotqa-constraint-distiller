@@ -1,0 +1,5 @@
+device:
+  gpus: ""
+  amp_level: ""
+  precision: 32
+  distributed_backend: ""

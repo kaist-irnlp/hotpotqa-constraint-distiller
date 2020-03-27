@@ -135,7 +135,7 @@ class SparseNetModel(nn.Module):
                 # Feed this layer output into next layer input
                 input_size = n[i]
 
-        self.output_size = self.layers[-1].shape[1]
+        self.output_size = input_size
 
     def maxEntropy(self):
         entropy = 0
@@ -202,9 +202,13 @@ class SparseNet(pl.LightningModule):
     def prepare_data(self):
         data_dir = Path(self.hparams.data_dir)
         # train, val, test = self.split_train_val_test()
-        self._train_dataset = TripleDataset(data_dir / "train.parquet", self.tokenizer)
-        self._val_dataset = TripleDataset(data_dir / "val.parquet", self.tokenizer)
-        self._test_dataset = TripleDataset(data_dir / "test.parquet", self.tokenizer)
+        self._train_dataset = News20Dataset(
+            str(data_dir / "train.parquet"), self.tokenizer
+        )
+        self._val_dataset = News20Dataset(str(data_dir / "val.parquet"), self.tokenizer)
+        self._test_dataset = News20Dataset(
+            str(data_dir / "test.parquet"), self.tokenizer
+        )
 
     def _get_bow_vocab(self):
         VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.json.gz"
@@ -272,45 +276,19 @@ class SparseNet(pl.LightningModule):
     def loss_classify(self, input, target):
         return F.cross_entropy(input, target)
 
-    def loss(self, out):
-        (
-            dense_query,
-            dense_doc_pos,
-            dense_doc_neg,
-            sparse_query,
-            sparse_doc_pos,
-            sparse_doc_neg,
-            out_query,
-            out_doc_pos,
-            out_doc_neg,
-        ) = out
-
+    def loss(self, dense_x, sparse_x, out_x, target):
         # task loss
-        # TODO Need to be CrossEntropyLoss() if classifier
-        loss_triplet_val = self.loss_triplet(
-            sparse_query, sparse_doc_pos, sparse_doc_neg
-        )
+        loss = self.loss_classify(out_x, target.type(torch.long))
 
-        # recovery loss
-        loss_recovery_val = (
-            self.loss_recovery(out_query, dense_query)
-            + self.loss_recovery(out_doc_pos, dense_doc_pos)
-            + self.loss_recovery(out_doc_neg, dense_doc_neg)
-        )
-
-        # return
-        loss = loss_triplet_val + loss_recovery_val
-        return (
-            loss,
-            loss_triplet_val,
-            loss_recovery_val,
-        )
-        # return loss_triplet_val
+        return loss
 
     def forward(self, x):
         # dense
-        with torch.no_grad():
+        if self.hparams.fine_tune:
             dense_x = self.dense(x)
+        else:
+            with torch.no_grad():
+                dense_x = self.dense(x)
 
         # sparse
         sparse_x = self.sparse(dense_x)
@@ -318,49 +296,26 @@ class SparseNet(pl.LightningModule):
         # out
         out_x = self.out(sparse_x)
 
-        return {"dense": dense_x, "sparse": sparse_x, "out": out_x}
+        return dense_x, sparse_x, out_x
 
     def training_step(self, batch, batch_idx):
-        query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
+        text, target = batch["text"], batch["target"]
 
         # forward
-        out_query = self.forward(query)
-        out_doc_pos = self.forward(doc_pos)
-        out_doc_neg = self.forward(doc_neg)
+        dense_x, sparse_x, out_x = self.forward(text)
 
-        return {
-            "out_query": out_query,
-            "out_doc_pos": out_doc_pos,
-            "out_doc_neg": out_doc_neg,
-        }
+        return dense_x, sparse_x, out_x, target
 
     def training_step_end(self, outputs):
         # aggregate (dp or ddp)
-        out_query, out_doc_pos, out_doc_neg = (
-            outputs["out_query"],
-            outputs["out_doc_pos"],
-            outputs["out_doc_neg"],
-        )
-        out = {
-            out_query["dense"],
-            out_doc_pos["dense"],
-            out_doc_neg["dense"],
-            out_query["sparse"],
-            out_doc_pos["sparse"],
-            out_doc_neg["sparse"],
-            out_query["out"],
-            out_doc_pos["out"],
-            out_doc_neg["out"],
-        }
+        dense_x, sparse_x, out_x, target = outputs
 
         # loss
-        (loss_val, loss_triplet_val, loss_recovery_val,) = self.loss(out)
+        loss_val = self.loss(dense_x, sparse_x, out_x, target)
 
         # logging
         tqdm_dict = {
             "train_loss": loss_val,
-            "train_loss_triplet": loss_triplet_val,
-            "train_loss_recovery": loss_recovery_val,
         }
         log_dict = {
             "train_losses": tqdm_dict,
@@ -368,46 +323,23 @@ class SparseNet(pl.LightningModule):
         return {"loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_step(self, batch, batch_idx):
-        query, doc_pos, doc_neg = batch["query"], batch["doc_pos"], batch["doc_neg"]
+        text, target = batch["text"], batch["target"]
 
         # forward
-        out_query = self.forward(query)
-        out_doc_pos = self.forward(doc_pos)
-        out_doc_neg = self.forward(doc_neg)
+        dense_x, sparse_x, out_x = self.forward(text)
 
-        return {
-            "out_query": out_query,
-            "out_doc_pos": out_doc_pos,
-            "out_doc_neg": out_doc_neg,
-        }
+        return dense_x, sparse_x, out_x, target
 
     def validation_step_end(self, outputs):
         # aggregate (dp or ddp)
-        out_query, out_doc_pos, out_doc_neg = (
-            outputs["out_query"],
-            outputs["out_doc_pos"],
-            outputs["out_doc_neg"],
-        )
-        out = {
-            out_query["dense"],
-            out_doc_pos["dense"],
-            out_doc_neg["dense"],
-            out_query["sparse"],
-            out_doc_pos["sparse"],
-            out_doc_neg["sparse"],
-            out_query["out"],
-            out_doc_pos["out"],
-            out_doc_neg["out"],
-        }
+        dense_x, sparse_x, out_x, target = outputs
 
         # loss
-        (loss_val, loss_triplet_val, loss_recovery_val,) = self.loss(out)
+        loss_val = self.loss(dense_x, sparse_x, out_x, target)
 
         # logging
         tqdm_dict = {
-            "val_loss": loss_val,
-            "val_loss_triplet": loss_triplet_val,
-            "val_loss_recovery": loss_recovery_val,
+            "train_loss": loss_val,
         }
         log_dict = {
             "val_losses": tqdm_dict,
@@ -476,6 +408,8 @@ class SparseNet(pl.LightningModule):
         Specify the hyperparams for this LightningModule
         """
         parser = ArgumentParser(parents=[parent_parser])
+        parser.add_argument("--n", type=int, nargs="+", required=True)
+        parser.add_argument("--k", type=int, nargs="+", required=True)
         parser.add_argument("--output_size", default=None, type=int)
         parser.add_argument("--k_inference_factor", default=1.5, type=float)
         parser.add_argument("--weight_sparsity", default=0.3, type=float)
@@ -485,6 +419,6 @@ class SparseNet(pl.LightningModule):
         )
         parser.add_argument("--dropout", default=0.0, type=float)
         parser.add_argument("--use_batch_norm", default=True, type=bool)
-        parser.add_argument("--normalize_weights", default=True, type=bool)
+        parser.add_argument("--normalize_weights", default=False, type=bool)
 
         return parser

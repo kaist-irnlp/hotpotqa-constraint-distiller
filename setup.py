@@ -23,8 +23,8 @@ setup(
         "torchtext",
         "spacy",
         "dask[complete]",
-        "scikit-learn"
+        "scikit-learn",
+        "hydra-core",
     ],
     packages=find_packages(),
 )
-
