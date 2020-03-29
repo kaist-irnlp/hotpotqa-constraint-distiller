@@ -212,11 +212,11 @@ class SparseNet(pl.LightningModule):
         )
 
     def _get_bow_vocab(self):
-        VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.json.gz"
+        VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.json"
         VECTORS = "fasttext.en.300d"
         MIN_FREQ = 10
         MAX_SIZE = 100000
-        with gzip.open(VOCAB_PATH, "rt", encoding="utf-8") as f:
+        with open(VOCAB_PATH, "r", encoding="utf-8") as f:
             vocab_counts = Counter(json.load(f))
             # vocab_counts = Counter(
             #     {row.word: row.count for row in pd.read_parquet(VOCAB_PATH).itertuples()}
@@ -356,8 +356,12 @@ class SparseNet(pl.LightningModule):
         #     val_loss_mean += output["val_loss"]
         # val_loss_mean /= len(outputs)
         tqdm_dict = {"val_loss": avg_val_loss}
-        log_dict = tqdm_dict
-        results = {"progress_bar": tqdm_dict, "log": log_dict}
+
+        results = {
+            "val_loss": avg_val_loss,
+            "progress_bar": tqdm_dict,
+            "log": {"val_loss": avg_val_loss},
+        }
 
         return results
 
