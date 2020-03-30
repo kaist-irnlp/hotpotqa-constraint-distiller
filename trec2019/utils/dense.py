@@ -12,9 +12,39 @@ import abc
 import numpy as np
 import pandas as pd
 import sys
+from pathlib import Path
+from collections import Counter
+import json
 
 
 FLOAT = torch.float32
+root_dir = str(Path(__file__).parent.absolute())
+
+
+def _get_bow_vocab(self):
+    VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.json"
+    VECTORS = "fasttext.en.300d"
+    MIN_FREQ = 10
+    MAX_SIZE = 100000
+    with open(VOCAB_PATH, "r", encoding="utf-8") as f:
+        vocab_counts = Counter(json.load(f))
+        # vocab_counts = Counter(
+        #     {row.word: row.count for row in pd.read_parquet(VOCAB_PATH).itertuples()}
+        # )
+    return Vocab(
+        vocab_counts,
+        vectors=VECTORS,
+        min_freq=MIN_FREQ,
+        max_size=MAX_SIZE,
+        # unk_init=torch.Tensor.normal_,
+    )
+    # return SubwordVocab(
+    #     vocab_counts,
+    #     vectors=VECTORS,
+    #     min_freq=MIN_FREQ,
+    #     max_size=MAX_SIZE,
+    #     # unk_init=torch.Tensor.normal_,
+    # )
 
 
 class BowTokenizer:
