@@ -1,3 +1,4 @@
 *.parquet filter=lfs diff=lfs merge=lfs
 *.gz filter=lfs diff=lfs merge=lfs 
 *.json filter=lfs diff=lfs merge=lfs -text
+*.py !text !filter !merge !diff
