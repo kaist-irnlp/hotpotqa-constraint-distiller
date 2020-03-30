@@ -28,6 +28,7 @@ from sklearn.model_selection import train_test_split
 from multiprocessing import cpu_count
 from pathlib import Path
 from torch.utils.data import DataLoader
+from torchtext.vocab import Vocab, SubwordVocab
 from transformers import BertModel
 from transformers import BertTokenizer
 import gensim
@@ -227,6 +228,13 @@ class SparseNet(pl.LightningModule):
             max_size=MAX_SIZE,
             # unk_init=torch.Tensor.normal_,
         )
+        # return SubwordVocab(
+        #     vocab_counts,
+        #     vectors=VECTORS,
+        #     min_freq=MIN_FREQ,
+        #     max_size=MAX_SIZE,
+        #     # unk_init=torch.Tensor.normal_,
+        # )
 
     def _init_layers(self):
         self._init_dense_layer()
@@ -249,6 +257,7 @@ class SparseNet(pl.LightningModule):
         # init vocab
         if self.hparams.dense == "bow":
             vocab = self._get_bow_vocab()
+            # vocab.vectors = F.normalize(vocab.vectors, p=2, dim=1)
             self.tokenizer = BowTokenizer(vocab)
             self.dense = BowEmbedding(vocab)
         elif self.hparams.dense == "bert":

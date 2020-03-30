@@ -5,6 +5,7 @@
 **/*.part
 **/sync
 **/output/
+**/outputs/
 **/*_cache
 
 # Byte-compiled / optimized / DLL files
