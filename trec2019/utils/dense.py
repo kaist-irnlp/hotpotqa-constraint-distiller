@@ -97,6 +97,9 @@ class BertTokenizer:
 
 
 class FseEmbedding(nn.Module):
+    """
+    ref: https://github.com/oborchers/Fast_Sentence_Embeddings/blob/master/notebooks/Tutorial.ipynb
+    """
     def __init__(self):
         super().__init__()
 
