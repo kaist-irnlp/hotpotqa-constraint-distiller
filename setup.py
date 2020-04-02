@@ -25,7 +25,8 @@ setup(
         "dask[complete]",
         "scikit-learn",
         "hydra-core",
-        "fse"
+        "fse",
+        "cython",
     ],
     packages=find_packages(),
 )

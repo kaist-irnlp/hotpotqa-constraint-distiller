@@ -16,3 +16,4 @@ scikit-learn
 test_tube
 hydra-core
 fse
+cython

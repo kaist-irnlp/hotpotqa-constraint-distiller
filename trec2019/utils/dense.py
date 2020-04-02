@@ -15,6 +15,9 @@ import sys
 from pathlib import Path
 from collections import Counter
 import json
+from fse import IndexedList
+from fse.models import uSIF, SIF
+from fse.models.average import FAST_VERSION, MAX_WORDS_IN_BATCH
 
 
 FLOAT = torch.float32
@@ -91,6 +94,17 @@ class BertTokenizer:
             padding_side="right",
         ).squeeze()
         return ids
+
+
+class FseEmbedding(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def get_dim(self):
+        pass
+
+    def forward(self, batch):
+        pass
 
 
 class BowEmbedding(nn.Module):
