@@ -87,9 +87,6 @@ class SparseNetModel(nn.Module):
         self.hparams = hparams
 
     def _init_layers(self):
-        # TODO: May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
-        # Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
-
         # extract params
         hparams = self.hparams
         input_size = hparams.input_size
@@ -104,6 +101,8 @@ class SparseNetModel(nn.Module):
         boost_strength_factor = self.boostStrengthFactor = hparams.boost_strength_factor
 
         # define network
+        # TODO: May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
+        # Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
         self.layers = nn.Sequential()
         for i in range(len(n)):
             if n[i] != 0:
