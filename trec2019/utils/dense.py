@@ -26,7 +26,8 @@ root_dir = str(Path(__file__).parent.absolute())
 
 def _get_bow_vocab(self):
     VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.json"
-    VECTORS = "fasttext.en.300d"
+    # VECTORS = "fasttext.en.300d"
+    VECTORS = "glove.6B.300d"
     MIN_FREQ = 10
     MAX_SIZE = 100000
     with open(VOCAB_PATH, "r", encoding="utf-8") as f:
@@ -100,6 +101,7 @@ class FseEmbedding(nn.Module):
     """
     ref: https://github.com/oborchers/Fast_Sentence_Embeddings/blob/master/notebooks/Tutorial.ipynb
     """
+
     def __init__(self):
         super().__init__()
 
