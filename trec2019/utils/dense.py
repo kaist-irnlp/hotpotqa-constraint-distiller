@@ -102,14 +102,17 @@ class FseEmbedding(nn.Module):
     ref: https://github.com/oborchers/Fast_Sentence_Embeddings/blob/master/notebooks/Tutorial.ipynb
     """
 
-    def __init__(self):
+    def __init__(self, model_path):
         super().__init__()
+        self.model = uSIF.load(model_path)
 
     def get_dim(self):
-        pass
+        return self.model.vector_size
 
     def forward(self, batch):
-        pass
+        assert type(batch[0]) == list
+        batch = IndexedList(batch)
+        return torch.tensor(self.model.infer(batch), dtype=torch.float32)
 
 
 class BowEmbedding(nn.Module):
