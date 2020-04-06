@@ -34,7 +34,7 @@ class News20EmbeddingDataset(Dataset):
 
     def __getitem__(self, index):
         row = self.data.iloc[index]
-        return {"emb": row.emb, "target": row.label}
+        return {"embedding": row.embedding, "target": row.label}
 
 
 class News20Dataset(Dataset):
@@ -90,16 +90,16 @@ class TripleDataset(Dataset):
 
 if __name__ == "__main__":
     # tokenizer
-    vocab_path = Path(root_dir) / "../vocab/vocab.json.gz"
-    with gzip.open(vocab_path, "rt", encoding="utf-8") as f:
-        vocab_counts = Counter(json.load(f))
-    vocab = Vocab(
-        vocab_counts, vectors="fasttext.en.300d", min_freq=10, max_size=100000,
-    )
-    tokenizer = BowTokenizer(vocab)
+    # vocab_path = Path(root_dir) / "../vocab/vocab.json.gz"
+    # with gzip.open(vocab_path, "rt", encoding="utf-8") as f:
+    #     vocab_counts = Counter(json.load(f))
+    # vocab = Vocab(
+    #     vocab_counts, vectors="fasttext.en.300d", min_freq=10, max_size=100000,
+    # )
+    # tokenizer = BowTokenizer(vocab)
     # data
-    data_path = "D:/Dropbox/Project/naver/data/20newsgroup/train.parquet"
-    dataset = News20Dataset(data_path, tokenizer)
+    data_path = "/Users/kyoungrok/Dropbox/Project/naver/data/news20/test.parquet"
+    dataset = News20EmbeddingDataset(data_path)
     # test
     loader = DataLoader(dataset, batch_size=2)
     for i, sample in enumerate(loader):
