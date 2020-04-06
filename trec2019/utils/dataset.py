@@ -27,14 +27,14 @@ class News20EmbeddingDataset(Dataset):
         self.data = pd.read_parquet(data_path)
 
     def get_dim(self):
-        return self.data.embedding.values.shape[1]
+        return self.data.embedding.values[0].shape[0]
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, index):
         row = self.data.iloc[index]
-        return {"embedding": row.embedding, "target": row.label}
+        return {"data": row.embedding, "target": row.label}
 
 
 class News20Dataset(Dataset):
@@ -49,7 +49,7 @@ class News20Dataset(Dataset):
     def __getitem__(self, index):
         row = self.data.iloc[index]
         text_ids = self.tokenizer.encode(row.text)
-        return {"text": text_ids, "target": row.label}
+        return {"data": text_ids, "target": row.label}
 
 
 class TripleEmbeddingDataset(Dataset):
@@ -66,7 +66,7 @@ class TripleEmbeddingDataset(Dataset):
     def __getitem__(self, index):
         # get a sample
         query, doc_pos, doc_neg = self.data[index]
-        return {"query_emb": query, "doc_pos_emb": doc_pos, "doc_neg_emb": doc_neg}
+        return {"query": query, "doc_pos": doc_pos, "doc_neg": doc_neg}
 
 
 class TripleDataset(Dataset):

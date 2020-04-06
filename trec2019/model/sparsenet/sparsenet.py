@@ -197,18 +197,15 @@ class SparseNet(pl.LightningModule):
         self.encoded = None
 
         # network
+        self._init_dataset()
         self._init_layers()
 
-    def prepare_data(self):
+    def _init_dataset(self):
         data_dir = Path(self.hparams.data_dir)
-        # train, val, test = self.split_train_val_test()
-        self._train_dataset = News20Dataset(
-            str(data_dir / "train.parquet"), self.tokenizer
-        )
-        self._val_dataset = News20Dataset(str(data_dir / "val.parquet"), self.tokenizer)
-        self._test_dataset = News20Dataset(
-            str(data_dir / "test.parquet"), self.tokenizer
-        )
+        dset_cls = News20EmbeddingDataset
+        self._train_dataset = dset_cls(str(data_dir / "train.parquet"))
+        self._val_dataset = dset_cls(str(data_dir / "val.parquet"))
+        self._test_dataset = dset_cls(str(data_dir / "test.parquet"))
 
     def _init_layers(self):
         self._init_dense_layer()
@@ -224,6 +221,8 @@ class SparseNet(pl.LightningModule):
     def _init_sparse_layer(self):
         self.hparams.input_size = (
             self.dense.get_dim()
+            if (self.dense is not None)
+            else self._train_dataset.get_dim()
         )  # TODO: is it safe to do this automatically?
         self.sparse = SparseNetModel(self.hparams)
 
@@ -235,11 +234,13 @@ class SparseNet(pl.LightningModule):
             self.tokenizer = BowTokenizer(vocab)
             self.dense = BowEmbedding(vocab)
         elif self.hparams.dense == "fse":
-            vocab = get_bow_vocab()
+            self.tokenizer = None
+            self.dense = None
+            # vocab = get_bow_vocab()
             # vocab.vectors = F.normalize(vocab.vectors, p=2, dim=1)
-            self.tokenizer = BowTokenizer(vocab)
-            model_path = Path(_root_dir) / "../../embedding/fse/uSIF.fse"
-            self.dense = FseEmbedding(model_path)
+            # self.tokenizer = BowTokenizer(vocab)
+            # model_path = Path(_root_dir) / "../../embedding/fse/uSIF.fse"
+            # self.dense = FseEmbedding(model_path)
         elif self.hparams.dense == "bert":
             weights = "bert-base-uncased"
             self.tokenizer = BertTokenizer(weights)
@@ -273,11 +274,14 @@ class SparseNet(pl.LightningModule):
 
     def forward(self, x):
         # dense
-        if self.hparams.fine_tune:
-            dense_x = self.dense(x)
+        if self.dense is None:
+            dense_x = x
         else:
-            with torch.no_grad():
+            if self.hparams.fine_tune:
                 dense_x = self.dense(x)
+            else:
+                with torch.no_grad():
+                    dense_x = self.dense(x)
 
         # sparse
         sparse_x = self.sparse(dense_x)
@@ -288,7 +292,7 @@ class SparseNet(pl.LightningModule):
         return dense_x, sparse_x, out_x
 
     def training_step(self, batch, batch_idx):
-        text, target = batch["text"], batch["target"]
+        text, target = batch["data"], batch["target"]
 
         # forward
         dense_x, sparse_x, out_x = self.forward(text)
@@ -312,7 +316,7 @@ class SparseNet(pl.LightningModule):
         return {"loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_step(self, batch, batch_idx):
-        text, target = batch["text"], batch["target"]
+        text, target = batch["data"], batch["target"]
 
         # forward
         dense_x, sparse_x, out_x = self.forward(text)
@@ -397,6 +401,12 @@ class SparseNet(pl.LightningModule):
         Specify the hyperparams for this LightningModule
         """
         parser = ArgumentParser(parents=[parent_parser])
+        parser.add_argument(
+            "--dense", type=str, choices=["bow", "bert", "fse"], default="bow"
+        )
+        parser.add_argument(
+            "--fine_tune", "-ft", action="store_true", help="Fine-tune dense models"
+        )
         parser.add_argument("--n", type=int, nargs="+", required=True)
         parser.add_argument("--k", type=int, nargs="+", required=True)
         parser.add_argument("--output_size", default=None, type=int)
