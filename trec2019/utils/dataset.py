@@ -24,10 +24,10 @@ root_dir = str(Path(__file__).parent.absolute())
 class News20EmbeddingDataset(Dataset):
     def __init__(self, data_path):
         super().__init__()
-        self.data = zarr.open(data_path, "r")
+        self.data = pd.read_parquet(data_path)
 
     def get_dim(self):
-        return self.data[0].shape[0]
+        return self.data.embedding.values.shape[1]
 
     def __len__(self):
         return len(self.data)
