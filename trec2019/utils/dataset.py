@@ -21,6 +21,22 @@ from trec2019.utils.dense import *
 root_dir = str(Path(__file__).parent.absolute())
 
 
+class News20EmbeddingDataset(Dataset):
+    def __init__(self, data_path):
+        super().__init__()
+        self.data = zarr.open(data_path, "r")
+
+    def get_dim(self):
+        return self.data[0].shape[0]
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        row = self.data.iloc[index]
+        return {"emb": row.emb, "target": row.label}
+
+
 class News20Dataset(Dataset):
     def __init__(self, data_path, tokenizer):
         super().__init__()
@@ -34,6 +50,23 @@ class News20Dataset(Dataset):
         row = self.data.iloc[index]
         text_ids = self.tokenizer.encode(row.text)
         return {"text": text_ids, "target": row.label}
+
+
+class TripleEmbeddingDataset(Dataset):
+    def __init__(self, data_path):
+        super().__init__()
+        self.data = zarr.open(data_path, "r")
+
+    def get_dim(self):
+        return self.data[0].shape[0]
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        # get a sample
+        query, doc_pos, doc_neg = self.data[index]
+        return {"query_emb": query, "doc_pos_emb": doc_pos, "doc_neg_emb": doc_neg}
 
 
 class TripleDataset(Dataset):
@@ -53,11 +86,6 @@ class TripleDataset(Dataset):
         doc_pos_ids = self.tokenizer.encode(doc_pos)
         doc_neg_ids = self.tokenizer.encode(doc_neg)
         return {"query": query_ids, "doc_pos": doc_pos_ids, "doc_neg": doc_neg_ids}
-
-
-def load_vocab_counts(vocab_count_path):
-    df = pd.read_parquet(vocab_count_path)
-    return Counter({row.word: row.count for row in df.itertuples()})
 
 
 if __name__ == "__main__":
