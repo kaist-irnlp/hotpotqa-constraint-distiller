@@ -210,13 +210,11 @@ class SparseNet(pl.LightningModule):
     def _init_layers(self):
         self._init_dense_layer()
         self._init_sparse_layer()
-        self._init_out_layer()
+        self._init_recover_layer()
 
-    def _init_out_layer(self):
-        last_output_size = (
-            self.hparams.output_size or self.hparams.input_size
-        )  # autoencoder if `output_size` is not provided else classifier
-        self.out = nn.Linear(self.sparse.output_size, last_output_size)
+    def _init_recover_layer(self):
+        orig_size = self.hparams.input_size
+        self.recover = nn.Linear(self.sparse.output_size, orig_size)
 
     def _init_sparse_layer(self):
         self.hparams.input_size = (
@@ -266,11 +264,13 @@ class SparseNet(pl.LightningModule):
     def loss_classify(self, input, target):
         return F.cross_entropy(input, target)
 
-    def loss(self, dense_x, sparse_x, out_x, target):
+    def loss(self, dense_x, sparse_x, recover_x, target):
         # task loss
-        loss = self.loss_classify(out_x, target.type(torch.long))
+        loss_task = self.loss_classify(sparse_x, target.type(torch.long))
+        # recovery loss
+        loss_recovery = self.loss_recovery(recover_x, dense_x)
 
-        return loss
+        return loss_recovery + loss_task, loss_task, loss_recovery
 
     def forward(self, x):
         # dense
@@ -286,58 +286,66 @@ class SparseNet(pl.LightningModule):
         # sparse
         sparse_x = self.sparse(dense_x)
 
-        # out
-        out_x = self.out(sparse_x)
+        # recover
+        recover_x = self.recover(sparse_x)
 
-        return dense_x, sparse_x, out_x
+        return dense_x, sparse_x, recover_x
 
     def training_step(self, batch, batch_idx):
         text, target = batch["data"], batch["target"]
 
         # forward
-        dense_x, sparse_x, out_x = self.forward(text)
+        dense_x, sparse_x, recover_x = self.forward(text)
 
-        return dense_x, sparse_x, out_x, target
+        return dense_x, sparse_x, recover_x, target
 
     def training_step_end(self, outputs):
         # aggregate (dp or ddp)
-        dense_x, sparse_x, out_x, target = outputs
+        dense_x, sparse_x, recover_x, target = outputs
 
         # loss
-        loss_val = self.loss(dense_x, sparse_x, out_x, target)
+        loss_total, loss_task, loss_recovery = self.loss(
+            dense_x, sparse_x, recover_x, target
+        )
 
         # logging
         tqdm_dict = {
-            "train_loss": loss_val,
+            "train_loss": loss_total,
+            "loss_task": loss_task,
+            "loss_recovery": loss_recovery,
         }
         log_dict = {
             "train_losses": tqdm_dict,
         }
-        return {"loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
+        return {"loss": loss_total, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_step(self, batch, batch_idx):
         text, target = batch["data"], batch["target"]
 
         # forward
-        dense_x, sparse_x, out_x = self.forward(text)
+        dense_x, sparse_x, recover_x = self.forward(text)
 
-        return dense_x, sparse_x, out_x, target
+        return dense_x, sparse_x, recover_x, target
 
     def validation_step_end(self, outputs):
         # aggregate (dp or ddp)
-        dense_x, sparse_x, out_x, target = outputs
+        dense_x, sparse_x, recover_x, target = outputs
 
         # loss
-        loss_val = self.loss(dense_x, sparse_x, out_x, target)
+        loss_total, loss_task, loss_recovery = self.loss(
+            dense_x, sparse_x, recover_x, target
+        )
 
         # logging
         tqdm_dict = {
-            "train_loss": loss_val,
+            "val_loss": loss_total,
+            "loss_task": loss_task,
+            "loss_recovery": loss_recovery,
         }
         log_dict = {
             "val_losses": tqdm_dict,
         }
-        return {"val_loss": loss_val, "progress_bar": tqdm_dict, "log": log_dict}
+        return {"val_loss": loss_total, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_epoch_end(self, outputs):
         avg_val_loss = torch.stack([out["val_loss"] for out in outputs]).mean()
