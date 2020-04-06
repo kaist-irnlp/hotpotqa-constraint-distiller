@@ -11,6 +11,7 @@ import gc
 import abc
 import numpy as np
 import pandas as pd
+import torch.nn.functional as F
 import sys
 from pathlib import Path
 from collections import Counter
@@ -21,30 +22,30 @@ from fse.models.average import FAST_VERSION, MAX_WORDS_IN_BATCH
 
 
 FLOAT = torch.float32
-root_dir = str(Path(__file__).parent.absolute())
+_root_dir = str(Path(__file__).parent.absolute())
 
 
-def _get_bow_vocab(self):
-    VOCAB_PATH = Path(root_dir) / "../../vocab/vocab.json"
-    # VECTORS = "fasttext.en.300d"
-    VECTORS = "glove.6B.300d"
+def get_bow_vocab(vocab_path=None, vectors=None):
+    vocab_path = vocab_path or (Path(_root_dir) / "../../vocab/vocab.json")
+    vectors = vectors or "fasttext.en.300d"
+    # vectors = "glove.6B.300d"
     MIN_FREQ = 10
     MAX_SIZE = 100000
-    with open(VOCAB_PATH, "r", encoding="utf-8") as f:
+    with open(vocab_path, "r", encoding="utf-8") as f:
         vocab_counts = Counter(json.load(f))
         # vocab_counts = Counter(
         #     {row.word: row.count for row in pd.read_parquet(VOCAB_PATH).itertuples()}
         # )
     return Vocab(
         vocab_counts,
-        vectors=VECTORS,
+        vectors=vectors,
         min_freq=MIN_FREQ,
         max_size=MAX_SIZE,
         # unk_init=torch.Tensor.normal_,
     )
     # return SubwordVocab(
     #     vocab_counts,
-    #     vectors=VECTORS,
+    #     vectors=vectors,
     #     min_freq=MIN_FREQ,
     #     max_size=MAX_SIZE,
     #     # unk_init=torch.Tensor.normal_,
@@ -104,6 +105,7 @@ class FseEmbedding(nn.Module):
 
     def __init__(self, model_path):
         super().__init__()
+        model_path = str(model_path)
         self.model = uSIF.load(model_path)
 
     def get_dim(self):
@@ -143,3 +145,21 @@ class BertEmbedding(nn.Module):
 
     def get_dim(self):
         return self.model.config.hidden_size
+
+
+if __name__ == "__main__":
+    # vocab
+    vocab_path = Path(_root_dir) / "../vocab/vocab.json"
+    vocab = get_bow_vocab(vocab_path=vocab_path, vectors='fasttext.simple.300d')
+    vocab.vectors = F.normalize(vocab.vectors, p=2, dim=1)
+
+    # tokenizer
+    tokenizer = BowTokenizer(vocab)
+
+    # model
+    model_path = Path(_root_dir) / "../embedding/fse/uSIF.fse"
+    model = FseEmbedding(model_path)
+
+    # test
+    ids = tokenizer.encode("This is a good day")
+    print(ids)

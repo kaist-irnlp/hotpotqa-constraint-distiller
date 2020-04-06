@@ -1,4 +1,5 @@
 # My
+embedding/
 **/settings.json
 **/lightning_logs
 **/*.ckpt

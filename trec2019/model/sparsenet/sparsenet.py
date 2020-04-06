@@ -47,7 +47,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-root_dir = str(Path(__file__).parent.absolute())
+_root_dir = str(Path(__file__).parent.absolute())
 
 
 class SparseNetModel(nn.Module):
@@ -234,6 +234,12 @@ class SparseNet(pl.LightningModule):
             # vocab.vectors = F.normalize(vocab.vectors, p=2, dim=1)
             self.tokenizer = BowTokenizer(vocab)
             self.dense = BowEmbedding(vocab)
+        elif self.hparams.dense == "fse":
+            vocab = get_bow_vocab()
+            # vocab.vectors = F.normalize(vocab.vectors, p=2, dim=1)
+            self.tokenizer = BowTokenizer(vocab)
+            model_path = Path(_root_dir) / "../../embedding/fse/uSIF.fse"
+            self.dense = FseEmbedding(model_path)
         elif self.hparams.dense == "bert":
             weights = "bert-base-uncased"
             self.tokenizer = BertTokenizer(weights)
