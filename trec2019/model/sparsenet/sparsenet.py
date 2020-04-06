@@ -266,7 +266,7 @@ class SparseNet(pl.LightningModule):
 
     def loss(self, dense_x, sparse_x, recover_x, target):
         # task loss
-        loss_task = self.loss_classify(sparse_x, target.type(torch.long))
+        loss_task = self.loss_classify(recover_x, target.type(torch.long))
         # recovery loss
         loss_recovery = self.loss_recovery(recover_x, dense_x)
 
