@@ -17,3 +17,4 @@ test_tube
 hydra-core
 fse
 cython
+torch_optimizer

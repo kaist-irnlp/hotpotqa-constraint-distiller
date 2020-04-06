@@ -27,6 +27,7 @@ setup(
         "hydra-core",
         "fse",
         "cython",
+        "torch_optimizer",
     ],
     packages=find_packages(),
 )
