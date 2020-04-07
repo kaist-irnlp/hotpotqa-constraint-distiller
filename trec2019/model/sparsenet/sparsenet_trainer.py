@@ -37,7 +37,7 @@ def main(hparams):
 
     # early stop
     early_stop_callback = EarlyStopping(
-        monitor="val_loss", patience=20, verbose=True, mode="min"
+        monitor="val_loss", patience=10, verbose=True, mode="min"
     )
     # logger
     tt_logger = loggers.TestTubeLogger(root_dir)
