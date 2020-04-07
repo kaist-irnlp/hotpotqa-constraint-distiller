@@ -212,7 +212,15 @@ class SparseNet(pl.LightningModule):
     def _init_layers(self):
         self._init_dense_layer()
         self._init_sparse_layer()
+        self._init_out_layer()
         self._init_recover_layer()
+
+    def _init_out_layer(self):
+        final_output_size = self.hparams.output_size
+        if final_output_size and (final_output_size > 0):
+            self.out = nn.Linear(self.sparse.output_size, final_output_size)
+        else:
+            self.out = None
 
     def _init_recover_layer(self):
         orig_size = self.hparams.input_size
@@ -259,11 +267,12 @@ class SparseNet(pl.LightningModule):
         )
 
     def loss_classify(self, input, target):
+        # input.shape() == (minibatch, C)
         return F.cross_entropy(input, target)
 
-    def loss(self, dense_x, sparse_x, recover_x, target):
+    def loss(self, dense_x, sparse_x, recover_x, out_x, target):
         # task loss
-        loss_task = self.loss_classify(recover_x, target.type(torch.long))
+        loss_task = self.loss_classify(out_x, target.type(torch.long))
         # recovery loss
         loss_recovery = self.loss_recovery(recover_x, dense_x)
 
@@ -280,33 +289,53 @@ class SparseNet(pl.LightningModule):
                     dense_x = self.dense(x)
         return dense_x
 
+    def forward_sparse(self, x):
+        return self.sparse(x)
+
+    def forward_recover(self, x):
+        return self.recover(x)
+
+    def forward_out(self, x):
+        if self.out:
+            return self.out(x)
+        else:
+            return x
+
     def forward(self, x):
         # dense
         dense_x = self.forward_dense(x)
 
         # sparse
-        sparse_x = self.sparse(dense_x)
+        sparse_x = self.forward_sparse(dense_x)
 
         # recover
-        recover_x = self.recover(sparse_x)
+        recover_x = self.forward_recover(sparse_x)
 
-        return dense_x, sparse_x, recover_x
+        # out (optionally used)
+        out_x = self.forward_out(sparse_x)
+
+        return (
+            dense_x,
+            sparse_x,
+            recover_x,
+            out_x,
+        )
 
     def training_step(self, batch, batch_idx):
         text, target = batch["data"], batch["target"]
 
         # forward
-        dense_x, sparse_x, recover_x = self.forward(text)
+        dense_x, sparse_x, recover_x, out_x = self.forward(text)
 
-        return dense_x, sparse_x, recover_x, target
+        return dense_x, sparse_x, recover_x, out_x, target
 
     def training_step_end(self, outputs):
         # aggregate (dp or ddp)
-        dense_x, sparse_x, recover_x, target = outputs
+        dense_x, sparse_x, recover_x, out_x, target = outputs
 
         # loss
         loss_total, loss_task, loss_recovery = self.loss(
-            dense_x, sparse_x, recover_x, target
+            dense_x, sparse_x, recover_x, out_x, target
         )
 
         # logging
@@ -324,17 +353,17 @@ class SparseNet(pl.LightningModule):
         text, target = batch["data"], batch["target"]
 
         # forward
-        dense_x, sparse_x, recover_x = self.forward(text)
+        dense_x, sparse_x, recover_x, out_x = self.forward(text)
 
-        return dense_x, sparse_x, recover_x, target
+        return dense_x, sparse_x, recover_x, out_x, target
 
     def validation_step_end(self, outputs):
         # aggregate (dp or ddp)
-        dense_x, sparse_x, recover_x, target = outputs
+        dense_x, sparse_x, recover_x, out_x, target = outputs
 
         # loss
         loss_total, loss_task, loss_recovery = self.loss(
-            dense_x, sparse_x, recover_x, target
+            dense_x, sparse_x, recover_x, out_x, target
         )
 
         # logging
@@ -421,7 +450,7 @@ class SparseNet(pl.LightningModule):
         )
         parser.add_argument("--n", type=int, nargs="+", required=True)
         parser.add_argument("--k", type=int, nargs="+", required=True)
-        parser.add_argument("--output_size", default=None, type=int)
+        parser.add_argument("--output_size", "-out", type=int, required=True)
         parser.add_argument("--k_inference_factor", default=1.5, type=float)
         parser.add_argument("--weight_sparsity", default=0.3, type=float)
         parser.add_argument("--boost_strength", default=1.5, type=float)
