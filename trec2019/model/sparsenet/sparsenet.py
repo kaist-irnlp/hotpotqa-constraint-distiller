@@ -5,7 +5,9 @@ import os
 import sys
 import torch
 import gc
+
 from torch import optim
+import torch_optimizer
 from torch import nn
 from torch import tensor
 from torch.nn import functional as F
@@ -234,11 +236,6 @@ class SparseNet(pl.LightningModule):
         elif self.hparams.dense == "fse":
             self.tokenizer = None
             self.dense = None
-            # vocab = get_bow_vocab()
-            # vocab.vectors = F.normalize(vocab.vectors, p=2, dim=1)
-            # self.tokenizer = BowTokenizer(vocab)
-            # model_path = Path(_root_dir) / "../../embedding/fse/uSIF.fse"
-            # self.dense = FseEmbedding(model_path)
         elif self.hparams.dense == "bert":
             weights = "bert-base-uncased"
             self.tokenizer = BertTokenizer(weights)
@@ -272,8 +269,7 @@ class SparseNet(pl.LightningModule):
 
         return loss_recovery + loss_task, loss_task, loss_recovery
 
-    def forward(self, x):
-        # dense
+    def forward_dense(self, x):
         if self.dense is None:
             dense_x = x
         else:
@@ -282,6 +278,11 @@ class SparseNet(pl.LightningModule):
             else:
                 with torch.no_grad():
                     dense_x = self.dense(x)
+        return dense_x
+
+    def forward(self, x):
+        # dense
+        dense_x = self.forward_dense(x)
 
         # sparse
         sparse_x = self.sparse(dense_x)
@@ -381,9 +382,12 @@ class SparseNet(pl.LightningModule):
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers
-        optimizer = optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        optimizer = torch_optimizer.RAdam(
+            self.parameters(), lr=self.hparams.learning_rate
+        )
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        return [optimizer], [scheduler]
+        # return [optimizer], [scheduler]
+        return optimizer
 
     def _get_dataloader(self, dataset, test=False):
         # dist_sampler = DistributedSampler(dataset) if self.use_ddp else None
