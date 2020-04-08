@@ -22,19 +22,21 @@ root_dir = str(Path(__file__).parent.absolute())
 
 
 class News20EmbeddingDataset(Dataset):
-    def __init__(self, data_path):
+    def __init__(self, data_path, model="fse"):
         super().__init__()
-        self.data = pd.read_parquet(data_path)
+        self.data = zarr.open(data_path, "r")
+        self.embedding = self.data.embedding[model]
+        self.label = self.data.label[:]
 
     def get_dim(self):
-        return self.data.embedding.values[0].shape[0]
+        return self.embedding[0].shape[0]
 
     def __len__(self):
-        return len(self.data)
+        return len(self.data.label)
 
     def __getitem__(self, index):
-        row = self.data.iloc[index]
-        return {"data": row.embedding, "target": row.label}
+        emb, lbl = self.embedding[index], self.label[index]
+        return {"data": emb, "target": lbl}
 
 
 class News20Dataset(Dataset):
@@ -98,10 +100,11 @@ if __name__ == "__main__":
     # )
     # tokenizer = BowTokenizer(vocab)
     # data
-    data_path = "/Users/kyoungrok/Dropbox/Project/naver/data/news20/test.parquet"
+    data_path = "/Users/kyoungrok/Dropbox/Project/naver/data/news20/test.zarr.zip"
     dataset = News20EmbeddingDataset(data_path)
     # test
-    loader = DataLoader(dataset, batch_size=2)
+    loader = DataLoader(dataset, batch_size=32)
     for i, sample in enumerate(loader):
         print(sample)
-        break
+        if i > 3:
+            break
