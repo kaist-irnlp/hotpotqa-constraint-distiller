@@ -38,10 +38,10 @@ from gensim.models.keyedvectors import KeyedVectors
 import numpy as np
 import pandas as pd
 
-from trec2019.utils.dataset import *
 from trec2019.model.sparsenet.helper import *
 from collections import OrderedDict
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
+from trec2019.utils.dataset import *
 from trec2019.utils.dense import *
 
 logging.basicConfig(
@@ -56,7 +56,6 @@ class SparseNetModel(nn.Module):
     def __init__(self, hparams):
         super().__init__()
         self.hparams = hparams
-        self.encoded = None
 
         # init
         self._preprocess_params()
@@ -69,15 +68,21 @@ class SparseNetModel(nn.Module):
         hparams = self.hparams
 
         # clean
+        hparams.n = eval(hparams.n)
         if type(hparams.n) is not list:
             hparams.n = [hparams.n]
+            hparams.n = [int(n) for n in hparams.n]
+        hparams.k = eval(hparams.k)
         if type(hparams.k) is not list:
             hparams.k = [hparams.k] * len(hparams.n)
+            hparams.k = [int(k) for k in hparams.k]
         assert len(hparams.n) == len(hparams.k)
         for i in range(len(hparams.n)):
             assert hparams.k[i] <= hparams.n[i]
+        hparams.weight_sparsity = eval(hparams.weight_sparsity)
         if type(hparams.weight_sparsity) is not list:
             hparams.weight_sparsity = [hparams.weight_sparsity] * len(hparams.n)
+            hparams.weight_sparsity = [float(w) for w in hparams.weight_sparsity]
         assert len(hparams.n) == len(hparams.weight_sparsity)
         for i in range(len(hparams.weight_sparsity)):
             assert hparams.weight_sparsity[i] >= 0
@@ -196,7 +201,6 @@ class SparseNet(pl.LightningModule):
     def __init__(self, hparams):
         super(SparseNet, self).__init__()
         self.hparams = hparams
-        self.encoded = None
 
         # network
         self._init_dataset()
@@ -205,9 +209,9 @@ class SparseNet(pl.LightningModule):
     def _init_dataset(self):
         data_dir = Path(self.hparams.data_dir)
         dset_cls = News20EmbeddingDataset
-        self._train_dataset = dset_cls(str(data_dir / "train.parquet"))
-        self._val_dataset = dset_cls(str(data_dir / "val.parquet"))
-        self._test_dataset = dset_cls(str(data_dir / "test.parquet"))
+        self._train_dataset = dset_cls(str(data_dir / "train.zarr.zip"))
+        self._val_dataset = dset_cls(str(data_dir / "val.zarr.zip"))
+        self._test_dataset = dset_cls(str(data_dir / "test.zarr.zip"))
 
     def _init_layers(self):
         self._init_dense_layer()
@@ -235,19 +239,21 @@ class SparseNet(pl.LightningModule):
         self.sparse = SparseNetModel(self.hparams)
 
     def _init_dense_layer(self):
-        # init vocab
-        if self.hparams.dense == "bow":
+        dense_model = self.hparams.dense or None
+        if dense_model is None:
+            self.tokenizer = None
+            self.dense = None
+        elif dense_model == "bow":
             vocab = get_bow_vocab()
             # vocab.vectors = F.normalize(vocab.vectors, p=2, dim=1)
             self.tokenizer = BowTokenizer(vocab)
             self.dense = BowEmbedding(vocab)
-        elif self.hparams.dense == "fse":
-            self.tokenizer = None
-            self.dense = None
-        elif self.hparams.dense == "bert":
+        elif dense_model == "bert":
             weights = "bert-base-uncased"
             self.tokenizer = BertTokenizer(weights)
             self.dense = BertEmbedding(weights)
+        else:
+            raise ValueError(f"Unknown dense model: {dense_model}")
 
     def distance(self, x1, x2):
         # return torch.pow(a - b, 2).sum(1).sqrt()
@@ -398,9 +404,6 @@ class SparseNet(pl.LightningModule):
         self.apply(updateBoostStrength)
         self.apply(rezeroWeights)
 
-    def get_encoded(self):
-        return self.encoded.detach()
-
     # def split_train_val_test(self):
     #     data_path = self.hparams.data_path
     #     dataset = zarr.open(data_path, "r")
@@ -442,9 +445,7 @@ class SparseNet(pl.LightningModule):
         Specify the hyperparams for this LightningModule
         """
         parser = ArgumentParser(parents=[parent_parser])
-        parser.add_argument(
-            "--dense", type=str, choices=["bow", "bert", "fse"], default="bow"
-        )
+        parser.add_argument("--dense", type=str, choices=["bow", "bert"], default=None)
         parser.add_argument(
             "--fine_tune", "-ft", action="store_true", help="Fine-tune dense models"
         )

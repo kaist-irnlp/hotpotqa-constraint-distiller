@@ -24,7 +24,7 @@ root_dir = str(Path(__file__).parent.absolute())
 class News20EmbeddingDataset(Dataset):
     def __init__(self, data_path, model="fse"):
         super().__init__()
-        self.data = zarr.open(data_path, "r")
+        self.data = zarr.open(str(data_path), "r")
         self.embedding = self.data.embedding[model]
         self.label = self.data.label[:]
 
@@ -36,7 +36,7 @@ class News20EmbeddingDataset(Dataset):
 
     def __getitem__(self, index):
         emb, lbl = self.embedding[index], self.label[index]
-        return {"data": emb, "target": lbl}
+        return {"index": index, "data": emb, "target": lbl}
 
 
 class News20Dataset(Dataset):
