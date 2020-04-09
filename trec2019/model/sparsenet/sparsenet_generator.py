@@ -10,6 +10,13 @@ from trec2019.utils.dataset import *
 from trec2019.utils.dense import *
 
 
+parser = ArgumentParser()
+parser.add_argument("--model_dir", type=str, required=True)
+parser.add_argument("--data_dir", type=str, default=None)
+parser.add_argument("--batch_size", type=int, default=8192)
+args = parser.parse_args()
+
+
 def load_datasets(data_dir, ext=".zarr.zip"):
     data_dir = Path(data_dir)
     fnames = ["train", "test", "val"]
@@ -24,29 +31,35 @@ def get_zarr(fname, out_dir="output/"):
     out_dir = Path(out_dir)
     if not out_dir.exists():
         out_dir.mkdir(parents=True)
-    out_path = (out_dir / fname).with_suffix(".zarr.zip")
-    store = zarr.ZipStore(str(out_path), mode="w")
+    out_path = (out_dir / fname).with_suffix(".zarr")
+    store = zarr.DirectoryStore(str(out_path))
     z = zarr.group(store=store)
     return z
 
 
-parser = ArgumentParser()
-parser.add_argument("--model_dir", type=str, required=True)
-parser.add_argument("--data_dir", type=str, default=None)
-parser.add_argument("--batch_size", type=int, default=8192)
-args = parser.parse_args()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model_path = "/Users/kyoungrok/Dropbox/Project/naver/experiment/200324_SparseNet/result/fse/2000/version_0/checkpoints/epoch=28.ckpt"
-    tags_csv = "/Users/kyoungrok/Dropbox/Project/naver/experiment/200324_SparseNet/result/fse/2000/version_0/meta_tags.csv"
-    data_dir = "/Users/kyoungrok/Dropbox/Project/naver/data/news20/"
 
+def get_model(model_dir):
+    model_dir = Path(model_dir)
+    tags_path = model_dir / "meta_tags.csv"
+    model_paths = list((model_dir / "checkpoints").glob("*.ckpt"))
+    assert len(model_paths) == 1
+    model_path = model_paths[0]
     # load model
     model = SparseNet.load_from_checkpoint(
-        model_path, tags_csv=tags_csv, map_location=device
+        model_path, tags_csv=tags_path, map_location=device
     )
     model.freeze()
+    return model
+
+
+if __name__ == "__main__":
+    model_dir = args.model_dir
+    data_dir = args.data_dir
+
+    # load model
+    model = get_model(model_dir)
 
     # generate
     datasets = load_datasets(data_dir)
