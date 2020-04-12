@@ -9,7 +9,6 @@ import torch
 from torch.backends import cudnn
 from pytorch_lightning import Trainer
 from pytorch_lightning import loggers
-from pytorch_lightning.utilities.arg_parse import add_default_args
 from test_tube import HyperOptArgumentParser
 from test_tube import Experiment
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -105,7 +104,7 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", "-lr", default=0.0001, type=float)
 
     # add default & model params
-    # add_default_args(parser, root_dir)
+
     parser = SparseNet.add_model_specific_args(parser)
 
     # parse params
