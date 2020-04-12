@@ -288,7 +288,7 @@ class SparseNet(pl.LightningModule):
     def _get_dataloader(self, dataset, test=False):
         # dist_sampler = DistributedSampler(dataset) if self.use_ddp else None
         batch_size = self.hparams.batch_size if not test else 10000
-        num_workers = int(cpu_count() / 4) or 1
+        num_workers = int(cpu_count() / 2) or 1
         # num_workers = 0
         return DataLoader(
             dataset, batch_size=batch_size, num_workers=num_workers, pin_memory=True,
@@ -300,8 +300,8 @@ class SparseNet(pl.LightningModule):
     def val_dataloader(self):
         return self._get_dataloader(self._val_dataset)
 
-    def test_dataloader(self):
-        return self._get_dataloader(self._test_dataset, test=True)
+    # def test_dataloader(self):
+    #     return self._get_dataloader(self._test_dataset, test=True)
 
     @staticmethod
     def add_model_specific_args(parent_parser):
