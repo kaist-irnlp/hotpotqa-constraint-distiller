@@ -52,151 +52,6 @@ logger = logging.getLogger(__name__)
 _root_dir = str(Path(__file__).parent.absolute())
 
 
-class SparseNetModel(nn.Module):
-    def __init__(self, hparams):
-        super().__init__()
-        self.hparams = hparams
-
-        # init
-        self._preprocess_params()
-        self._init_layers()
-
-    def forward(self, x):
-        return self.layers(x)
-
-    def _preprocess_params(self):
-        hparams = self.hparams
-
-        # clean
-        hparams.n = eval(hparams.n)
-        if type(hparams.n) is not list:
-            hparams.n = [hparams.n]
-            hparams.n = [int(n) for n in hparams.n]
-        hparams.k = eval(hparams.k)
-        if type(hparams.k) is not list:
-            hparams.k = [hparams.k] * len(hparams.n)
-            hparams.k = [int(k) for k in hparams.k]
-        assert len(hparams.n) == len(hparams.k)
-        for i in range(len(hparams.n)):
-            assert hparams.k[i] <= hparams.n[i]
-        hparams.weight_sparsity = eval(hparams.weight_sparsity)
-        if type(hparams.weight_sparsity) is not list:
-            hparams.weight_sparsity = [hparams.weight_sparsity] * len(hparams.n)
-            hparams.weight_sparsity = [float(w) for w in hparams.weight_sparsity]
-        assert len(hparams.n) == len(hparams.weight_sparsity)
-        for i in range(len(hparams.weight_sparsity)):
-            assert hparams.weight_sparsity[i] >= 0
-
-        # DEBUG
-        print(vars(hparams))
-
-        # save cleaned values
-        self.hparams = hparams
-
-    def _init_layers(self):
-        # extract params
-        hparams = self.hparams
-        input_size = hparams.input_size
-        n = hparams.n
-        k = hparams.k
-        normalize_weights = self.hparams.normalize_weights
-        use_batch_norm = self.hparams.use_batch_norm
-        dropout = self.hparams.dropout
-        weight_sparsity = self.weightSparsity = hparams.weight_sparsity
-        k_inference_factor = self.kInferenceFactor = hparams.k_inference_factor
-        boost_strength = self.boostStrength = hparams.boost_strength
-        boost_strength_factor = self.boostStrengthFactor = hparams.boost_strength_factor
-
-        # define network
-        # TODO: May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
-        # Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
-        self.layers = nn.Sequential()
-        for i in range(len(n)):
-            if n[i] != 0:
-                linear = nn.Linear(input_size, n[i])
-                if 0 < weight_sparsity[i] < 1:
-                    linear = SparseWeights(linear, weightSparsity=weight_sparsity[i])
-                    if normalize_weights:
-                        linear.apply(normalizeSparseWeights)
-                self.layers.add_module(f"sparse_{i+1}", linear)
-
-                if use_batch_norm:
-                    self.layers.add_module(
-                        f"sparse_{i+1}_bn", nn.BatchNorm1d(n[i], affine=False)
-                    )
-
-                if dropout > 0.0:
-                    self.layers.add_module(f"sparse_{i+1}_dropout", nn.Dropout(dropout))
-
-                if 0 < k[i] < n[i]:
-                    kwinner = KWinners(
-                        n=n[i],
-                        k=k[i],
-                        kInferenceFactor=k_inference_factor,
-                        boostStrength=boost_strength,
-                        boostStrengthFactor=boost_strength_factor,
-                    )
-                    self.layers.add_module(f"sparse_{i+1}_kwinner", kwinner)
-                else:
-                    self.layers.add_module(f"sparse_{i+1}_relu", nn.ReLU())
-                # Feed this layer output into next layer input
-                input_size = n[i]
-
-        self.output_size = input_size
-
-    def maxEntropy(self):
-        entropy = 0
-        for module in self.modules():
-            if module == self:
-                continue
-            if hasattr(module, "maxEntropy"):
-                entropy += module.maxEntropy()
-        return entropy
-
-    def entropy(self):
-        entropy = 0
-        for module in self.modules():
-            if module == self:
-                continue
-            if hasattr(module, "entropy"):
-                entropy += module.entropy()
-        return entropy
-
-    def pruneWeights(self, minWeight):
-        """
-        Prune all the weights whose absolute magnitude is less than minWeight
-        :param minWeight: min weight to prune. If zero then no pruning
-        :type minWeight: float
-        """
-        if minWeight == 0.0:
-            return
-
-        # Collect all weights
-        weights = [v for k, v in self.named_parameters() if "weight" in k]
-        for w in weights:
-            # Filter weights above threshold
-            mask = torch.ge(torch.abs(w.data), minWeight)
-            # Zero other weights
-            w.data.mul_(mask.type(torch.float32))
-
-    def pruneDutycycles(self, threshold=0.0):
-        """
-        Prune all the units with dutycycles whose absolute magnitude is less than
-        the given threshold
-        :param threshold: min threshold to prune. If less than zero then no pruning
-        :type threshold: float
-        """
-        if threshold < 0.0:
-            return
-
-        # Collect all layers with 'dutyCycle'
-        for m in self.modules():
-            if m == self:
-                continue
-            if hasattr(m, "pruneDutycycles"):
-                m.pruneDutycycles(threshold)
-
-
 class SparseNet(pl.LightningModule):
     def __init__(self, hparams):
         super(SparseNet, self).__init__()
@@ -209,9 +64,9 @@ class SparseNet(pl.LightningModule):
     def _init_dataset(self):
         data_dir = Path(self.hparams.data_dir)
         dset_cls = News20EmbeddingDataset
-        self._train_dataset = dset_cls(str(data_dir / "train.zarr.zip"))
-        self._val_dataset = dset_cls(str(data_dir / "val.zarr.zip"))
-        self._test_dataset = dset_cls(str(data_dir / "test.zarr.zip"))
+        self._train_dataset = dset_cls(str(data_dir / "train.zarr"))
+        self._val_dataset = dset_cls(str(data_dir / "val.zarr"))
+        self._test_dataset = dset_cls(str(data_dir / "test.zarr"))
 
     def _init_layers(self):
         self._init_dense_layer()
@@ -228,7 +83,10 @@ class SparseNet(pl.LightningModule):
 
     def _init_recover_layer(self):
         orig_size = self.hparams.input_size
-        self.recover = nn.Linear(self.sparse.output_size, orig_size)
+        if self.hparams.use_recovery_loss:
+            self.recover = nn.Linear(self.sparse.output_size, orig_size)
+        else:
+            self.recover = None
 
     def _init_sparse_layer(self):
         self.hparams.input_size = (
@@ -280,7 +138,10 @@ class SparseNet(pl.LightningModule):
         # task loss
         loss_task = self.loss_classify(out_x, target.type(torch.long))
         # recovery loss
-        loss_recovery = self.loss_recovery(recover_x, dense_x)
+        if self.hparams.use_recovery_loss:
+            loss_recovery = self.loss_recovery(recover_x, dense_x)
+        else:
+            loss_recovery = torch.tensor([0.0], dtype=torch.float32)
 
         return loss_recovery + loss_task, loss_task, loss_recovery
 
@@ -315,7 +176,10 @@ class SparseNet(pl.LightningModule):
         sparse_x = self.forward_sparse(dense_x)
 
         # recover
-        recover_x = self.forward_recover(sparse_x)
+        if self.hparams.use_recovery_loss:
+            recover_x = self.forward_recover(sparse_x)
+        else:
+            recover_x = torch.tensor([0.0], dtype=torch.float32)
 
         # out (optionally used)
         out_x = self.forward_out(sparse_x)
@@ -460,6 +324,157 @@ class SparseNet(pl.LightningModule):
         )
         parser.add_argument("--dropout", default=0.0, type=float)
         parser.add_argument("--use_batch_norm", default=True, type=bool)
-        parser.add_argument("--normalize_weights", default=False, type=bool)
+        parser.add_argument("--use_recovery_loss", action="store_true")
+        parser.add_argument("--normalize_weights", action="store_true")
 
         return parser
+
+
+class SparseNetModel(nn.Module):
+    def __init__(self, hparams):
+        super().__init__()
+        self.hparams = hparams
+
+        # init
+        self._preprocess_params()
+        self._init_layers()
+
+    def forward(self, x):
+        return self.layers(x)
+
+    def _preprocess_params(self):
+        hparams = self.hparams
+
+        # to make compatible with pytorch-lightning model loading
+        if type(hparams.n) is str:
+            hparams.n = eval(hparams.n)
+        if type(hparams.k) is str:
+            hparams.k = eval(hparams.k)
+        if type(hparams.weight_sparsity) is str:
+            hparams.weight_sparsity = eval(hparams.weight_sparsity)
+
+        # validate & clean
+        if type(hparams.n) is not list:
+            hparams.n = [hparams.n]
+            hparams.n = [int(n) for n in hparams.n]
+        if type(hparams.k) is not list:
+            hparams.k = [hparams.k] * len(hparams.n)
+            hparams.k = [int(k) for k in hparams.k]
+        assert len(hparams.n) == len(hparams.k)
+        for i in range(len(hparams.n)):
+            assert hparams.k[i] <= hparams.n[i]
+        if type(hparams.weight_sparsity) is not list:
+            hparams.weight_sparsity = [hparams.weight_sparsity] * len(hparams.n)
+            hparams.weight_sparsity = [float(w) for w in hparams.weight_sparsity]
+        assert len(hparams.n) == len(hparams.weight_sparsity)
+        for i in range(len(hparams.weight_sparsity)):
+            assert hparams.weight_sparsity[i] >= 0
+
+        # DEBUG
+        print(vars(hparams))
+
+        # save cleaned values
+        self.hparams = hparams
+
+    def _init_layers(self):
+        # extract params
+        hparams = self.hparams
+        input_size = hparams.input_size
+        n = hparams.n
+        k = hparams.k
+        normalize_weights = self.hparams.normalize_weights
+        use_batch_norm = self.hparams.use_batch_norm
+        dropout = self.hparams.dropout
+        weight_sparsity = self.weightSparsity = hparams.weight_sparsity
+        k_inference_factor = self.kInferenceFactor = hparams.k_inference_factor
+        boost_strength = self.boostStrength = hparams.boost_strength
+        boost_strength_factor = self.boostStrengthFactor = hparams.boost_strength_factor
+
+        # define network
+        # TODO: May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
+        # Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
+        self.layers = nn.Sequential()
+        for i in range(len(n)):
+            if n[i] != 0:
+                linear = nn.Linear(input_size, n[i])
+                if 0 < weight_sparsity[i] < 1:
+                    linear = SparseWeights(linear, weightSparsity=weight_sparsity[i])
+                    if normalize_weights:
+                        linear.apply(normalizeSparseWeights)
+                self.layers.add_module(f"sparse_{i+1}", linear)
+
+                if use_batch_norm:
+                    self.layers.add_module(
+                        f"sparse_{i+1}_bn", nn.BatchNorm1d(n[i], affine=False)
+                    )
+
+                if dropout > 0.0:
+                    self.layers.add_module(f"sparse_{i+1}_dropout", nn.Dropout(dropout))
+
+                if 0 < k[i] < n[i]:
+                    kwinner = KWinners(
+                        n=n[i],
+                        k=k[i],
+                        kInferenceFactor=k_inference_factor,
+                        boostStrength=boost_strength,
+                        boostStrengthFactor=boost_strength_factor,
+                    )
+                    self.layers.add_module(f"sparse_{i+1}_kwinner", kwinner)
+                else:
+                    self.layers.add_module(f"sparse_{i+1}_relu", nn.ReLU())
+                # Feed this layer output into next layer input
+                input_size = n[i]
+
+        self.output_size = input_size
+
+    def maxEntropy(self):
+        entropy = 0
+        for module in self.modules():
+            if module == self:
+                continue
+            if hasattr(module, "maxEntropy"):
+                entropy += module.maxEntropy()
+        return entropy
+
+    def entropy(self):
+        entropy = 0
+        for module in self.modules():
+            if module == self:
+                continue
+            if hasattr(module, "entropy"):
+                entropy += module.entropy()
+        return entropy
+
+    def pruneWeights(self, minWeight):
+        """
+        Prune all the weights whose absolute magnitude is less than minWeight
+        :param minWeight: min weight to prune. If zero then no pruning
+        :type minWeight: float
+        """
+        if minWeight == 0.0:
+            return
+
+        # Collect all weights
+        weights = [v for k, v in self.named_parameters() if "weight" in k]
+        for w in weights:
+            # Filter weights above threshold
+            mask = torch.ge(torch.abs(w.data), minWeight)
+            # Zero other weights
+            w.data.mul_(mask.type(torch.float32))
+
+    def pruneDutycycles(self, threshold=0.0):
+        """
+        Prune all the units with dutycycles whose absolute magnitude is less than
+        the given threshold
+        :param threshold: min threshold to prune. If less than zero then no pruning
+        :type threshold: float
+        """
+        if threshold < 0.0:
+            return
+
+        # Collect all layers with 'dutyCycle'
+        for m in self.modules():
+            if m == self:
+                continue
+            if hasattr(m, "pruneDutycycles"):
+                m.pruneDutycycles(threshold)

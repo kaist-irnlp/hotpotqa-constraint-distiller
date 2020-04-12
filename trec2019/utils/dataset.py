@@ -25,7 +25,7 @@ class News20EmbeddingDataset(Dataset):
     def __init__(self, data_path, model="fse"):
         super().__init__()
         self.data = zarr.open(str(data_path), "r")
-        self.embedding = self.data.embedding[model]
+        self.embedding = self.data.dense[model]
         self.label = self.data.label[:]
 
     def get_dim(self):
