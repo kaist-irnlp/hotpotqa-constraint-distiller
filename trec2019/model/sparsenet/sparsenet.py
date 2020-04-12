@@ -113,7 +113,8 @@ class SparseNet(pl.LightningModule):
         else:
             raise ValueError(f"Unknown dense model: {dense_model}")
 
-    def distance(self, x1, x2):
+    def distance(self, x1, x2): 
+        # TODO: 고민 필요
         # return torch.pow(a - b, 2).sum(1).sqrt()
         # return F.cosine_similarity(a, b)
         return torch.norm(x1 - x2, dim=1)
@@ -137,7 +138,7 @@ class SparseNet(pl.LightningModule):
     def loss(self, dense_x, sparse_x, recover_x, out_x, target):
         # task loss
         loss_task = self.loss_classify(out_x, target.type(torch.long))
-        
+
         # recovery loss
         loss_recovery = self.loss_recovery(recover_x, dense_x)
 
@@ -180,7 +181,7 @@ class SparseNet(pl.LightningModule):
         if self.out is not None:
             out_x = self.forward_out(sparse_x)
         else:
-            out_x = sparse_x.detach()
+            out_x = sparse_x
 
         return (
             dense_x,
