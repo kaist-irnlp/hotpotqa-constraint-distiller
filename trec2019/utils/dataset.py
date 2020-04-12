@@ -6,7 +6,6 @@ from pathlib import Path
 from torch.utils.data import Dataset, ConcatDataset, IterableDataset, DataLoader
 import h5py
 import numpy as np
-from transformers import BertTokenizer
 import gc
 import zarr
 from numcodecs import blosc
@@ -15,6 +14,7 @@ import torchtext
 from collections import Counter
 import json
 from textblob import TextBlob
+from transformers import BertTokenizer
 from transformers.tokenization_auto import AutoTokenizer
 from trec2019.utils.dense import *
 

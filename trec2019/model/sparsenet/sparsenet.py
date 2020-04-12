@@ -137,11 +137,9 @@ class SparseNet(pl.LightningModule):
     def loss(self, dense_x, sparse_x, recover_x, out_x, target):
         # task loss
         loss_task = self.loss_classify(out_x, target.type(torch.long))
+        
         # recovery loss
-        if self.hparams.use_recovery_loss:
-            loss_recovery = self.loss_recovery(recover_x, dense_x)
-        else:
-            loss_recovery = torch.zeros_like(loss_task)
+        loss_recovery = self.loss_recovery(recover_x, dense_x)
 
         return loss_recovery + loss_task, loss_task, loss_recovery
 
@@ -163,10 +161,7 @@ class SparseNet(pl.LightningModule):
         return self.recover(x)
 
     def forward_out(self, x):
-        if self.out:
-            return self.out(x)
-        else:
-            return x
+        return self.out(x)
 
     def forward(self, x):
         # dense
@@ -176,13 +171,16 @@ class SparseNet(pl.LightningModule):
         sparse_x = self.forward_sparse(dense_x)
 
         # recover
-        if self.hparams.use_recovery_loss:
+        if self.recover is not None:
             recover_x = self.forward_recover(sparse_x)
         else:
             recover_x = dense_x.detach()
 
         # out (optionally used)
-        out_x = self.forward_out(sparse_x)
+        if self.out is not None:
+            out_x = self.forward_out(sparse_x)
+        else:
+            out_x = sparse_x.detach()
 
         return (
             dense_x,
