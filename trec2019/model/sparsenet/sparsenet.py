@@ -63,7 +63,7 @@ class Noise(nn.Module):
         else:
             raise ValueError("Unknown noise type")
 
-    def add_gaussian_noise(self, X, corruption_ratio=0.2, range_=[0, 1]):
+    def add_gaussian_noise(self, X, corruption_ratio=0.1, range_=[0, 1]):
         X_noisy = X + corruption_ratio * np.random.normal(
             loc=0.0, scale=1.0, size=X.shape
         )
@@ -84,7 +84,7 @@ class Noise(nn.Module):
 
     def forward(self, x):
         if self.training:
-
+            x = self.add_noise(x)
         return x
 
 
@@ -106,9 +106,13 @@ class SparseNet(pl.LightningModule):
 
     def _init_layers(self):
         self._init_dense_layer()
+        self._init_noise_layer()
         self._init_sparse_layer()
         self._init_out_layer()
         self._init_recover_layer()
+
+    def _init_noise_layer(self):
+        self.noise = Noise()
 
     def _init_out_layer(self):
         final_output_size = self.hparams.output_size
@@ -199,8 +203,11 @@ class SparseNet(pl.LightningModule):
         else:
             dense_x = x
 
+        # noise
+        noise_x = self.noise(dense_x)
+
         # sparse
-        sparse_x = self.forward_sparse(dense_x)
+        sparse_x = self.forward_sparse(noise_x)
 
         # recover
         if self.recover is not None:
