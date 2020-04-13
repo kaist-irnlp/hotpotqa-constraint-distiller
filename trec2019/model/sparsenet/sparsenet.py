@@ -52,6 +52,42 @@ logger = logging.getLogger(__name__)
 _root_dir = str(Path(__file__).parent.absolute())
 
 
+class Noise(nn.Module):
+    def __init__(self, noise_type="gaussian"):
+        super().__init__()
+        self.add_noise = None
+        if noise_type == "gaussian":
+            self.add_noise = self.add_gaussian_noise
+        elif noise_type == "masking":
+            self.add_noise = self.add_masking_noise
+        else:
+            raise ValueError("Unknown noise type")
+
+    def add_gaussian_noise(self, X, corruption_ratio=0.1, range_=[0, 1]):
+        X_noisy = X + corruption_ratio * np.random.normal(
+            loc=0.0, scale=1.0, size=X.shape
+        )
+        X_noisy = np.clip(X_noisy, range_[0], range_[1])
+
+        return X_noisy
+
+    def add_masking_noise(self, X, fraction=0.2):
+        assert fraction >= 0 and fraction <= 1
+        X_noisy = np.copy(X)
+        nrow, ncol = X.shape
+        n = int(ncol * fraction)
+        for i in range(nrow):
+            idx_noisy = np.random.choice(ncol, n, replace=False)
+            X_noisy[i, idx_noisy] = 0
+
+        return X_noisy
+
+    def forward(self, x):
+        if self.training:
+            x = self.add_noise(x)
+        return x
+
+
 class SparseNet(pl.LightningModule):
     def __init__(self, hparams):
         super(SparseNet, self).__init__()
@@ -70,9 +106,13 @@ class SparseNet(pl.LightningModule):
 
     def _init_layers(self):
         self._init_dense_layer()
+        self._init_noise_layer()
         self._init_sparse_layer()
         self._init_out_layer()
         self._init_recover_layer()
+
+    def _init_noise_layer(self):
+        self.noise = Noise()
 
     def _init_out_layer(self):
         final_output_size = self.hparams.output_size
@@ -145,15 +185,7 @@ class SparseNet(pl.LightningModule):
         return loss_recovery + loss_task, loss_task, loss_recovery
 
     def forward_dense(self, x):
-        if self.dense is None:
-            dense_x = x
-        else:
-            if self.hparams.fine_tune:
-                dense_x = self.dense(x)
-            else:
-                with torch.no_grad():
-                    dense_x = self.dense(x)
-        return dense_x
+        return self.dense(x)
 
     def forward_sparse(self, x):
         return self.sparse(x)
@@ -166,10 +198,16 @@ class SparseNet(pl.LightningModule):
 
     def forward(self, x):
         # dense
-        dense_x = self.forward_dense(x)
+        if self.dense is not None:
+            dense_x = self.forward_dense(x)
+        else:
+            dense_x = x
+
+        # noise
+        noise_x = self.noise(dense_x)
 
         # sparse
-        sparse_x = self.forward_sparse(dense_x)
+        sparse_x = self.forward_sparse(noise_x)
 
         # recover
         if self.recover is not None:
@@ -321,7 +359,7 @@ class SparseNet(pl.LightningModule):
         parser.add_argument(
             "--boost_strength_factor", default=0.85, type=float,
         )
-        parser.add_argument("--dropout", default=0.0, type=float)
+        parser.add_argument("--dropout", default=0.2, type=float)
         parser.add_argument("--use_batch_norm", default=True, type=bool)
         parser.add_argument("--use_recovery_loss", action="store_true")
         parser.add_argument("--normalize_weights", action="store_true")
