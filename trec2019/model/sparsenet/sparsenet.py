@@ -113,7 +113,7 @@ class SparseNet(pl.LightningModule):
         else:
             raise ValueError(f"Unknown dense model: {dense_model}")
 
-    def distance(self, x1, x2): 
+    def distance(self, x1, x2):
         # TODO: 고민 필요
         # return torch.pow(a - b, 2).sum(1).sqrt()
         # return F.cosine_similarity(a, b)
