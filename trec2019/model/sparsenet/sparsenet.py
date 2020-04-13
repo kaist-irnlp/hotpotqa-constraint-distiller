@@ -359,7 +359,7 @@ class SparseNet(pl.LightningModule):
         parser.add_argument(
             "--boost_strength_factor", default=0.85, type=float,
         )
-        parser.add_argument("--dropout", default=0.0, type=float)
+        parser.add_argument("--dropout", default=0.2, type=float)
         parser.add_argument("--use_batch_norm", default=True, type=bool)
         parser.add_argument("--use_recovery_loss", action="store_true")
         parser.add_argument("--normalize_weights", action="store_true")
