@@ -43,6 +43,7 @@ from collections import OrderedDict
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
 from trec2019.utils.dataset import *
 from trec2019.utils.dense import *
+from trec2019.utils.noise import *
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -50,42 +51,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 _root_dir = str(Path(__file__).parent.absolute())
-
-
-class Noise(nn.Module):
-    def __init__(self, noise_type="gaussian"):
-        super().__init__()
-        self.add_noise = None
-        if noise_type == "gaussian":
-            self.add_noise = self.add_gaussian_noise
-        elif noise_type == "masking":
-            self.add_noise = self.add_masking_noise
-        else:
-            raise ValueError("Unknown noise type")
-
-    def add_gaussian_noise(self, X, corruption_ratio=0.1, range_=[0, 1]):
-        X_noisy = X + corruption_ratio * np.random.normal(
-            loc=0.0, scale=1.0, size=X.shape
-        )
-        X_noisy = np.clip(X_noisy, range_[0], range_[1])
-
-        return X_noisy
-
-    def add_masking_noise(self, X, fraction=0.2):
-        assert fraction >= 0 and fraction <= 1
-        X_noisy = np.copy(X)
-        nrow, ncol = X.shape
-        n = int(ncol * fraction)
-        for i in range(nrow):
-            idx_noisy = np.random.choice(ncol, n, replace=False)
-            X_noisy[i, idx_noisy] = 0
-
-        return X_noisy
-
-    def forward(self, x):
-        if self.training:
-            x = self.add_noise(x)
-        return x
 
 
 class SparseNet(pl.LightningModule):
@@ -209,13 +174,13 @@ class SparseNet(pl.LightningModule):
         # sparse
         sparse_x = self.forward_sparse(noise_x)
 
-        # recover
+        # 1. recover
         if self.recover is not None:
             recover_x = self.forward_recover(sparse_x)
         else:
             recover_x = dense_x.detach()
 
-        # out (optionally used)
+        # 2. out
         if self.out is not None:
             out_x = self.forward_out(sparse_x)
         else:
@@ -304,14 +269,6 @@ class SparseNet(pl.LightningModule):
     def on_epoch_end(self):
         self.apply(updateBoostStrength)
         self.apply(rezeroWeights)
-
-    # def split_train_val_test(self):
-    #     data_path = self.hparams.data_path
-    #     dataset = zarr.open(data_path, "r")
-    #     indices = np.array(range(len(dataset)))
-    #     train, val_test = train_test_split(indices, test_size=0.2)
-    #     val, test = train_test_split(val_test, test_size=0.5)
-    #     return train, val, test
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers
