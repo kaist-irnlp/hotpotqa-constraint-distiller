@@ -26,6 +26,7 @@ import pytorch_lightning as pl
 from trec2019.utils.dataset import *
 from trec2019.utils.dense import *
 from trec2019.utils.noise import *
+from trec2019.model.module.topk import *
 
 
 logging.basicConfig(
@@ -40,11 +41,48 @@ class SSAE(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
         self.hparams = hparams
-        self._init_layers()
         self._dset_cls = News20EmbeddingDataset
 
+        # layers
+        self._init_layers()
+        self.encoder.apply(self._init_weights)
+        self.decoder.apply(self._init_weights)
+
     def _init_layers(self):
-        pass
+        input_size = self.hparams.input_size
+        n = self.hparams.n
+        k = self.hparams.k
+        dropout = self.hparams.dropout
+
+        # encoder
+        encoder_weights = []
+        self.encoder = nn.Sequential()
+        self.encoder.add_module("noise", GaussianNoise())
+        for i in range(len(n)):
+            fan_in = input_size if (i == 0) else n[i - 1]
+            fan_out = n[i]
+            linear = nn.Linear(fan_in, fan_out)
+            encoder_weights.append(linear.weight)
+            self.encoder.add_module(f"enc_linear_{i}", linear)
+            self.encoder.add_module(
+                f"enc_batch_norm_{i}", nn.BatchNorm1d(n[i], affine=False)
+            )
+            self.encoder.add_module(f"enc_dropout_{i}", nn.Dropout(dropout))
+            self.encoder.add_module(f"enc_relu_{i}", nn.ReLU())
+            self.encoder.add_module(f"enc_topk_{i}", BatchTopK(k[i]))
+
+        # decoder
+        self.decoder = nn.Sequential()
+        for i in range(len(n)):
+            enc_linear = encoder_weights[-(i + 1)]
+            fan_out, fan_in = enc_linear.shape
+            self.encoder.add_module(f"dec_linear_{i}", nn.Linear(fan_in, fan_out))
+            self.encoder.add_module(f"dec_relu_{i}", nn.ReLU())
+
+    def _init_weights(self, m):
+        if type(m) == nn.Linear:
+            torch.nn.init.kaiming_normal_(m.weight)
+            m.bias.data.fill_(0.01)
 
     def forward(self, x):
         pass
@@ -105,5 +143,7 @@ class SSAE(pl.LightningModule):
         parser = ArgumentParser(parents=[parent_parser])
 
         # add more arguments
+        parser.add_argument("--input_size", type=int, required=True)
+        parser.add_argument("--dropout", default=0.2, type=float)
 
         return parser
