@@ -41,7 +41,7 @@ class SSAE(pl.LightningModule):
         super().__init__()
         self.hparams = hparams
         self._init_layers()
-        self.dset_cls = News20EmbeddingDataset
+        self._dset_cls = News20EmbeddingDataset
 
     def _init_layers(self):
         pass
@@ -78,9 +78,9 @@ class SSAE(pl.LightningModule):
 
     def _init_dataset(self):
         data_dir = Path(self.hparams.data_dir)
-        self._train_dataset = self.dset_cls(str(data_dir / "train.zarr"))
-        self._val_dataset = self.dset_cls(str(data_dir / "val.zarr"))
-        self._test_dataset = self.dset_cls(str(data_dir / "test.zarr"))
+        self._train_dataset = self._dset_cls(str(data_dir / "train.zarr"))
+        self._val_dataset = self._dset_cls(str(data_dir / "val.zarr"))
+        self._test_dataset = self._dset_cls(str(data_dir / "test.zarr"))
 
     def _get_dataloader(self, dataset, test=False):
         # dist_sampler = DistributedSampler(dataset) if self.use_ddp else None
