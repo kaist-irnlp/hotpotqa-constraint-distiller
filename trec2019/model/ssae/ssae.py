@@ -278,6 +278,6 @@ class SSAE(pl.LightningModule):
         parser.add_argument("--n", type=int, nargs="+", required=True)
         parser.add_argument("--k", type=float, nargs="+", required=True)
         parser.add_argument("--output_size", "-out", type=int, required=True)
-        parser.add_argument("--dropout", default=0.2, type=float)
+        parser.add_argument("--dropout", default=0.1, type=float)
 
         return parser
