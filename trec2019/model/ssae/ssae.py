@@ -73,15 +73,16 @@ class SSAE(pl.LightningModule):
             self.encoder.add_module(f"enc_relu_{i}", nn.ReLU())
             self.encoder.add_module(f"enc_topk_{i}", BatchTopK(k[i]))
             ## for weight sharing
-            encoder_weights.append(linear.weight)
+            ## (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
+            encoder_weights.append(linear.weight.detach())
 
         # decoder
         self.decoder = nn.Sequential()
         for i in range(len(n)):
             enc_weight = encoder_weights[-(i + 1)]
-            fan_out, fan_in = enc_weight.shape
+            fan_in, fan_out = enc_weight.shape
             linear = nn.Linear(fan_in, fan_out)
-            linear.weight.data = enc_weight.transpose(0, 1)
+            # linear.weight.data = enc_weight.transpose(0, 1)
             self.encoder.add_module(f"dec_linear_{i}", linear)
             self.encoder.add_module(f"dec_relu_{i}", nn.ReLU())
 
