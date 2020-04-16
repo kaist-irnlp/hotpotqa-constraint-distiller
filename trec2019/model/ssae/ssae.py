@@ -81,10 +81,13 @@ class SSAE(pl.LightningModule):
             linear = nn.Linear(fan_in, fan_out)
             linear.weight = enc_weight.transpose(0, 1)
             self.encoder.add_module(f"dec_linear_{i}", linear)
-            # self.encoder.add_module(f"dec_relu_{i}", nn.ReLU())
+            self.encoder.add_module(f"dec_relu_{i}", nn.ReLU())
 
         # out
         self.out = nn.Sequential()
+        fan_in = linear.weight.shape[1]
+        fan_out = self.hparams.output_size
+        self.out.add_module(nn.Linear(fan_in, fan_out))
 
     def _init_weights(self, m):
         if type(m) == nn.Linear:
