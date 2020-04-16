@@ -84,7 +84,7 @@ class SSAE(pl.LightningModule):
             linear = nn.Linear(fan_in, fan_out)
             # linear.weight.data = enc_weight.transpose(0, 1)
             self.encoder.add_module(f"dec_linear_{i}", linear)
-            self.encoder.add_module(f"dec_relu_{i}", nn.ReLU())
+            self.encoder.add_module(f"dec_relu_{i}", nn.ELU())
 
         # out
         self.out = nn.Sequential()
