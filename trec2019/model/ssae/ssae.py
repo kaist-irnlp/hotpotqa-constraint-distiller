@@ -57,7 +57,9 @@ class SSAE(pl.LightningModule):
         # encoder
         encoder_weights = []
         self.encoder = nn.Sequential()
+        ## add noise
         self.encoder.add_module("noise", GaussianNoise())
+        ## add encoder modules
         for i in range(len(n)):
             fan_in = input_size if (i == 0) else n[i - 1]
             fan_out = n[i]
@@ -74,10 +76,16 @@ class SSAE(pl.LightningModule):
         # decoder
         self.decoder = nn.Sequential()
         for i in range(len(n)):
-            enc_linear = encoder_weights[-(i + 1)]
-            fan_out, fan_in = enc_linear.shape
-            self.encoder.add_module(f"dec_linear_{i}", nn.Linear(fan_in, fan_out))
+            enc_weight = encoder_weights[-(i + 1)]
+            fan_in = enc_weight.shape[1]
+            fan_out = enc_weight.shape[0] if (i == (len(n) - 1)) else input_size
+            linear = nn.Linear(fan_in, fan_out)
+            linear.weight.data = enc_weight.transpose(0, 1)
+            self.encoder.add_module(f"dec_linear_{i}", linear)
             self.encoder.add_module(f"dec_relu_{i}", nn.ReLU())
+
+        # out
+        self.out = nn.Sequential()
 
     def _init_weights(self, m):
         if type(m) == nn.Linear:
@@ -85,22 +93,80 @@ class SSAE(pl.LightningModule):
             m.bias.data.fill_(0.01)
 
     def forward(self, x):
-        pass
+        sparse_x = self.encoder(x)
+        recover_x = self.decoder(sparse_x)
+        out_x = self.out(sparse_x)
+
+        return sparse_x, recover_x, out_x
 
     def training_step(self, batch, batch_idx):
-        pass
+        text, target = batch["data"], batch["target"]
+
+        # forward
+        sparse_x, recover_x, out_x = self.forward(text)
+
+        return sparse_x, recover_x, out_x, target
 
     def training_step_end(self, outputs):
-        pass
+        # aggregate (for dp or ddp mode)
+        sparse_x, recover_x, out_x, target = outputs
+
+        # loss
+        loss_total, loss_task, loss_recovery = self.loss(
+            sparse_x, recover_x, out_x, target
+        )
+
+        # logging
+        tqdm_dict = {
+            "train_loss": loss_total,
+            "loss_task": loss_task,
+            "loss_recovery": loss_recovery,
+        }
+        log_dict = {
+            "train_losses": tqdm_dict,
+        }
+        return {"loss": loss_total, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_step(self, batch, batch_idx):
-        pass
+        text, target = batch["data"], batch["target"]
+
+        # forward
+        sparse_x, recover_x, out_x = self.forward(text)
+
+        return sparse_x, recover_x, out_x, target
 
     def validation_step_end(self, outputs):
-        pass
+        # aggregate (for dp or ddp mode)
+        sparse_x, recover_x, out_x, target = outputs
+
+        # loss
+        loss_total, loss_task, loss_recovery = self.loss(
+            sparse_x, recover_x, out_x, target
+        )
+
+        # logging
+        tqdm_dict = {
+            "val_loss": loss_total,
+            "loss_task": loss_task,
+            "loss_recovery": loss_recovery,
+        }
+        log_dict = {
+            "val_losses": tqdm_dict,
+        }
+        return {"val_loss": loss_total, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_epoch_end(self, outputs):
-        pass
+        avg_val_loss = torch.stack([out["val_loss"] for out in outputs]).mean()
+
+        tqdm_dict = {"val_loss": avg_val_loss}
+
+        results = {
+            "val_loss": avg_val_loss,
+            "progress_bar": tqdm_dict,
+            "log": {"val_loss": avg_val_loss},
+        }
+
+        return results
 
     def on_epoch_end(self):
         pass
@@ -111,8 +177,8 @@ class SSAE(pl.LightningModule):
             self.parameters(), lr=self.hparams.learning_rate
         )
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        # return [optimizer], [scheduler]
-        return optimizer
+        return [optimizer], [scheduler]
+        # return optimizer
 
     def _init_dataset(self):
         data_dir = Path(self.hparams.data_dir)
