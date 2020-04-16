@@ -35,7 +35,10 @@ class News20EmbeddingDataset(Dataset):
         return len(self.data.label)
 
     def __getitem__(self, index):
-        emb, lbl = self.embedding[index], self.label[index]
+        emb, lbl = (
+            self.embedding[index].astype(np.float32),
+            self.label[index].astype(np.int32),
+        )
         return {"index": index, "data": emb, "target": lbl}
 
 
@@ -100,11 +103,11 @@ if __name__ == "__main__":
     # )
     # tokenizer = BowTokenizer(vocab)
     # data
-    data_path = "/Users/kyoungrok/Dropbox/Project/naver/data/news20/test.zarr.zip"
+    data_path = "/Users/kyoungrok/Dropbox/Project/naver/experiment/200324_SparseNet/data/news20/train.zarr"
     dataset = News20EmbeddingDataset(data_path)
     # test
-    loader = DataLoader(dataset, batch_size=32)
+    loader = DataLoader(dataset, batch_size=2)
     for i, sample in enumerate(loader):
-        print(sample)
+        print(sample["data"])
         if i > 3:
             break
