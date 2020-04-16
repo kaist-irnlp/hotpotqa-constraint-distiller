@@ -2,6 +2,16 @@ from torch import nn
 import numpy as np
 
 
+class Noise(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        if self.training:
+            x = self.add_noise(x)
+        return x
+
+
 class GaussianNoise(Noise):
     def __init__(self):
         super().__init__()
@@ -34,16 +44,6 @@ class MaskingNoise(Noise):
             X_noisy[i, idx_noisy] = 0
 
         return X_noisy
-
-    def forward(self, x):
-        if self.training:
-            x = self.add_noise(x)
-        return x
-
-
-class Noise(nn.Module):
-    def __init__(self):
-        super().__init__()
 
     def forward(self, x):
         if self.training:

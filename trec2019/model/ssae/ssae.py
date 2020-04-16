@@ -26,7 +26,7 @@ import pytorch_lightning as pl
 from trec2019.utils.dataset import *
 from trec2019.utils.dense import *
 from trec2019.utils.noise import *
-from trec2019.model.module.topk import *
+from trec2019.model.ssae.module.topk import *
 
 
 logging.basicConfig(
@@ -82,7 +82,7 @@ class SSAE(pl.LightningModule):
             linear = nn.Linear(fan_in, fan_out)
             linear.weight.data = enc_weight.transpose(0, 1)
             self.encoder.add_module(f"dec_linear_{i}", linear)
-            self.encoder.add_module(f"dec_relu_{i}", nn.ReLU())
+            # self.encoder.add_module(f"dec_relu_{i}", nn.ReLU())
 
         # out
         self.out = nn.Sequential()
@@ -99,21 +99,38 @@ class SSAE(pl.LightningModule):
 
         return sparse_x, recover_x, out_x
 
+    def loss_recovery(self, input, target):
+        # return F.mse_loss(input, target)
+        return F.l1_loss(input, target)
+
+    def loss_classify(self, input, target):
+        # input.shape() == (minibatch, C)
+        return F.cross_entropy(input, target)
+
+    def loss(self, x, sparse_x, recover_x, out_x, target):
+        # task loss
+        loss_task = self.loss_classify(out_x, target.type(torch.long))
+
+        # autoencoder loss (recovery)
+        loss_recovery = self.loss_recovery(recover_x, x)
+
+        return loss_recovery + loss_task, loss_task, loss_recovery
+
     def training_step(self, batch, batch_idx):
-        text, target = batch["data"], batch["target"]
+        x, target = batch["data"], batch["target"]
 
         # forward
-        sparse_x, recover_x, out_x = self.forward(text)
+        sparse_x, recover_x, out_x = self.forward(x)
 
-        return sparse_x, recover_x, out_x, target
+        return x, sparse_x, recover_x, out_x, target
 
     def training_step_end(self, outputs):
         # aggregate (for dp or ddp mode)
-        sparse_x, recover_x, out_x, target = outputs
+        x, sparse_x, recover_x, out_x, target = outputs
 
         # loss
         loss_total, loss_task, loss_recovery = self.loss(
-            sparse_x, recover_x, out_x, target
+            x, sparse_x, recover_x, out_x, target
         )
 
         # logging
@@ -128,20 +145,20 @@ class SSAE(pl.LightningModule):
         return {"loss": loss_total, "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_step(self, batch, batch_idx):
-        text, target = batch["data"], batch["target"]
+        x, target = batch["data"], batch["target"]
 
         # forward
-        sparse_x, recover_x, out_x = self.forward(text)
+        sparse_x, recover_x, out_x = self.forward(x)
 
-        return sparse_x, recover_x, out_x, target
+        return x, sparse_x, recover_x, out_x, target
 
     def validation_step_end(self, outputs):
         # aggregate (for dp or ddp mode)
-        sparse_x, recover_x, out_x, target = outputs
+        x, sparse_x, recover_x, out_x, target = outputs
 
         # loss
         loss_total, loss_task, loss_recovery = self.loss(
-            sparse_x, recover_x, out_x, target
+            x, sparse_x, recover_x, out_x, target
         )
 
         # logging
@@ -168,6 +185,47 @@ class SSAE(pl.LightningModule):
 
         return results
 
+    def test_step(self, batch, batch_idx):
+        x, target = batch["data"], batch["target"]
+
+        # forward
+        sparse_x, recover_x, out_x = self.forward(x)
+
+        return x, sparse_x, recover_x, out_x, target
+
+    def test_step_end(self, outputs):
+        # aggregate (for dp or ddp mode)
+        x, sparse_x, recover_x, out_x, target = outputs
+
+        # loss
+        loss_total, loss_task, loss_recovery = self.loss(
+            x, sparse_x, recover_x, out_x, target
+        )
+
+        # logging
+        tqdm_dict = {
+            "test_loss": loss_total,
+            "loss_task": loss_task,
+            "loss_recovery": loss_recovery,
+        }
+        log_dict = {
+            "test_losses": tqdm_dict,
+        }
+        return {"test_loss": loss_total, "progress_bar": tqdm_dict, "log": log_dict}
+
+    def test_epoch_end(self, outputs):
+        avg_test_loss = torch.stack([out["test_loss"] for out in outputs]).mean()
+
+        tqdm_dict = {"test_loss": avg_test_loss}
+
+        results = {
+            "test_loss": avg_test_loss,
+            "progress_bar": tqdm_dict,
+            "log": {"test_loss": avg_test_loss},
+        }
+
+        return results
+
     def on_epoch_end(self):
         pass
 
@@ -180,7 +238,7 @@ class SSAE(pl.LightningModule):
         return [optimizer], [scheduler]
         # return optimizer
 
-    def _init_dataset(self):
+    def prepare_data(self):
         data_dir = Path(self.hparams.data_dir)
         self._train_dataset = self._dset_cls(str(data_dir / "train.zarr"))
         self._val_dataset = self._dset_cls(str(data_dir / "val.zarr"))
@@ -210,6 +268,9 @@ class SSAE(pl.LightningModule):
 
         # add more arguments
         parser.add_argument("--input_size", type=int, required=True)
+        parser.add_argument("--n", type=int, nargs="+", required=True)
+        parser.add_argument("--k", type=int, nargs="+", required=True)
+        parser.add_argument("--output_size", "-out", type=int, required=True)
         parser.add_argument("--dropout", default=0.2, type=float)
 
         return parser

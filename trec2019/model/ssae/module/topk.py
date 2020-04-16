@@ -1,5 +1,6 @@
 import math
 import torch
+from torch import nn
 
 
 class BatchTopK(nn.Module):
@@ -8,16 +9,16 @@ class BatchTopK(nn.Module):
         self.k = k or 1
 
     def forward(self, x):
+        assert x.dim() == 2
+        batch_size = x.shape[0]
+        # determine k
         if self.training:
-            assert x.dim() == 2
-            batch_size = x.shape[0]
-            # k = self.k_list[self.curr_epoch]
-            k_size = math.ceil(self.k * batch_size)
-
-            buffer, self.indices = torch.topk(x, k_size, 0, True)
-            output = torch.zeros_like(x).scatter(0, self.indices, buffer)
+            k = self.k
         else:
-            output = x
+            k = self.k * 1.5
+        k_size = math.ceil(k * batch_size)
+        buffer, self.indices = torch.topk(x, k_size, 0, True)
+        output = torch.zeros_like(x).scatter(0, self.indices, buffer)
 
         # register backward hook
         output.register_hook(self._backward_hook)

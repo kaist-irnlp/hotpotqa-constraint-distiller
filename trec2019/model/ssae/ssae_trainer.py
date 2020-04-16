@@ -18,7 +18,39 @@ _root_dir = str(Path(__file__).parent.absolute())
 
 
 def main(hparams):
-    pass
+    # init model
+    model = SSAE(hparams)
+
+    # early stop
+
+    early_stop_callback = EarlyStopping(
+        monitor="val_loss", patience=10, verbose=True, mode="min"
+    )
+    # logger
+    logger = loggers.TestTubeLogger(_root_dir)
+
+    # profile
+    if hparams.profile:
+        profiler = AdvancedProfiler()
+    else:
+        profiler = None
+
+    # train
+    # trainer = Trainer.from_argparse_args(hparams)
+    trainer = Trainer(
+        logger=logger,
+        default_save_path=_root_dir,
+        max_nb_epochs=hparams.max_nb_epochs,
+        gpus=hparams.gpus,
+        distributed_backend=hparams.distributed_backend,
+        fast_dev_run=hparams.fast_dev_run,
+        amp_level=hparams.amp_level,
+        precision=hparams.precision,
+        early_stop_callback=early_stop_callback,
+        benchmark=True,
+        profiler=profiler,
+    )
+    trainer.fit(model)
 
 
 if __name__ == "__main__":
