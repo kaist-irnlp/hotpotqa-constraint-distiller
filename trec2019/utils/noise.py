@@ -8,8 +8,8 @@ class Noise(nn.Module):
 
     def forward(self, x):
         if self.training:
-            x = self.add_noise(x)
-        return x
+            noisy_x = self.add_noise(x)
+        return noisy_x.type_as(x)
 
 
 class GaussianNoise(Noise):
@@ -22,12 +22,7 @@ class GaussianNoise(Noise):
         )
         X_noisy = np.clip(X_noisy, range_[0], range_[1])
 
-        return X_noisy.type_as(X)
-
-    def forward(self, x):
-        if self.training:
-            x = self.add_noise(x)
-        return x
+        return X_noisy
 
 
 class MaskingNoise(Noise):
@@ -44,8 +39,3 @@ class MaskingNoise(Noise):
             X_noisy[i, idx_noisy] = 0
 
         return X_noisy
-
-    def forward(self, x):
-        if self.training:
-            x = self.add_noise(x)
-        return x
