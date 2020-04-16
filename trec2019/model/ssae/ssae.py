@@ -82,7 +82,7 @@ class SSAE(pl.LightningModule):
             enc_weight = encoder_weights[-(i + 1)]
             fan_in, fan_out = enc_weight.shape
             linear = nn.Linear(fan_in, fan_out)
-            # linear.weight.data = enc_weight.transpose(0, 1)
+            linear.weight.data = enc_weight.transpose(0, 1)
             self.decoder.add_module(f"dec_linear_{i}", linear)
             self.decoder.add_module(f"dec_activation_{i}", nn.ELU())
 

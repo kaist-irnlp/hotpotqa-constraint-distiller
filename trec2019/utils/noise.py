@@ -22,7 +22,7 @@ class GaussianNoise(Noise):
         )
         X_noisy = np.clip(X_noisy, range_[0], range_[1])
 
-        return X_noisy
+        return X_noisy.type_as(X)
 
     def forward(self, x):
         if self.training:
