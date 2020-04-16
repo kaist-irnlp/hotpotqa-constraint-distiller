@@ -37,7 +37,7 @@ class News20EmbeddingDataset(Dataset):
     def __getitem__(self, index):
         emb, lbl = (
             self.embedding[index].astype(np.float32),
-            self.label[index].astype(np.int32),
+            self.label[index].astype(np.int64),
         )
         return {"index": index, "data": emb, "target": lbl}
 

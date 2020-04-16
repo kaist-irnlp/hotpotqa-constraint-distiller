@@ -87,8 +87,10 @@ class SSAE(pl.LightningModule):
             self.decoder.add_module(f"dec_activation_{i}", nn.ELU())
 
         # # out
-        fan_in = n[-1]  # from the last layer of decoder
-        fan_out = self.hparams.output_size
+        fan_in, fan_out = (
+            n[-1],
+            self.hparams.output_size,
+        )  # (last_hidden_size, output_size)
         self.out = nn.Linear(fan_in, fan_out)
 
     def _init_weights(self, m):
@@ -123,7 +125,7 @@ class SSAE(pl.LightningModule):
         )
 
         # task loss
-        loss_task = self.loss_classify(out_x, target.type(torch.long))
+        loss_task = self.loss_classify(out_x, target)
 
         # autoencoder loss (recovery)
         loss_recovery = self.loss_recovery(recover_x, x)
