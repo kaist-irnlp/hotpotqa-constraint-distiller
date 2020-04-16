@@ -14,8 +14,8 @@ import torchtext
 from collections import Counter
 import json
 from textblob import TextBlob
-from transformers import BertTokenizer
-from transformers.tokenization_auto import AutoTokenizer
+# from transformers import BertTokenizer
+# from transformers.tokenization_auto import AutoTokenizer
 from trec2019.utils.dense import *
 
 root_dir = str(Path(__file__).parent.absolute())
@@ -74,23 +74,23 @@ class TripleEmbeddingDataset(Dataset):
         return {"query": query, "doc_pos": doc_pos, "doc_neg": doc_neg}
 
 
-class TripleDataset(Dataset):
-    def __init__(self, data_path, tokenizer):
-        super().__init__()
-        # synchronizer = zarr.ProcessSynchronizer("./sync/triple_dataset.sync")
-        self.data = zarr.open(data_path, "r")
-        self.tokenizer = tokenizer
+# class TripleDataset(Dataset):
+#     def __init__(self, data_path, tokenizer):
+#         super().__init__()
+#         # synchronizer = zarr.ProcessSynchronizer("./sync/triple_dataset.sync")
+#         self.data = zarr.open(data_path, "r")
+#         self.tokenizer = tokenizer
 
-    def __len__(self):
-        return len(self.data)
+#     def __len__(self):
+#         return len(self.data)
 
-    def __getitem__(self, index):
-        # get a sample
-        query, doc_pos, doc_neg = self.data[index]
-        query_ids = self.tokenizer.encode(query, 128)
-        doc_pos_ids = self.tokenizer.encode(doc_pos)
-        doc_neg_ids = self.tokenizer.encode(doc_neg)
-        return {"query": query_ids, "doc_pos": doc_pos_ids, "doc_neg": doc_neg_ids}
+#     def __getitem__(self, index):
+#         # get a sample
+#         query, doc_pos, doc_neg = self.data[index]
+#         query_ids = self.tokenizer.encode(query, 128)
+#         doc_pos_ids = self.tokenizer.encode(doc_pos)
+#         doc_neg_ids = self.tokenizer.encode(doc_neg)
+#         return {"query": query_ids, "doc_pos": doc_pos_ids, "doc_neg": doc_neg_ids}
 
 
 if __name__ == "__main__":
