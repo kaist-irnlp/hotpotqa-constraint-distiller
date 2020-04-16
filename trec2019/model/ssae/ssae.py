@@ -70,7 +70,7 @@ class SSAE(pl.LightningModule):
                 f"enc_batch_norm_{i}", nn.BatchNorm1d(n[i], affine=False)
             )
             self.encoder.add_module(f"enc_dropout_{i}", nn.Dropout(dropout))
-            self.encoder.add_module(f"enc_relu_{i}", nn.ReLU())
+            self.encoder.add_module(f"enc_activation_{i}", nn.ReLU())
             self.encoder.add_module(f"enc_topk_{i}", BatchTopK(k[i]))
             ## for weight sharing
             ## (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
@@ -83,14 +83,13 @@ class SSAE(pl.LightningModule):
             fan_in, fan_out = enc_weight.shape
             linear = nn.Linear(fan_in, fan_out)
             # linear.weight.data = enc_weight.transpose(0, 1)
-            self.encoder.add_module(f"dec_linear_{i}", linear)
-            self.encoder.add_module(f"dec_relu_{i}", nn.ELU())
+            self.decoder.add_module(f"dec_linear_{i}", linear)
+            self.decoder.add_module(f"dec_activation_{i}", nn.ELU())
 
-        # out
-        self.out = nn.Sequential()
-        fan_in = fan_out  # from the last layer of decoder
+        # # out
+        fan_in = n[-1]  # from the last layer of decoder
         fan_out = self.hparams.output_size
-        self.out.add_module("out", nn.Linear(fan_in, fan_out))
+        self.out = nn.Linear(fan_in, fan_out)
 
     def _init_weights(self, m):
         if type(m) == nn.Linear:
@@ -102,7 +101,8 @@ class SSAE(pl.LightningModule):
         recover_x = self.decoder(sparse_x)
         out_x = self.out(sparse_x)
 
-        return sparse_x, recover_x, out_x
+        # return sparse_x, recover_x, out_x
+        return {"sparse": sparse_x, "recover": recover_x, "out": out_x}
 
     def loss_recovery(self, input, target):
         # return F.mse_loss(input, target)
@@ -112,70 +112,73 @@ class SSAE(pl.LightningModule):
         # input.shape() == (minibatch, C)
         return F.cross_entropy(input, target)
 
-    def loss(self, x, sparse_x, recover_x, out_x, target):
+    def loss(self, outputs):
+        # extract features
+        x, target, sparse_x, recover_x, out_x = (
+            outputs["x"],
+            outputs["target"],
+            outputs["sparse"],
+            outputs["recover"],
+            outputs["out"],
+        )
+
         # task loss
         loss_task = self.loss_classify(out_x, target.type(torch.long))
 
         # autoencoder loss (recovery)
         loss_recovery = self.loss_recovery(recover_x, x)
 
-        return loss_recovery + loss_task, loss_task, loss_recovery
+        return {
+            "total": loss_recovery + loss_task,
+            "task": loss_task,
+            "recovery": loss_recovery,
+        }
 
     def training_step(self, batch, batch_idx):
         x, target = batch["data"], batch["target"]
 
         # forward
-        sparse_x, recover_x, out_x = self.forward(x)
+        features = self.forward(x)
 
-        return x, sparse_x, recover_x, out_x, target
+        return {"x": x, "target": target, **features}
 
     def training_step_end(self, outputs):
-        # aggregate (for dp or ddp mode)
-        x, sparse_x, recover_x, out_x, target = outputs
-
-        # loss
-        loss_total, loss_task, loss_recovery = self.loss(
-            x, sparse_x, recover_x, out_x, target
-        )
+        # aggregated loss (for dp or ddp mode)
+        losses = self.loss(outputs)
 
         # logging
         tqdm_dict = {
-            "train_loss": loss_total,
-            "loss_task": loss_task,
-            "loss_recovery": loss_recovery,
+            "train_loss": losses["total"],
+            "loss_task": losses["task"],
+            "loss_recovery": losses["recovery"],
         }
         log_dict = {
             "train_losses": tqdm_dict,
         }
-        return {"loss": loss_total, "progress_bar": tqdm_dict, "log": log_dict}
+        return {"loss": losses["total"], "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_step(self, batch, batch_idx):
         x, target = batch["data"], batch["target"]
 
         # forward
-        sparse_x, recover_x, out_x = self.forward(x)
+        features = self.forward(x)
 
-        return x, sparse_x, recover_x, out_x, target
+        return {"x": x, "target": target, **features}
 
     def validation_step_end(self, outputs):
         # aggregate (for dp or ddp mode)
-        x, sparse_x, recover_x, out_x, target = outputs
-
-        # loss
-        loss_total, loss_task, loss_recovery = self.loss(
-            x, sparse_x, recover_x, out_x, target
-        )
+        losses = self.loss(outputs)
 
         # logging
         tqdm_dict = {
-            "val_loss": loss_total,
-            "loss_task": loss_task,
-            "loss_recovery": loss_recovery,
+            "val_loss": losses["total"],
+            "loss_task": losses["task"],
+            "loss_recovery": losses["recovery"],
         }
         log_dict = {
             "val_losses": tqdm_dict,
         }
-        return {"val_loss": loss_total, "progress_bar": tqdm_dict, "log": log_dict}
+        return {"val_loss": losses["total"], "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_epoch_end(self, outputs):
         avg_val_loss = torch.stack([out["val_loss"] for out in outputs]).mean()
@@ -194,29 +197,28 @@ class SSAE(pl.LightningModule):
         x, target = batch["data"], batch["target"]
 
         # forward
-        sparse_x, recover_x, out_x = self.forward(x)
+        features = self.forward(x)
 
-        return x, sparse_x, recover_x, out_x, target
+        return {"x": x, "target": target, **features}
 
     def test_step_end(self, outputs):
         # aggregate (for dp or ddp mode)
-        x, sparse_x, recover_x, out_x, target = outputs
-
-        # loss
-        loss_total, loss_task, loss_recovery = self.loss(
-            x, sparse_x, recover_x, out_x, target
-        )
+        losses = self.loss(outputs)
 
         # logging
         tqdm_dict = {
-            "test_loss": loss_total,
-            "loss_task": loss_task,
-            "loss_recovery": loss_recovery,
+            "test_loss": losses["total"],
+            "loss_task": losses["task"],
+            "loss_recovery": losses["recovery"],
         }
         log_dict = {
             "test_losses": tqdm_dict,
         }
-        return {"test_loss": loss_total, "progress_bar": tqdm_dict, "log": log_dict}
+        return {
+            "test_loss": losses["total"],
+            "progress_bar": tqdm_dict,
+            "log": log_dict,
+        }
 
     def test_epoch_end(self, outputs):
         avg_test_loss = torch.stack([out["test_loss"] for out in outputs]).mean()
