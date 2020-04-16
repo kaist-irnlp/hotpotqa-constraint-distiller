@@ -6,7 +6,7 @@ from torch import nn
 class BatchTopK(nn.Module):
     def __init__(self, k):
         super().__init__()
-        self.k = k or 1
+        self.k = k or 1.0
 
     def forward(self, x):
         assert x.dim() == 2
@@ -21,14 +21,12 @@ class BatchTopK(nn.Module):
         output = torch.zeros_like(x).scatter(0, self.indices, buffer)
 
         # register backward hook
-        output.register_hook(self._backward_hook)
+        if self.training:
+            output.register_hook(self._backward_hook)
         return output
 
     def _backward_hook(self, grad):
-        if self.training:
-            _grad = torch.zeros_like(grad).scatter(
-                0, self.indices, grad.gather(0, self.indices)
-            )
-        else:
-            _grad = grad
+        _grad = torch.zeros_like(grad).scatter(
+            0, self.indices, grad.gather(0, self.indices)
+        )
         return _grad

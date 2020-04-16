@@ -42,6 +42,7 @@ class SSAE(pl.LightningModule):
         super().__init__()
         self.hparams = hparams
         self._dset_cls = News20EmbeddingDataset
+        self._noise_cls = GaussianNoise
 
         # layers
         self._init_layers()
@@ -58,13 +59,12 @@ class SSAE(pl.LightningModule):
         encoder_weights = []
         self.encoder = nn.Sequential()
         ## add noise
-        self.encoder.add_module("noise", GaussianNoise())
+        self.encoder.add_module("noise", self._noise_cls())
         ## add encoder modules
         for i in range(len(n)):
             fan_in = input_size if (i == 0) else n[i - 1]
             fan_out = n[i]
             linear = nn.Linear(fan_in, fan_out)
-            encoder_weights.append(linear.weight)
             self.encoder.add_module(f"enc_linear_{i}", linear)
             self.encoder.add_module(
                 f"enc_batch_norm_{i}", nn.BatchNorm1d(n[i], affine=False)
@@ -72,6 +72,8 @@ class SSAE(pl.LightningModule):
             self.encoder.add_module(f"enc_dropout_{i}", nn.Dropout(dropout))
             self.encoder.add_module(f"enc_relu_{i}", nn.ReLU())
             self.encoder.add_module(f"enc_topk_{i}", BatchTopK(k[i]))
+            ## for weight sharing
+            encoder_weights.append(linear.weight)
 
         # decoder
         self.decoder = nn.Sequential()
@@ -79,15 +81,15 @@ class SSAE(pl.LightningModule):
             enc_weight = encoder_weights[-(i + 1)]
             fan_out, fan_in = enc_weight.shape
             linear = nn.Linear(fan_in, fan_out)
-            linear.weight = enc_weight.transpose(0, 1)
+            linear.weight.data = enc_weight.transpose(0, 1)
             self.encoder.add_module(f"dec_linear_{i}", linear)
             self.encoder.add_module(f"dec_relu_{i}", nn.ReLU())
 
         # out
         self.out = nn.Sequential()
-        fan_in = linear.weight.shape[1]
+        fan_in = fan_out  # from the last layer of decoder
         fan_out = self.hparams.output_size
-        self.out.add_module(nn.Linear(fan_in, fan_out))
+        self.out.add_module("out", nn.Linear(fan_in, fan_out))
 
     def _init_weights(self, m):
         if type(m) == nn.Linear:
@@ -271,7 +273,7 @@ class SSAE(pl.LightningModule):
         # add more arguments
         parser.add_argument("--input_size", type=int, required=True)
         parser.add_argument("--n", type=int, nargs="+", required=True)
-        parser.add_argument("--k", type=int, nargs="+", required=True)
+        parser.add_argument("--k", type=float, nargs="+", required=True)
         parser.add_argument("--output_size", "-out", type=int, required=True)
         parser.add_argument("--dropout", default=0.2, type=float)
 
