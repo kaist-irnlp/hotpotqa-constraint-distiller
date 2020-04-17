@@ -69,7 +69,8 @@ class SSAE(pl.LightningModule):
             self.encoder.add_module(
                 f"enc_batch_norm_{i}", nn.BatchNorm1d(n[i], affine=False)
             )
-            self.encoder.add_module(f"enc_dropout_{i}", nn.Dropout(dropout))
+            if dropout:
+                self.encoder.add_module(f"enc_dropout_{i}", nn.Dropout(dropout))
             self.encoder.add_module(f"enc_activation_{i}", nn.ReLU())
             self.encoder.add_module(f"enc_topk_{i}", BatchTopK(k[i]))
             ## for weight sharing
@@ -82,15 +83,16 @@ class SSAE(pl.LightningModule):
             enc_weight = encoder_weights[-(i + 1)]
             fan_in, fan_out = enc_weight.shape
             linear = nn.Linear(fan_in, fan_out)
-            linear.weight.data = enc_weight.transpose(0, 1)
+            linear.weight.data = enc_weight.transpose(0, 1)  # weight sharing
             self.decoder.add_module(f"dec_linear_{i}", linear)
-            self.decoder.add_module(f"dec_activation_{i}", nn.ELU())
+            # self.decoder.add_module(f"dec_activation_{i}", nn.ELU())
 
         # # out
         fan_in, fan_out = (
+            # input_size,
             n[-1],
             self.hparams.output_size,
-        )  # (last_hidden_size, output_size)
+        )  # (input_size, output_size)
         self.out = nn.Linear(fan_in, fan_out)
 
     def _init_weights(self, m):
@@ -283,6 +285,6 @@ class SSAE(pl.LightningModule):
         parser.add_argument("--n", type=int, nargs="+", required=True)
         parser.add_argument("--k", type=float, nargs="+", required=True)
         parser.add_argument("--output_size", "-out", type=int, required=True)
-        parser.add_argument("--dropout", default=0.1, type=float)
+        parser.add_argument("--dropout", default=None, type=float)
 
         return parser
