@@ -9,6 +9,8 @@ class Noise(nn.Module):
     def forward(self, x):
         if self.training:
             noisy_x = self.add_noise(x)
+        else:
+            noisy_x = x
         return noisy_x.type_as(x)
 
 
