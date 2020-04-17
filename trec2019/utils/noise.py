@@ -1,5 +1,6 @@
 from torch import nn
 import numpy as np
+import torch
 
 
 class Noise(nn.Module):
@@ -7,11 +8,10 @@ class Noise(nn.Module):
         super().__init__()
 
     def forward(self, x):
+        orig_x = x.detach()
         if self.training:
-            noisy_x = self.add_noise(x)
-        else:
-            noisy_x = x
-        return noisy_x.type_as(x)
+            x = self.add_noise(x)
+        return x.type_as(orig_x)
 
 
 class GaussianNoise(Noise):
@@ -19,10 +19,13 @@ class GaussianNoise(Noise):
         super().__init__()
 
     def add_noise(self, X, corruption_ratio=0.2, range_=[0, 1]):
-        X_noisy = X + corruption_ratio * np.random.normal(
-            loc=0.0, scale=1.0, size=X.shape
-        )
-        X_noisy = np.clip(X_noisy, range_[0], range_[1])
+        # X_noisy = X + corruption_ratio * np.random.normal(
+        #     loc=0.0, scale=1.0, size=X.shape
+        # )
+        # X_noisy = np.clip(X_noisy, range_[0], range_[1])
+        X_noisy = X + corruption_ratio * torch.zeros(X.size()).normal_(
+            mean=0, std=1
+        ).type_as(X)
 
         return X_noisy
 
