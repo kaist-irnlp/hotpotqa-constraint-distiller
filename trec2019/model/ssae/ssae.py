@@ -107,8 +107,8 @@ class SSAE(pl.LightningModule):
         return {"sparse": sparse_x, "recover": recover_x, "out": out_x}
 
     def loss_recovery(self, input, target):
-        # return F.mse_loss(input, target)
-        return F.l1_loss(input, target)
+        return F.mse_loss(input, target)
+        # return F.l1_loss(input, target)
 
     def loss_classify(self, input, target):
         # input.shape() == (minibatch, C)
