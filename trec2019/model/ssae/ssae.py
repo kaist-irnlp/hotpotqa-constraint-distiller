@@ -74,7 +74,7 @@ class SSAE(pl.LightningModule):
             self.encoder.add_module(f"enc_topk_{i}", BatchTopK(k[i]))
             ## for weight sharing
             ## (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
-            encoder_weights.append(linear.weight.detach())
+            encoder_weights.append(linear.weight)
 
         # decoder
         self.decoder = nn.Sequential()
@@ -130,8 +130,11 @@ class SSAE(pl.LightningModule):
         # autoencoder loss (recovery)
         loss_recovery = self.loss_recovery(recover_x, x)
 
+        # total loss
+        loss_total = loss_recovery + loss_task
+
         return {
-            "total": loss_recovery + loss_task,
+            "total": loss_total,
             "task": loss_task,
             "recovery": loss_recovery,
         }
