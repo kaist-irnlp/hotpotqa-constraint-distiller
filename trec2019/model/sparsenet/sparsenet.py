@@ -72,14 +72,14 @@ class SparseNet(pl.LightningModule):
         self._test_dataset = self.dset_cls(str(data_dir / "test.zarr"))
 
     def _init_layers(self):
-        self._init_dense_layer()
+        # self._init_dense_layer()
         self._init_noise_layer()
         self._init_sparse_layer()
         self._init_out_layer()
         self._init_recover_layer()
 
     def _init_noise_layer(self):
-        self.noise = Noise()
+        self.noise = GaussianNoise()
 
     def _init_out_layer(self):
         final_output_size = self.hparams.output_size
@@ -103,22 +103,22 @@ class SparseNet(pl.LightningModule):
         )  # TODO: is it safe to do this automatically?
         self.sparse = SparseNetModel(self.hparams)
 
-    def _init_dense_layer(self):
-        dense_model = self.hparams.dense or None
-        if dense_model is None:
-            self.tokenizer = None
-            self.dense = None
-        elif dense_model == "bow":
-            vocab = get_bow_vocab()
-            # vocab.vectors = F.normalize(vocab.vectors, p=2, dim=1)
-            self.tokenizer = BowTokenizer(vocab)
-            self.dense = BowEmbedding(vocab)
-        elif dense_model == "bert":
-            weights = "bert-base-uncased"
-            self.tokenizer = BertTokenizer(weights)
-            self.dense = BertEmbedding(weights)
-        else:
-            raise ValueError(f"Unknown dense model: {dense_model}")
+    # def _init_dense_layer(self):
+    #     dense_model = self.hparams.dense or None
+    #     if dense_model is None:
+    #         self.tokenizer = None
+    #         self.dense = None
+    #     elif dense_model == "bow":
+    #         vocab = get_bow_vocab()
+    #         # vocab.vectors = F.normalize(vocab.vectors, p=2, dim=1)
+    #         self.tokenizer = BowTokenizer(vocab)
+    #         self.dense = BowEmbedding(vocab)
+    #     elif dense_model == "bert":
+    #         weights = "bert-base-uncased"
+    #         self.tokenizer = BertTokenizer(weights)
+    #         self.dense = BertEmbedding(weights)
+    #     else:
+    #         raise ValueError(f"Unknown dense model: {dense_model}")
 
     def distance(self, x1, x2):
         # TODO: 고민 필요
@@ -151,45 +151,33 @@ class SparseNet(pl.LightningModule):
 
         return loss_recovery + loss_task, loss_task, loss_recovery
 
-    def forward_dense(self, x):
-        return self.dense(x)
-
-    def forward_sparse(self, x):
-        return self.sparse(x)
-
-    def forward_recover(self, x):
-        return self.recover(x)
-
-    def forward_out(self, x):
-        return self.out(x)
-
     def forward(self, x):
         # dense
-        if self.dense is not None:
-            dense_x = self.forward_dense(x)
-        else:
-            dense_x = x
+        # if self.dense is not None:
+        #     dense_x = self.forward_dense(x)
+        # else:
+        #     dense_x = x
 
         # noise
-        noise_x = self.noise(dense_x)
+        noise_x = self.noise(x)
 
         # sparse
-        sparse_x = self.forward_sparse(noise_x)
+        sparse_x = self.sparse(noise_x)
 
         # 1. recover
         if self.recover is not None:
-            recover_x = self.forward_recover(sparse_x)
+            recover_x = self.recover(sparse_x)
         else:
-            recover_x = dense_x.detach()
+            recover_x = x.detach()
 
         # 2. out
         if self.out is not None:
-            out_x = self.forward_out(sparse_x)
+            out_x = self.out(sparse_x)
         else:
             out_x = sparse_x
 
         return (
-            dense_x,
+            x,
             sparse_x,
             recover_x,
             out_x,
@@ -305,10 +293,10 @@ class SparseNet(pl.LightningModule):
         Specify the hyperparams for this LightningModule
         """
         parser = ArgumentParser(parents=[parent_parser])
-        parser.add_argument("--dense", type=str, choices=["bow", "bert"], default=None)
-        parser.add_argument(
-            "--fine_tune", "-ft", action="store_true", help="Fine-tune dense models"
-        )
+        # parser.add_argument("--dense", type=str, choices=["bow", "bert"], default=None)
+        # parser.add_argument(
+        #     "--fine_tune", "-ft", action="store_true", help="Fine-tune dense models"
+        # )
         parser.add_argument("--n", type=int, nargs="+", required=True)
         parser.add_argument("--k", type=int, nargs="+", required=True)
         parser.add_argument("--output_size", "-out", type=int, required=True)
