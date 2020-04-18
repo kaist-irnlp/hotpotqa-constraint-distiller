@@ -18,7 +18,7 @@ from textblob import TextBlob
 # from transformers.tokenization_auto import AutoTokenizer
 from trec2019.utils.dense import *
 
-root_dir = str(Path(__file__).parent.absolute())
+_root_dir = str(Path(__file__).parent.absolute())
 
 
 class News20EmbeddingDataset(Dataset):
@@ -95,7 +95,7 @@ class TripleEmbeddingDataset(Dataset):
 
 if __name__ == "__main__":
     # tokenizer
-    # vocab_path = Path(root_dir) / "../vocab/vocab.json.gz"
+    # vocab_path = Path(_root_dir) / "../vocab/vocab.json.gz"
     # with gzip.open(vocab_path, "rt", encoding="utf-8") as f:
     #     vocab_counts = Counter(json.load(f))
     # vocab = Vocab(

@@ -1,6 +1,6 @@
 from textblob import TextBlob
-from transformers import BertModel, DistilBertModel, AutoModel
-from transformers import BertTokenizer, DistilBertTokenizer, AutoTokenizer
+# from transformers import BertModel, DistilBertModel, AutoModel
+# from transformers import BertTokenizer, DistilBertTokenizer, AutoTokenizer
 import gensim
 from gensim.models.keyedvectors import KeyedVectors
 import torch
