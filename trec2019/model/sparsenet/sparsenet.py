@@ -277,7 +277,7 @@ class SparseNet(pl.LightningModule):
         }
 
     def test_epoch_end(self, outputs):
-        avg_val_loss = torch.stack([out["test_loss"] for out in outputs]).mean()
+        avg_test_loss = torch.stack([out["test_loss"] for out in outputs]).mean()
 
         tqdm_dict = {"test_loss": avg_test_loss}
 
