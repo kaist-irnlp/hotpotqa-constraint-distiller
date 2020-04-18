@@ -96,11 +96,11 @@ class SparseNet(pl.LightningModule):
             self.recover = None
 
     def _init_sparse_layer(self):
-        self.hparams.input_size = (
-            self.dense.get_dim()
-            if (self.dense is not None)
-            else self._train_dataset.get_dim()
-        )  # TODO: is it safe to do this automatically?
+        # self.hparams.input_size = (
+        #     self.dense.get_dim()
+        #     if (self.dense is not None)
+        #     else self._train_dataset.get_dim()
+        # )  # TODO: is it safe to do this automatically?
         self.sparse = SparseNetModel(self.hparams)
 
     # def _init_dense_layer(self):
@@ -127,8 +127,8 @@ class SparseNet(pl.LightningModule):
         return torch.norm(x1 - x2, dim=1)
 
     def loss_recovery(self, input, target):
-        # return F.mse_loss(input, target)
-        return F.l1_loss(input, target)
+        return F.mse_loss(input, target)
+        # return F.l1_loss(input, target)
 
     def loss_triplet(self, q, pos, neg):
         distance_p = self.distance(q, pos)
@@ -142,14 +142,20 @@ class SparseNet(pl.LightningModule):
         # input.shape() == (minibatch, C)
         return F.cross_entropy(input, target)
 
-    def loss(self, dense_x, sparse_x, recover_x, out_x, target):
+    def loss(self, outputs):
         # task loss
-        loss_task = self.loss_classify(out_x, target.type(torch.long))
+        loss_task = self.loss_classify(
+            outputs["out"], outputs["target"].type(torch.long)
+        )
 
         # recovery loss
-        loss_recovery = self.loss_recovery(recover_x, dense_x)
+        loss_recovery = self.loss_recovery(outputs["recover"], outputs["x"])
 
-        return loss_recovery + loss_task, loss_task, loss_recovery
+        return {
+            "total": loss_task + loss_recovery,
+            "task": loss_task,
+            "recovery": loss_recovery,
+        }
 
     def forward(self, x):
         # dense
@@ -176,68 +182,54 @@ class SparseNet(pl.LightningModule):
         else:
             out_x = sparse_x
 
-        return (
-            x,
-            sparse_x,
-            recover_x,
-            out_x,
-        )
+        features = {"x": x, "sparse": sparse_x, "recover": recover_x, "out": out_x}
+        return features
 
     def training_step(self, batch, batch_idx):
         text, target = batch["data"], batch["target"]
 
         # forward
-        dense_x, sparse_x, recover_x, out_x = self.forward(text)
+        features = self.forward(text)
 
-        return dense_x, sparse_x, recover_x, out_x, target
+        return {**features, "target": target}
 
     def training_step_end(self, outputs):
-        # aggregate (dp or ddp)
-        dense_x, sparse_x, recover_x, out_x, target = outputs
-
         # loss
-        loss_total, loss_task, loss_recovery = self.loss(
-            dense_x, sparse_x, recover_x, out_x, target
-        )
+        losses = self.loss(outputs)
 
         # logging
         tqdm_dict = {
-            "train_loss": loss_total,
-            "loss_task": loss_task,
-            "loss_recovery": loss_recovery,
+            "train_loss": losses["total"],
+            "loss_task": losses["task"],
+            "loss_recovery": losses["recovery"],
         }
         log_dict = {
             "train_losses": tqdm_dict,
         }
-        return {"loss": loss_total, "progress_bar": tqdm_dict, "log": log_dict}
+        return {"loss": losses["total"], "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_step(self, batch, batch_idx):
         text, target = batch["data"], batch["target"]
 
         # forward
-        dense_x, sparse_x, recover_x, out_x = self.forward(text)
+        features = self.forward(text)
 
-        return dense_x, sparse_x, recover_x, out_x, target
+        return {**features, "target": target}
 
     def validation_step_end(self, outputs):
-        # aggregate (dp or ddp)
-        dense_x, sparse_x, recover_x, out_x, target = outputs
-
         # loss
-        loss_total, loss_task, loss_recovery = self.loss(
-            dense_x, sparse_x, recover_x, out_x, target
-        )
+        losses = self.loss(outputs)
 
         # logging
         tqdm_dict = {
-            "val_loss": loss_total,
-            "loss_task": loss_task,
-            "loss_recovery": loss_recovery,
+            "val_loss": losses["total"],
+            "loss_task": losses["task"],
+            "loss_recovery": losses["recovery"],
         }
         log_dict = {
             "val_losses": tqdm_dict,
         }
-        return {"val_loss": loss_total, "progress_bar": tqdm_dict, "log": log_dict}
+        return {"val_loss": losses["total"], "progress_bar": tqdm_dict, "log": log_dict}
 
     def validation_epoch_end(self, outputs):
         avg_val_loss = torch.stack([out["val_loss"] for out in outputs]).mean()
@@ -256,6 +248,49 @@ class SparseNet(pl.LightningModule):
 
         return results
 
+    ###
+    def test_step(self, batch, batch_idx):
+        text, target = batch["data"], batch["target"]
+
+        # forward
+        features = self.forward(text)
+
+        return {**features, "target": target}
+
+    def test_step_end(self, outputs):
+        # loss
+        losses = self.loss(outputs)
+
+        # logging
+        tqdm_dict = {
+            "test_loss": losses["total"],
+            "loss_task": losses["task"],
+            "loss_recovery": losses["recovery"],
+        }
+        log_dict = {
+            "test_losses": tqdm_dict,
+        }
+        return {
+            "test_loss": losses["total"],
+            "progress_bar": tqdm_dict,
+            "log": log_dict,
+        }
+
+    def test_epoch_end(self, outputs):
+        avg_val_loss = torch.stack([out["test_loss"] for out in outputs]).mean()
+
+        tqdm_dict = {"test_loss": avg_test_loss}
+
+        results = {
+            "test_loss": avg_test_loss,
+            "progress_bar": tqdm_dict,
+            "log": {"test_loss": avg_test_loss},
+        }
+
+        return results
+
+    ###
+
     def on_epoch_end(self):
         self.apply(updateBoostStrength)
         self.apply(rezeroWeights)
@@ -266,12 +301,11 @@ class SparseNet(pl.LightningModule):
             self.parameters(), lr=self.hparams.learning_rate
         )
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        # return [optimizer], [scheduler]
-        return optimizer
+        return [optimizer], [scheduler]
 
     def _get_dataloader(self, dataset, test=False):
         # dist_sampler = DistributedSampler(dataset) if self.use_ddp else None
-        batch_size = self.hparams.batch_size if not test else 10000
+        batch_size = self.hparams.batch_size if not test else 2 ** 13
         num_workers = int(cpu_count() / 2) or 1
         # num_workers = 0
         return DataLoader(
@@ -284,8 +318,8 @@ class SparseNet(pl.LightningModule):
     def val_dataloader(self):
         return self._get_dataloader(self._val_dataset)
 
-    # def test_dataloader(self):
-    #     return self._get_dataloader(self._test_dataset, test=True)
+    def test_dataloader(self):
+        return self._get_dataloader(self._test_dataset, test=True)
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -299,7 +333,8 @@ class SparseNet(pl.LightningModule):
         # )
         parser.add_argument("--n", type=int, nargs="+", required=True)
         parser.add_argument("--k", type=int, nargs="+", required=True)
-        parser.add_argument("--output_size", "-out", type=int, required=True)
+        parser.add_argument("--input_size", type=int, required=True)
+        parser.add_argument("--output_size", type=int, required=True)
         parser.add_argument("--k_inference_factor", default=1.5, type=float)
         parser.add_argument("--weight_sparsity", default=0.3, type=float)
         parser.add_argument("--boost_strength", default=1.5, type=float)
