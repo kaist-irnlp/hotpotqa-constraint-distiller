@@ -321,7 +321,6 @@ class SparseNet(pl.LightningModule):
         parser.add_argument("--dropout", default=0.2, type=float)
         parser.add_argument("--use_batch_norm", default=True, type=bool)
         parser.add_argument("--use_recovery_loss", action="store_true")
-        parser.add_argument("--normalize_weights", action="store_true")
 
         return parser
 
@@ -395,8 +394,8 @@ class SparseNetModel(nn.Module):
                 linear = nn.Linear(input_size, n[i])
                 if 0 < weight_sparsity[i] < 1:
                     linear = SparseWeights(linear, weightSparsity=weight_sparsity[i])
-                    if normalize_weights:
-                        linear.apply(normalizeSparseWeights)
+                    # if normalize_weights:
+                    linear.apply(normalizeSparseWeights)
                 self.layers.add_module(f"sparse_{i+1}", linear)
 
                 if use_batch_norm:
