@@ -175,7 +175,7 @@ class SparseNet(pl.LightningModule):
         if self.recover is not None:
             recover_x = self.recover(sparse_x)
         else:
-            recover_x = x.detach()
+            recover_x = x
 
         # 2. out
         if self.out is not None:
