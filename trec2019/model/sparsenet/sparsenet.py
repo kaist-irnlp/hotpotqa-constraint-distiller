@@ -87,7 +87,7 @@ class SparseNet(pl.LightningModule):
         final_output_size = self.hparams.output_size
         if final_output_size and (final_output_size > 0):
             self.out = nn.Sequential(
-                nn.Linear(self.sparse.output_size, final_output_size), nn.ReLU()
+                nn.Linear(self.sparse.output_size, final_output_size)
             )
         else:
             self.out = None
