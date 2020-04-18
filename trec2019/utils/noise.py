@@ -28,7 +28,7 @@ class GaussianNoise(nn.Module):
             network to generate vectors with smaller values.
     """
 
-    def __init__(self, sigma=0.1, is_relative_detach=True):
+    def __init__(self, sigma=0.4, is_relative_detach=True):
         super().__init__()
         self.sigma = sigma
         self.is_relative_detach = is_relative_detach
@@ -65,7 +65,7 @@ class MaskingNoise(Noise):
     def __init__(self):
         super().__init__()
 
-    def add_noise(self, X, fraction=0.2):
+    def add_noise(self, X, fraction=0.25):
         assert fraction >= 0 and fraction <= 1
         X_noisy = np.copy(X)
         nrow, ncol = X.shape
