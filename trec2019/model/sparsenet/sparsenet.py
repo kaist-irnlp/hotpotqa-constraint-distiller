@@ -31,8 +31,9 @@ from multiprocessing import cpu_count
 from pathlib import Path
 from torch.utils.data import DataLoader
 from torchtext.vocab import Vocab, SubwordVocab
-from transformers import BertModel
-from transformers import BertTokenizer
+
+# from transformers import BertModel
+# from transformers import BertTokenizer
 import gensim
 from gensim.models.keyedvectors import KeyedVectors
 import numpy as np
@@ -42,7 +43,8 @@ from trec2019.model.sparsenet.helper import *
 from collections import OrderedDict
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
 from trec2019.utils.dataset import *
-from trec2019.utils.dense import *
+
+# from trec2019.utils.dense import *
 from trec2019.utils.noise import *
 
 logging.basicConfig(
@@ -58,9 +60,8 @@ class SparseNet(pl.LightningModule):
         super(SparseNet, self).__init__()
         self.hparams = hparams
 
-        # dataset
+        # dataset type
         self._dset_cls = News20EmbeddingDataset
-        self._noise_cls = GaussianNoise
 
         # network
         self._init_dataset()
@@ -80,12 +81,14 @@ class SparseNet(pl.LightningModule):
         self._init_recover_layer()
 
     def _init_noise_layer(self):
-        self.noise = self._noise_cls()
+        self.noise = GaussianNoise()
 
     def _init_out_layer(self):
         final_output_size = self.hparams.output_size
         if final_output_size and (final_output_size > 0):
-            self.out = nn.Linear(self.sparse.output_size, final_output_size)
+            self.out = nn.Sequential(
+                nn.Linear(self.sparse.output_size, final_output_size), nn.ReLU()
+            )
         else:
             self.out = None
 
@@ -145,6 +148,7 @@ class SparseNet(pl.LightningModule):
 
     def loss(self, outputs):
         # task loss
+        print(outputs["out"])
         loss_task = self.loss_classify(
             outputs["out"], outputs["target"].type(torch.long)
         )
