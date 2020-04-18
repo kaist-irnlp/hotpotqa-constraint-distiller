@@ -148,7 +148,6 @@ class SparseNet(pl.LightningModule):
 
     def loss(self, outputs):
         # task loss
-        print(outputs["out"])
         loss_task = self.loss_classify(
             outputs["out"], outputs["target"].type(torch.long)
         )
@@ -171,6 +170,7 @@ class SparseNet(pl.LightningModule):
 
         # noise
         noise_x = self.noise(x)
+        # noise_x = x
 
         # sparse
         sparse_x = self.sparse(noise_x)
