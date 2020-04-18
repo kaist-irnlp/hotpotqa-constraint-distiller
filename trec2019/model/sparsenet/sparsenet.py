@@ -58,18 +58,19 @@ class SparseNet(pl.LightningModule):
         super(SparseNet, self).__init__()
         self.hparams = hparams
 
+        # dataset
+        self._dset_cls = News20EmbeddingDataset
+        self._noise_cls = GaussianNoise
+
         # network
         self._init_dataset()
         self._init_layers()
 
-        # dataset
-        self.dset_cls = News20EmbeddingDataset
-
     def _init_dataset(self):
         data_dir = Path(self.hparams.data_dir)
-        self._train_dataset = self.dset_cls(str(data_dir / "train.zarr"))
-        self._val_dataset = self.dset_cls(str(data_dir / "val.zarr"))
-        self._test_dataset = self.dset_cls(str(data_dir / "test.zarr"))
+        self._train_dataset = self._dset_cls(str(data_dir / "train.zarr"))
+        self._val_dataset = self._dset_cls(str(data_dir / "val.zarr"))
+        self._test_dataset = self._dset_cls(str(data_dir / "test.zarr"))
 
     def _init_layers(self):
         # self._init_dense_layer()
@@ -79,7 +80,7 @@ class SparseNet(pl.LightningModule):
         self._init_recover_layer()
 
     def _init_noise_layer(self):
-        self.noise = GaussianNoise()
+        self.noise = self._noise_cls()
 
     def _init_out_layer(self):
         final_output_size = self.hparams.output_size
@@ -343,7 +344,8 @@ class SparseNet(pl.LightningModule):
         )
         parser.add_argument("--dropout", default=0.2, type=float)
         parser.add_argument("--use_batch_norm", default=True, type=bool)
-        parser.add_argument("--use_recovery_loss", action="store_true")
+        parser.add_argument("--use_recovery_loss", action="store_true", default=True)
+        parser.add_argument("--normalize_weights", action="store_true", default=True)
 
         return parser
 
