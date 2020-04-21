@@ -156,7 +156,7 @@ class SparseNet(pl.LightningModule):
         loss_recovery = self.loss_recovery(outputs["recover"], outputs["x"])
 
         return {
-            "total": loss_task + loss_recovery,
+            "total": loss_task + (self.hparams.ratio_recovery_loss * loss_recovery),
             "task": loss_task,
             "recovery": loss_recovery,
         }
@@ -352,8 +352,18 @@ class SparseNet(pl.LightningModule):
         )
         parser.add_argument("--dropout", default=0.2, type=float)
         parser.add_argument("--use_batch_norm", default=True, type=bool)
-        parser.add_argument("--use_recovery_loss", action="store_true", default=True)
-        parser.add_argument("--normalize_weights", action="store_true", default=True)
+        parser.add_argument(
+            "--no_recovery_loss", dest="use_recovery_loss", action="store_false"
+        )
+        parser.add_argument(
+            "--no_normalize_weights", dest="normalize_weights", action="store_false"
+        )
+        parser.add_argument(
+            "--ratio_recovery_loss",
+            default=1.0,
+            type=float,
+            help="Ratio for recovery loss",
+        )
 
         return parser
 
