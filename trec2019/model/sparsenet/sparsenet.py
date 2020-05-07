@@ -85,7 +85,7 @@ class SparseNet(pl.LightningModule):
 
     def _init_out_layer(self):
         output_size = self.hparams.output_size
-        if output_size and (output_size > 0):
+        if (output_size and (output_size > 0)) and (self.hparams.use_task_loss):
             self.out = nn.Sequential(nn.Linear(self.sparse.output_size, output_size))
         else:
             self.out = None
@@ -148,16 +148,19 @@ class SparseNet(pl.LightningModule):
         # return F.l1_loss(input, target)
 
     def loss(self, outputs):
-        # task loss
-        loss_task = self.loss_classify(
-            outputs["out"], outputs["target"].type(torch.long)
-        )
+        target = outputs["target"].type(torch.long)
 
         # autoencoder loss * lambda
         loss_recovery = (
             self.loss_recovery(outputs["recover"], outputs["x"])
             * self.hparams.recovery_loss_ratio
         )
+
+        # task loss
+        if self.hparams.use_task_loss:
+            loss_task = self.loss_classify(outputs["out"], target)
+        else:
+            loss_task = torch.zeros((1,)).type_as(loss_recovery)
 
         return {
             "total": loss_task + loss_recovery,
@@ -188,7 +191,7 @@ class SparseNet(pl.LightningModule):
         if self.out is not None:
             out_x = self.out(sparse_x)
         else:
-            out_x = sparse_x
+            out_x = torch.zeros_like(x)
 
         features = {"x": x, "sparse": sparse_x, "recover": recover_x, "out": out_x}
         return features
@@ -357,6 +360,9 @@ class SparseNet(pl.LightningModule):
         parser.add_argument("--use_batch_norm", default=True, type=bool)
         parser.add_argument(
             "--use_recovery_loss", dest="use_recovery_loss", action="store_true"
+        )
+        parser.add_argument(
+            "--no_task_loss", dest="use_task_loss", action="store_false"
         )
         parser.add_argument(
             "--no_normalize_weights", dest="normalize_weights", action="store_false"
