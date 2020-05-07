@@ -58,7 +58,7 @@ def main(hparams):
         fast_dev_run=hparams.fast_dev_run,
         amp_level=hparams.amp_level,
         precision=hparams.precision,
-        early_stop_callback=early_stop_callback,
+        # early_stop_callback=early_stop_callback,
         benchmark=True,
         profiler=profiler,
     )
@@ -99,8 +99,8 @@ if __name__ == "__main__":
 
     # model params
     parser.add_argument("--data_dir", type=str, default=None, required=True)
-    parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--epochs", dest="max_nb_epochs", default=500, type=int)
+    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--epochs", dest="max_nb_epochs", default=1000, type=int)
     parser.add_argument("--learning_rate", "-lr", default=0.0002, type=float)
 
     # add default & model params
