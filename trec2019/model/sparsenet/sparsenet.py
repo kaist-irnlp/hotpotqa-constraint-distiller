@@ -84,11 +84,9 @@ class SparseNet(pl.LightningModule):
         self.noise = GaussianNoise()
 
     def _init_out_layer(self):
-        final_output_size = self.hparams.output_size
-        if final_output_size and (final_output_size > 0):
-            self.out = nn.Sequential(
-                nn.Linear(self.sparse.output_size, final_output_size)
-            )
+        output_size = self.hparams.output_size
+        if output_size and (output_size > 0):
+            self.out = nn.Sequential(nn.Linear(self.sparse.output_size, output_size))
         else:
             self.out = None
 
@@ -124,15 +122,12 @@ class SparseNet(pl.LightningModule):
     #     else:
     #         raise ValueError(f"Unknown dense model: {dense_model}")
 
+    # Task Loss: Ranking
     def distance(self, x1, x2):
         # TODO: 고민 필요
         # return torch.pow(a - b, 2).sum(1).sqrt()
         # return F.cosine_similarity(a, b)
         return torch.norm(x1 - x2, dim=1)
-
-    def loss_recovery(self, input, target):
-        return F.mse_loss(input, target)
-        # return F.l1_loss(input, target)
 
     def loss_triplet(self, q, pos, neg):
         distance_p = self.distance(q, pos)
@@ -142,9 +137,15 @@ class SparseNet(pl.LightningModule):
             distance_n, distance_p, torch.ones_like(distance_p), margin=1.0
         )
 
+    # Task Loss: Classification
     def loss_classify(self, input, target):
         # input.shape() == (minibatch, C)
         return F.cross_entropy(input, target)
+
+    # Autoencoder Loss (For generalizability)
+    def loss_recovery(self, input, target):
+        return F.mse_loss(input, target)
+        # return F.l1_loss(input, target)
 
     def loss(self, outputs):
         # task loss
@@ -152,11 +153,14 @@ class SparseNet(pl.LightningModule):
             outputs["out"], outputs["target"].type(torch.long)
         )
 
-        # recovery loss
-        loss_recovery = self.loss_recovery(outputs["recover"], outputs["x"])
+        # autoencoder loss * lambda
+        loss_recovery = (
+            self.loss_recovery(outputs["recover"], outputs["x"])
+            * self.hparams.recovery_loss_ratio
+        )
 
         return {
-            "total": loss_task + (self.hparams.recovery_loss_ratio * loss_recovery),
+            "total": loss_task + loss_recovery,
             "task": loss_task,
             "recovery": loss_recovery,
         }
@@ -170,7 +174,6 @@ class SparseNet(pl.LightningModule):
 
         # noise
         noise_x = self.noise(x)
-        # noise_x = x
 
         # sparse
         sparse_x = self.sparse(noise_x)
