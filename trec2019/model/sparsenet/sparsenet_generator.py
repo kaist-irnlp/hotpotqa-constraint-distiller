@@ -10,6 +10,7 @@ from trec2019.model.sparsenet import SparseNet
 from trec2019.utils.dataset import *
 from trec2019.utils.dense import *
 
+OUT_DIR = "./generated"
 
 parser = ArgumentParser()
 parser.add_argument("--model_dir", type=str, required=True)
@@ -28,11 +29,16 @@ def load_datasets(data_dir, ext=".zarr"):
     return datasets
 
 
-def open_zarr(model_name, fname, out_dir="generated/"):
-    out_dir = Path(out_dir)
-    if not out_dir.exists():
-        out_dir.mkdir(parents=True)
-    out_path = (out_dir / model_name / fname).with_suffix(".zarr")
+def get_out_dir(model_name, out_dir=OUT_DIR):
+    _out_dir = Path(out_dir) / model_name
+    if not _out_dir.exists():
+        _out_dir.mkdir(parents=True)
+    return _out_dir
+
+
+def open_zarr(model_name, fname, out_dir=OUT_DIR):
+    _out_dir = get_out_dir(model_name, out_dir)
+    out_path = (_out_dir / fname).with_suffix(".zarr")
     store = zarr.DirectoryStore(str(out_path))
     z = zarr.group(store=store)
     return z
@@ -56,15 +62,19 @@ def get_model(model_dir):
 
 
 if __name__ == "__main__":
-    model_dir = args.model_dir
+    model_dir = Path(args.model_dir)
     data_dir = Path(args.data_dir)
 
     # load model
     model = get_model(model_dir)
+    model_name = model_dir.stem
+
+    # get out dir
+    out_dir = get_out_dir(model_name)
 
     # copy hparams
     hparams = vars(model.hparams)
-    with open(data_dir / "hparams.json", "w", encoding="utf-8") as f:
+    with open(out_dir / "hparams.json", "w", encoding="utf-8") as f:
         json.dump(hparams, f, indent=4, ensure_ascii=False)
 
     # generate
@@ -74,7 +84,7 @@ if __name__ == "__main__":
         # init storage
         init_shape = (args.batch_size, model.hparams.n[-1])
         chunks = (1024, None)
-        z = open_zarr(Path(model_dir).stem, dset_name)
+        z = open_zarr(model_name, dset_name)
         z_index = z.zeros("index", shape=init_shape[0], chunks=chunks[0])
         z_target = z.zeros("target", shape=init_shape[0], chunks=chunks[0])
         z_out = z.zeros("out", shape=init_shape, chunks=chunks)
