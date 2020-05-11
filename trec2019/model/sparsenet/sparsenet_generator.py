@@ -1,5 +1,6 @@
 from pathlib import Path
 import torch
+import json
 from torch.utils.data import Dataset, ConcatDataset, IterableDataset, DataLoader
 from argparse import ArgumentParser
 from tqdm import tqdm
@@ -17,7 +18,7 @@ parser.add_argument("--batch_size", type=int, default=8192)
 args = parser.parse_args()
 
 
-def load_datasets(data_dir, ext=".zarr.zip"):
+def load_datasets(data_dir, ext=".zarr"):
     data_dir = Path(data_dir)
     fnames = ["train", "test", "val"]
     datasets = {}
@@ -27,11 +28,11 @@ def load_datasets(data_dir, ext=".zarr.zip"):
     return datasets
 
 
-def get_zarr(fname, out_dir="output/"):
+def open_zarr(model_name, fname, out_dir="generated/"):
     out_dir = Path(out_dir)
     if not out_dir.exists():
         out_dir.mkdir(parents=True)
-    out_path = (out_dir / fname).with_suffix(".zarr")
+    out_path = (out_dir / model_name / fname).with_suffix(".zarr")
     store = zarr.DirectoryStore(str(out_path))
     z = zarr.group(store=store)
     return z
@@ -56,10 +57,15 @@ def get_model(model_dir):
 
 if __name__ == "__main__":
     model_dir = args.model_dir
-    data_dir = args.data_dir
+    data_dir = Path(args.data_dir)
 
     # load model
     model = get_model(model_dir)
+
+    # copy hparams
+    hparams = vars(model.hparams)
+    with open(data_dir / "hparams.json", "w", encoding="utf-8") as f:
+        json.dump(hparams, f, indent=4, ensure_ascii=False)
 
     # generate
     datasets = load_datasets(data_dir)
@@ -68,7 +74,7 @@ if __name__ == "__main__":
         # init storage
         init_shape = (args.batch_size, model.hparams.n[-1])
         chunks = (1024, None)
-        z = get_zarr(dset_name)
+        z = open_zarr(Path(model_dir).stem, dset_name)
         z_index = z.zeros("index", shape=init_shape[0], chunks=chunks[0])
         z_target = z.zeros("target", shape=init_shape[0], chunks=chunks[0])
         z_out = z.zeros("out", shape=init_shape, chunks=chunks)
@@ -81,7 +87,7 @@ if __name__ == "__main__":
                 row["data"],
                 row["target"].numpy(),
             )
-            out = model.forward_sparse(data).numpy()
+            out = model.sparse(data).numpy()
             # write when batch_idx = 0 else append
             if i == 0:
                 n_rows = len(index)
