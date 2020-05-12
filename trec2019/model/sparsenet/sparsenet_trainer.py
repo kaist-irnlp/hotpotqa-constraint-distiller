@@ -14,11 +14,13 @@ from test_tube import Experiment
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
+import pytorch_lightning as pl
 from trec2019.utils.dense import *
 from trec2019.model.sparsenet import SparseNet
 import hydra
 from omegaconf import DictConfig
 import os
+
 
 # cudnn.benchmark = True
 root_dir = str(Path(__file__).parent.absolute())
@@ -30,6 +32,17 @@ def main_hydra(cfg: DictConfig) -> None:
     print(os.getcwd())
 
 
+class MyPrintingCallback(pl.Callback):
+    def on_init_start(self, trainer):
+        print("Starting to init trainer!")
+
+    def on_init_end(self, trainer):
+        print("trainer is init now")
+
+    def on_train_end(self, trainer, pl_module):
+        print("do something when training ends")
+
+
 def main(hparams):
     # init model
     model = SparseNet(hparams)
@@ -38,8 +51,12 @@ def main(hparams):
     early_stop_callback = EarlyStopping(
         monitor="val_loss", patience=10, verbose=True, mode="min"
     )
+
     # logger
     tt_logger = loggers.TestTubeLogger(root_dir)
+
+    # custom callbacks
+    callbacks = [MyPrintingCallback()]
 
     # profile
     if hparams.profile:
@@ -50,7 +67,6 @@ def main(hparams):
     # train
     # trainer = Trainer.from_argparse_args(hparams)
     trainer = Trainer(
-        logger=tt_logger,
         default_save_path=root_dir,
         max_nb_epochs=hparams.max_nb_epochs,
         gpus=hparams.gpus,
@@ -58,9 +74,11 @@ def main(hparams):
         fast_dev_run=hparams.fast_dev_run,
         amp_level=hparams.amp_level,
         precision=hparams.precision,
-        # early_stop_callback=early_stop_callback,
         benchmark=True,
         profiler=profiler,
+        # logger=tt_logger,
+        # early_stop_callback=early_stop_callback,
+        callbacks=callbacks,
     )
     trainer.fit(model)
 
