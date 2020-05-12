@@ -11,6 +11,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning import loggers
 from test_tube import HyperOptArgumentParser
 from test_tube import Experiment
+from pytorch_lightning.loggers import NeptuneLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
@@ -54,6 +55,14 @@ def main(hparams):
 
     # logger
     tt_logger = loggers.TestTubeLogger(root_dir)
+
+    neptune_logger = NeptuneLogger(
+        api_key="ANONYMOUS",
+        project_name="shared/pytorch-lightning-integration",
+        experiment_name="default",  # Optional,
+        params={"max_epochs": 10},  # Optional,
+        tags=["pytorch-lightning", "mlp"],  # Optional,
+    )
 
     # custom callbacks
     callbacks = [MyPrintingCallback()]
