@@ -28,6 +28,7 @@ setup(
         "fse",
         "cython",
         "torch_optimizer",
+        "neptune-client",
     ],
     packages=find_packages(),
 )

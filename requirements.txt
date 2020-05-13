@@ -18,3 +18,4 @@ hydra-core
 fse
 cython
 torch_optimizer
+neptune-client
