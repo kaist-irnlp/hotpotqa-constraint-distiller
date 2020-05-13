@@ -35,13 +35,16 @@ def main_hydra(cfg: DictConfig) -> None:
 
 class DummyCallback(pl.Callback):
     def on_init_start(self, trainer):
-        print("Starting to init trainer!")
+        pass
 
     def on_init_end(self, trainer):
-        print("trainer is init now")
+        pass
 
     def on_train_end(self, trainer, pl_module):
-        print("do something when training ends")
+        # save the last checkpoint
+        trainer.save_checkpoint(
+            Path(trainer.ckpt_path) / f"last_epoch={trainer.current_epoch}.ckpt"
+        )
 
 
 def main(hparams):
@@ -71,21 +74,21 @@ def main(hparams):
     # checkpoint_dir = "sparsenet/checkpoints"
     # checkpoint_callback = ModelCheckpoint(filepath=checkpoint_dir)
 
-#     >>> class LitModel(LightningModule):
-# ...     def training_step(self, batch, batch_idx):
-# ...         # log metrics
-# ...         self.logger.experiment.log_metric('acc_train', ...)
-# ...         # log images
-# ...         self.logger.experiment.log_image('worse_predictions', ...)
-# ...         # log model checkpoint
-# ...         self.logger.experiment.log_artifact('model_checkpoint.pt', ...)
-# ...         self.logger.experiment.whatever_neptune_supports(...)
-# ...
-# ...     def any_lightning_module_function_or_hook(self):
-# ...         self.logger.experiment.log_metric('acc_train', ...)
-# ...         self.logger.experiment.log_image('worse_predictions', ...)
-# ...         self.logger.experiment.log_artifact('model_checkpoint.pt', ...)
-# ...         self.logger.experiment.whatever_neptune_supports(...)
+    #     >>> class LitModel(LightningModule):
+    # ...     def training_step(self, batch, batch_idx):
+    # ...         # log metrics
+    # ...         self.logger.experiment.log_metric('acc_train', ...)
+    # ...         # log images
+    # ...         self.logger.experiment.log_image('worse_predictions', ...)
+    # ...         # log model checkpoint
+    # ...         self.logger.experiment.log_artifact('model_checkpoint.pt', ...)
+    # ...         self.logger.experiment.whatever_neptune_supports(...)
+    # ...
+    # ...     def any_lightning_module_function_or_hook(self):
+    # ...         self.logger.experiment.log_metric('acc_train', ...)
+    # ...         self.logger.experiment.log_image('worse_predictions', ...)
+    # ...         self.logger.experiment.log_artifact('model_checkpoint.pt', ...)
+    # ...         self.logger.experiment.whatever_neptune_supports(...)
 
     # custom callbacks
     callbacks = [DummyCallback()]
