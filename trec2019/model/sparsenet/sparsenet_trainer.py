@@ -98,6 +98,13 @@ def main(hparams):
     )
     trainer.fit(model)
 
+    # upload the best model then stop
+    checkpoints_dir = (
+        root_dir / "default" / neptune_logger.experiment.id / "checkpoints"
+    )
+    neptune_logger.experiment.log_artifact(str(checkpoints_dir))
+    neptune_logger.experiment.stop()
+
 
 # if __name__ == "__main__":
 #     main_hydra()
