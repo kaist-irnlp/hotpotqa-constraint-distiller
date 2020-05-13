@@ -318,7 +318,7 @@ class SparseNet(pl.LightningModule):
         # dist_sampler = DistributedSampler(dataset) if self.use_ddp else None
         batch_size = self.hparams.batch_size if not test else 2 ** 13
         num_workers = int(cpu_count() / 2) or 1
-        pin_memory = False
+        pin_memory = True
         # num_workers = 0
         return DataLoader(
             dataset,

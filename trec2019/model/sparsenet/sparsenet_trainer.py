@@ -64,6 +64,22 @@ def main(hparams):
         tags=["pytorch-lightning", "mlp"],  # Optional,
     )
 
+#     >>> class LitModel(LightningModule):
+# ...     def training_step(self, batch, batch_idx):
+# ...         # log metrics
+# ...         self.logger.experiment.log_metric('acc_train', ...)
+# ...         # log images
+# ...         self.logger.experiment.log_image('worse_predictions', ...)
+# ...         # log model checkpoint
+# ...         self.logger.experiment.log_artifact('model_checkpoint.pt', ...)
+# ...         self.logger.experiment.whatever_neptune_supports(...)
+# ...
+# ...     def any_lightning_module_function_or_hook(self):
+# ...         self.logger.experiment.log_metric('acc_train', ...)
+# ...         self.logger.experiment.log_image('worse_predictions', ...)
+# ...         self.logger.experiment.log_artifact('model_checkpoint.pt', ...)
+# ...         self.logger.experiment.whatever_neptune_supports(...)
+
     # custom callbacks
     callbacks = [MyPrintingCallback()]
 
