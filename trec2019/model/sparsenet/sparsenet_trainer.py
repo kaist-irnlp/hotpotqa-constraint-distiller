@@ -24,7 +24,7 @@ import os
 
 
 # cudnn.benchmark = True
-root_dir = str(Path(__file__).parent.absolute())
+root_dir = Path(__file__).parent.absolute()
 
 
 @hydra.main(config_path="conf/config.yaml")
@@ -33,7 +33,7 @@ def main_hydra(cfg: DictConfig) -> None:
     print(os.getcwd())
 
 
-class MyPrintingCallback(pl.Callback):
+class DummyCallback(pl.Callback):
     def on_init_start(self, trainer):
         print("Starting to init trainer!")
 
@@ -54,18 +54,20 @@ def main(hparams):
     )
 
     # logger
-    tt_logger = loggers.TestTubeLogger(root_dir, name=hparams.experiment_name)
-    tb_logger = loggers.TensorBoardLogger(root_dir, name=hparams.experiment_name)
+    # log_dir = str(root_dir / "lightning_logs")/
+    tt_logger = loggers.TestTubeLogger("tb_logs", name=hparams.experiment_name)
+    tb_logger = loggers.TensorBoardLogger("tb_logs", name=hparams.experiment_name)
     neptune_logger = NeptuneLogger(
         project_name="kjang0517/sparsenet",
         experiment_name=hparams.experiment_name,  # Optional,
         params=vars(hparams),  # Optional,
         tags=hparams.tags,  # Optional,
+        close_after_fit=False,
     )
-    logger_list = [tb_logger, neptune_logger]
+    logger_list = [neptune_logger]
 
     # custom callbacks
-    callbacks = [MyPrintingCallback()]
+    callbacks = [DummyCallback()]
 
     # profile
     if hparams.profile:
@@ -76,7 +78,6 @@ def main(hparams):
     # train
     # trainer = Trainer.from_argparse_args(hparams)
     trainer = Trainer(
-        default_save_path=root_dir,
         max_nb_epochs=hparams.max_nb_epochs,
         gpus=hparams.gpus,
         distributed_backend=hparams.distributed_backend,
@@ -90,6 +91,8 @@ def main(hparams):
         callbacks=callbacks,
     )
     trainer.fit(model)
+
+    return neptune_logger
 
 
 # if __name__ == "__main__":
@@ -131,4 +134,4 @@ if __name__ == "__main__":
     hparams = parser.parse_args()
 
     # run fixed params
-    main(hparams)
+    neptune_logger = main(hparams)
