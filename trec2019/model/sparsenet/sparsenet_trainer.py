@@ -24,7 +24,7 @@ import os
 
 
 # cudnn.benchmark = True
-root_dir = str(Path(__file__).parent.absolute())
+root_dir = Path(__file__).parent.absolute()
 
 
 @hydra.main(config_path="conf/config.yaml")
@@ -33,7 +33,7 @@ def main_hydra(cfg: DictConfig) -> None:
     print(os.getcwd())
 
 
-class MyPrintingCallback(pl.Callback):
+class DummyCallback(pl.Callback):
     def on_init_start(self, trainer):
         print("Starting to init trainer!")
 
@@ -50,19 +50,26 @@ def main(hparams):
 
     # early stop
     early_stop_callback = EarlyStopping(
-        monitor="val_loss", patience=10, verbose=True, mode="min"
+        monitor="val_loss", patience=20, verbose=True, mode="min"
     )
 
     # logger
-    tt_logger = loggers.TestTubeLogger(root_dir)
-
+    # log_dir = str(root_dir / "lightning_logs")/
+    # tt_logger = loggers.TestTubeLogger("tb_logs", name=hparams.experiment_name)
+    # tb_logger = loggers.TensorBoardLogger("tb_logs")
     neptune_logger = NeptuneLogger(
-        api_key="ANONYMOUS",
-        project_name="shared/pytorch-lightning-integration",
-        experiment_name="default",  # Optional,
-        params={"max_epochs": 10},  # Optional,
-        tags=["pytorch-lightning", "mlp"],  # Optional,
+        project_name="kjang0517/news20",
+        experiment_name=hparams.experiment_name,  # Optional,
+        params=vars(hparams),  # Optional,
+        tags=hparams.tags,  # Optional,
+        close_after_fit=False,
+        upload_source_files=["*.py"],
     )
+    # logger_list = [neptune_logger, tb_logger]
+
+    # checkpoint
+    # checkpoint_dir = "sparsenet/checkpoints"
+    # checkpoint_callback = ModelCheckpoint(filepath=checkpoint_dir)
 
 #     >>> class LitModel(LightningModule):
 # ...     def training_step(self, batch, batch_idx):
@@ -81,7 +88,7 @@ def main(hparams):
 # ...         self.logger.experiment.whatever_neptune_supports(...)
 
     # custom callbacks
-    callbacks = [MyPrintingCallback()]
+    callbacks = [DummyCallback()]
 
     # profile
     if hparams.profile:
@@ -92,7 +99,7 @@ def main(hparams):
     # train
     # trainer = Trainer.from_argparse_args(hparams)
     trainer = Trainer(
-        default_save_path=root_dir,
+        default_root_dir=root_dir,
         max_nb_epochs=hparams.max_nb_epochs,
         gpus=hparams.gpus,
         distributed_backend=hparams.distributed_backend,
@@ -101,11 +108,19 @@ def main(hparams):
         precision=hparams.precision,
         benchmark=True,
         profiler=profiler,
-        # logger=tt_logger,
-        # early_stop_callback=early_stop_callback,
+        logger=neptune_logger,
+        early_stop_callback=early_stop_callback,
+        # checkpoint_callback=checkpoint_callback,
         callbacks=callbacks,
     )
     trainer.fit(model)
+
+    # upload the best model then stop
+    checkpoints_dir = (
+        root_dir / "default" / neptune_logger.experiment.id / "checkpoints"
+    )
+    neptune_logger.experiment.log_artifact(str(checkpoints_dir))
+    neptune_logger.experiment.stop()
 
 
 # if __name__ == "__main__":
@@ -114,11 +129,10 @@ def main(hparams):
 
 
 if __name__ == "__main__":
-    # parser = HyperOptArgumentParser(strategy="grid_search", add_help=False)
     parser = ArgumentParser(add_help=False)
 
-    # parser = Trainer.add_argparse_args(parser)
-
+    parser.add_argument("--experiment_name", "-e", type=str, default="default")
+    parser.add_argument("--tags", "-t", type=str, nargs="+")
     parser.add_argument("--distributed_backend", "-d", type=str, default=None)
     parser.add_argument("--profile", action="store_true")
     parser.add_argument("--gpus", default=None, type=str)
@@ -135,19 +149,13 @@ if __name__ == "__main__":
         help="runs validation after 1 training step",
     )
 
-    # searchable params
-    # parser.opt_list("--n", type=int, tunable=True, options=[10000])
-    # parser.opt_list("--k", type=int, tunable=True, options=[500, 1000])
-    # parser.opt_list("--batch_size", type=int, tunable=True, options=[64])
-
     # model params
     parser.add_argument("--data_dir", type=str, default=None, required=True)
     parser.add_argument("--batch_size", type=int, default=128)
-    parser.add_argument("--epochs", dest="max_nb_epochs", default=5000, type=int)
+    parser.add_argument("--epochs", dest="max_nb_epochs", default=1000, type=int)
     parser.add_argument("--learning_rate", "-lr", default=0.0002, type=float)
 
     # add default & model params
-
     parser = SparseNet.add_model_specific_args(parser)
 
     # parse params
@@ -155,8 +163,3 @@ if __name__ == "__main__":
 
     # run fixed params
     main(hparams)
-
-    # run trials of random search over the hyperparams
-    # N_TRIALS = 3
-    # for hparam_trial in hparams.trials(N_TRIALS):
-    #     main(hparam_trial)
