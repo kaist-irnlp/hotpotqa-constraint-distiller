@@ -62,7 +62,8 @@ def main(hparams):
         experiment_name=hparams.experiment_name,  # Optional,
         params=vars(hparams),  # Optional,
         tags=hparams.tags,  # Optional,
-        # close_after_fit=False,
+        close_after_fit=False,
+        upload_source_files=["*.py"],
     )
     # logger_list = [neptune_logger, tb_logger]
 
