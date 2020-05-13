@@ -50,22 +50,21 @@ def main(hparams):
 
     # early stop
     early_stop_callback = EarlyStopping(
-        monitor="val_loss", patience=10, verbose=True, mode="min"
+        monitor="val_loss", patience=20, verbose=True, mode="min"
     )
 
     # logger
     # log_dir = str(root_dir / "lightning_logs")/
     # tt_logger = loggers.TestTubeLogger("tb_logs", name=hparams.experiment_name)
-    # tb_logger = loggers.TensorBoardLogger("tb_logs", name=hparams.experiment_name)
+    # tb_logger = loggers.TensorBoardLogger("tb_logs")
     neptune_logger = NeptuneLogger(
-        api_key=os.environ["NEPTUNE_API_TOKEN"],
-        project_name="kjang0517/sparsenet",
+        project_name="kjang0517/news20",
         experiment_name=hparams.experiment_name,  # Optional,
         params=vars(hparams),  # Optional,
         tags=hparams.tags,  # Optional,
-        close_after_fit=False,
+        # close_after_fit=False,
     )
-    logger_list = [neptune_logger]
+    # logger_list = [neptune_logger, tb_logger]
 
     # checkpoint
     # checkpoint_dir = "sparsenet/checkpoints"
@@ -93,7 +92,7 @@ def main(hparams):
         benchmark=True,
         profiler=profiler,
         logger=neptune_logger,
-        # early_stop_callback=early_stop_callback,
+        early_stop_callback=early_stop_callback,
         # checkpoint_callback=checkpoint_callback,
         callbacks=callbacks,
     )
