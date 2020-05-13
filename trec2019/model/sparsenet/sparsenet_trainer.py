@@ -55,9 +55,10 @@ def main(hparams):
 
     # logger
     # log_dir = str(root_dir / "lightning_logs")/
-    tt_logger = loggers.TestTubeLogger("tb_logs", name=hparams.experiment_name)
-    tb_logger = loggers.TensorBoardLogger("tb_logs", name=hparams.experiment_name)
+    # tt_logger = loggers.TestTubeLogger("tb_logs", name=hparams.experiment_name)
+    # tb_logger = loggers.TensorBoardLogger("tb_logs", name=hparams.experiment_name)
     neptune_logger = NeptuneLogger(
+        api_key=os.environ["NEPTUNE_API_TOKEN"],
         project_name="kjang0517/sparsenet",
         experiment_name=hparams.experiment_name,  # Optional,
         params=vars(hparams),  # Optional,
@@ -65,6 +66,10 @@ def main(hparams):
         close_after_fit=False,
     )
     logger_list = [neptune_logger]
+
+    # checkpoint
+    # checkpoint_dir = "sparsenet/checkpoints"
+    # checkpoint_callback = ModelCheckpoint(filepath=checkpoint_dir)
 
     # custom callbacks
     callbacks = [DummyCallback()]
@@ -78,6 +83,7 @@ def main(hparams):
     # train
     # trainer = Trainer.from_argparse_args(hparams)
     trainer = Trainer(
+        default_root_dir=root_dir,
         max_nb_epochs=hparams.max_nb_epochs,
         gpus=hparams.gpus,
         distributed_backend=hparams.distributed_backend,
@@ -86,13 +92,12 @@ def main(hparams):
         precision=hparams.precision,
         benchmark=True,
         profiler=profiler,
-        logger=logger_list,
+        logger=neptune_logger,
         # early_stop_callback=early_stop_callback,
+        # checkpoint_callback=checkpoint_callback,
         callbacks=callbacks,
     )
     trainer.fit(model)
-
-    return neptune_logger
 
 
 # if __name__ == "__main__":
@@ -134,4 +139,4 @@ if __name__ == "__main__":
     hparams = parser.parse_args()
 
     # run fixed params
-    neptune_logger = main(hparams)
+    main(hparams)
