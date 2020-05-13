@@ -14,27 +14,36 @@ import torchtext
 from collections import Counter
 import json
 from textblob import TextBlob
+
 # from transformers import BertTokenizer
 # from transformers.tokenization_auto import AutoTokenizer
 from trec2019.utils.dense import *
 
 _root_dir = str(Path(__file__).parent.absolute())
+blosc.use_threads = False
 
 
-class News20EmbeddingDataset(Dataset):
-    def __init__(self, data_path, model="fse"):
+class EmbeddingLabelDataset(Dataset):
+    def __init__(self, data_path):
         super().__init__()
-        self.data = zarr.open(str(data_path), "r")
-        self.embedding = self.data.dense[model]
+        self.data_path = Path(data_path)
+        self.data = None
+        data_name = f"{self.data_path.parent.stem}_{self.data_path.stem}"
+        self.sync = zarr.ProcessSynchronizer(f"sync/{data_name}.sync")
+
+    def _load_data(self):
+        self.data = zarr.open(str(self.data_path), "r", synchronizer=self.sync)
+        self.embedding = self.data.dense["fse"]
         self.label = self.data.label[:]
 
-    def get_dim(self):
-        return self.embedding[0].shape[0]
-
     def __len__(self):
-        return len(self.data.label)
+        data = zarr.open(str(self.data_path), "r", synchronizer=self.sync)
+        return len(data.label)
 
     def __getitem__(self, index):
+        if self.data is None:
+            self._load_data()
+
         emb, lbl = (
             self.embedding[index].astype(np.float32),
             self.label[index],
@@ -104,7 +113,7 @@ if __name__ == "__main__":
     # tokenizer = BowTokenizer(vocab)
     # data
     data_path = "/Users/kyoungrok/Dropbox/Project/naver/experiment/200324_SparseNet/data/news20/train.zarr"
-    dataset = News20EmbeddingDataset(data_path)
+    dataset = EmbeddingLabelDataset(data_path)
     # test
     loader = DataLoader(dataset, batch_size=2)
     for i, sample in enumerate(loader):

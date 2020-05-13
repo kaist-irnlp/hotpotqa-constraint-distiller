@@ -54,15 +54,15 @@ def main(hparams):
     )
 
     # logger
-    tt_logger = loggers.TestTubeLogger(root_dir)
-
+    tt_logger = loggers.TestTubeLogger(root_dir, name=hparams.experiment_name)
+    tb_logger = loggers.TensorBoardLogger(root_dir, name=hparams.experiment_name)
     neptune_logger = NeptuneLogger(
-        api_key="ANONYMOUS",
-        project_name="shared/pytorch-lightning-integration",
-        experiment_name="default",  # Optional,
-        params={"max_epochs": 10},  # Optional,
-        tags=["pytorch-lightning", "mlp"],  # Optional,
+        project_name="kjang0517/sparsenet",
+        experiment_name=hparams.experiment_name,  # Optional,
+        params=vars(hparams),  # Optional,
+        tags=hparams.tags,  # Optional,
     )
+    logger_list = [tb_logger, neptune_logger]
 
     # custom callbacks
     callbacks = [MyPrintingCallback()]
@@ -85,7 +85,7 @@ def main(hparams):
         precision=hparams.precision,
         benchmark=True,
         profiler=profiler,
-        # logger=tt_logger,
+        logger=logger_list,
         # early_stop_callback=early_stop_callback,
         callbacks=callbacks,
     )
@@ -98,11 +98,10 @@ def main(hparams):
 
 
 if __name__ == "__main__":
-    # parser = HyperOptArgumentParser(strategy="grid_search", add_help=False)
     parser = ArgumentParser(add_help=False)
 
-    # parser = Trainer.add_argparse_args(parser)
-
+    parser.add_argument("--experiment_name", "-e", type=str, default="default")
+    parser.add_argument("--tags", "-t", type=str, nargs="+")
     parser.add_argument("--distributed_backend", "-d", type=str, default=None)
     parser.add_argument("--profile", action="store_true")
     parser.add_argument("--gpus", default=None, type=str)
@@ -119,19 +118,13 @@ if __name__ == "__main__":
         help="runs validation after 1 training step",
     )
 
-    # searchable params
-    # parser.opt_list("--n", type=int, tunable=True, options=[10000])
-    # parser.opt_list("--k", type=int, tunable=True, options=[500, 1000])
-    # parser.opt_list("--batch_size", type=int, tunable=True, options=[64])
-
     # model params
     parser.add_argument("--data_dir", type=str, default=None, required=True)
     parser.add_argument("--batch_size", type=int, default=128)
-    parser.add_argument("--epochs", dest="max_nb_epochs", default=5000, type=int)
+    parser.add_argument("--epochs", dest="max_nb_epochs", default=1000, type=int)
     parser.add_argument("--learning_rate", "-lr", default=0.0002, type=float)
 
     # add default & model params
-
     parser = SparseNet.add_model_specific_args(parser)
 
     # parse params
@@ -139,8 +132,3 @@ if __name__ == "__main__":
 
     # run fixed params
     main(hparams)
-
-    # run trials of random search over the hyperparams
-    # N_TRIALS = 3
-    # for hparam_trial in hparams.trials(N_TRIALS):
-    #     main(hparam_trial)

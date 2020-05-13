@@ -61,7 +61,7 @@ class SparseNet(pl.LightningModule):
         self.hparams = hparams
 
         # dataset type
-        self._dset_cls = News20EmbeddingDataset
+        self._dset_cls = EmbeddingLabelDataset
 
         # network
         self._init_dataset()
@@ -217,7 +217,7 @@ class SparseNet(pl.LightningModule):
         log_dict = {
             "train_losses": tqdm_dict,
         }
-        return {"loss": losses["total"], "progress_bar": tqdm_dict, "log": log_dict}
+        return {"loss": losses["total"], "progress_bar": tqdm_dict, "log": tqdm_dict}
 
     def validation_step(self, batch, batch_idx):
         text, target = batch["data"], batch["target"]
@@ -240,7 +240,11 @@ class SparseNet(pl.LightningModule):
         log_dict = {
             "val_losses": tqdm_dict,
         }
-        return {"val_loss": losses["total"], "progress_bar": tqdm_dict, "log": log_dict}
+        return {
+            "val_loss": losses["total"],
+            "progress_bar": tqdm_dict,
+            "log": tqdm_dict,
+        }
 
     def validation_epoch_end(self, outputs):
         avg_val_loss = torch.stack([out["val_loss"] for out in outputs]).mean()
@@ -254,7 +258,7 @@ class SparseNet(pl.LightningModule):
         results = {
             "val_loss": avg_val_loss,
             "progress_bar": tqdm_dict,
-            "log": {"val_loss": avg_val_loss},
+            "log": tqdm_dict,
         }
 
         return results
