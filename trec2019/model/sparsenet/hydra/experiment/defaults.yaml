@@ -1,3 +1,3 @@
 experiment:
-  experiment_name: default
+  name: default
   tags:

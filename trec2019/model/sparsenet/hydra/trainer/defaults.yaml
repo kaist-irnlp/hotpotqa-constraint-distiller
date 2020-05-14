@@ -1,6 +1,0 @@
-train:
-  profile: false
-  fast_dev_run: false
-  batch_size: 64
-  max_nb_epochs: 1000
-  learning_rate: 0.0002

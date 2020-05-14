@@ -1,0 +1,14 @@
+train:
+  # general
+  batch_size: 64
+  max_nb_epochs: 1000
+  learning_rate: 0.0002
+  # device
+  gpus: null
+  distributed_backend: null
+  # precision
+  precision: 32
+  amp_level: null
+  # etc
+  profile: false
+  fast_dev_run: false

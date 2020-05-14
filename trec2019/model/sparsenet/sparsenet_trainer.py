@@ -20,6 +20,7 @@ from trec2019.utils.dense import *
 from trec2019.model.sparsenet import SparseNet
 import hydra
 from omegaconf import DictConfig
+from argparse import Namespace
 import os
 
 
@@ -29,8 +30,11 @@ root_dir = Path(__file__).parent.absolute()
 
 @hydra.main(config_path="hydra/config.yaml")
 def main_hydra(cfg: DictConfig) -> None:
-    print(cfg.pretty())
-    print(os.getcwd())
+    # print(cfg.pretty())
+    # print(os.getcwd())
+    # hparams = Namespace(**cfg)
+    hparams = cfg
+    main(hparams)
 
 
 class UploadFinalCheckpointCallback(pl.Callback):
@@ -62,9 +66,9 @@ def main(hparams):
     # tb_logger = loggers.TensorBoardLogger("tb_logs")
     neptune_logger = NeptuneLogger(
         project_name="kjang0517/news20",
-        experiment_name=hparams.experiment_name,  # Optional,
+        experiment_name=hparams.experiment.name,  # Optional,
         params=vars(hparams),  # Optional,
-        tags=hparams.tags,  # Optional,
+        tags=hparams.experiment.tags,  # Optional,
         close_after_fit=False,
         upload_source_files=["*.py"],
     )
@@ -77,22 +81,19 @@ def main(hparams):
     # custom callbacks
     callbacks = [UploadFinalCheckpointCallback()]
 
-    # profile
-    if hparams.profile:
-        profiler = AdvancedProfiler()
-    else:
-        profiler = None
+    # use profiler
+    profiler = AdvancedProfiler() if hparams.train.profile else None
 
     # train
     # trainer = Trainer.from_argparse_args(hparams)
     trainer = Trainer(
         # default_root_dir=root_dir,
-        max_nb_epochs=hparams.max_nb_epochs,
-        gpus=hparams.gpus,
-        distributed_backend=hparams.distributed_backend,
-        fast_dev_run=hparams.fast_dev_run,
-        amp_level=hparams.amp_level,
-        precision=hparams.precision,
+        max_nb_epochs=hparams.train.max_nb_epochs,
+        gpus=hparams.train.gpus,
+        distributed_backend=hparams.train.distributed_backend,
+        fast_dev_run=hparams.train.fast_dev_run,
+        amp_level=hparams.train.amp_level,
+        precision=hparams.train.precision,
         benchmark=True,
         profiler=profiler,
         logger=neptune_logger,
@@ -115,38 +116,38 @@ if __name__ == "__main__":
     sys.exit(-1)
 
 
-if __name__ == "__main__":
-    parser = ArgumentParser(add_help=False)
+# if __name__ == "__main__":
+#     parser = ArgumentParser(add_help=False)
 
-    parser.add_argument("--experiment_name", "-e", type=str, default="default")
-    parser.add_argument("--tags", "-t", type=str, nargs="+")
-    parser.add_argument("--distributed_backend", "-d", type=str, default=None)
-    parser.add_argument("--profile", action="store_true")
-    parser.add_argument("--gpus", default=None, type=str)
-    parser.add_argument(
-        "--check_grad_nans", dest="check_grad_nans", action="store_true"
-    )
-    parser.add_argument("--amp_level", default=None, type=str)
-    parser.add_argument("--precision", default=32, type=int)
-    parser.add_argument(
-        "--fast_dev_run",
-        dest="fast_dev_run",
-        default=False,
-        action="store_true",
-        help="runs validation after 1 training step",
-    )
+#     parser.add_argument("--experiment_name", "-e", type=str, default="default")
+#     parser.add_argument("--tags", "-t", type=str, nargs="+")
+#     parser.add_argument("--distributed_backend", "-d", type=str, default=None)
+#     parser.add_argument("--profile", action="store_true")
+#     parser.add_argument("--gpus", default=None, type=str)
+#     parser.add_argument(
+#         "--check_grad_nans", dest="check_grad_nans", action="store_true"
+#     )
+#     parser.add_argument("--amp_level", default=None, type=str)
+#     parser.add_argument("--precision", default=32, type=int)
+#     parser.add_argument(
+#         "--fast_dev_run",
+#         dest="fast_dev_run",
+#         default=False,
+#         action="store_true",
+#         help="runs validation after 1 training step",
+#     )
 
-    # model params
-    parser.add_argument("--data_dir", type=str, default=None, required=True)
-    parser.add_argument("--batch_size", type=int, default=128)
-    parser.add_argument("--epochs", dest="max_nb_epochs", default=1000, type=int)
-    parser.add_argument("--learning_rate", "-lr", default=0.0002, type=float)
+#     # model params
+#     parser.add_argument("--data_dir", type=str, default=None, required=True)
+#     parser.add_argument("--batch_size", type=int, default=128)
+#     parser.add_argument("--epochs", dest="max_nb_epochs", default=1000, type=int)
+#     parser.add_argument("--learning_rate", "-lr", default=0.0002, type=float)
 
-    # add default & model params
-    parser = SparseNet.add_model_specific_args(parser)
+#     # add default & model params
+#     parser = SparseNet.add_model_specific_args(parser)
 
-    # parse params
-    hparams = parser.parse_args()
+#     # parse params
+#     hparams = parser.parse_args()
 
-    # run fixed params
-    main(hparams)
+#     # run fixed params
+#     main(hparams)

@@ -38,6 +38,7 @@ import gensim
 from gensim.models.keyedvectors import KeyedVectors
 import numpy as np
 import pandas as pd
+from omegaconf import ListConfig
 
 from trec2019.model.sparsenet.helper import *
 from collections import OrderedDict
@@ -68,7 +69,8 @@ class SparseNet(pl.LightningModule):
         self._init_layers()
 
     def _init_dataset(self):
-        data_dir = Path(self.hparams.data_dir)
+        data_dir = Path(self.hparams.dataset.data_dir)
+
         self._train_dataset = self._dset_cls(str(data_dir / "train.zarr"))
         self._val_dataset = self._dset_cls(str(data_dir / "val.zarr"))
         self._test_dataset = self._dset_cls(str(data_dir / "test.zarr"))
@@ -84,15 +86,15 @@ class SparseNet(pl.LightningModule):
         self.noise = GaussianNoise()
 
     def _init_out_layer(self):
-        output_size = self.hparams.output_size
-        if (output_size and (output_size > 0)) and (self.hparams.use_task_loss):
+        output_size = self.hparams.model.output_size
+        if (output_size and (output_size > 0)) and (self.hparams.model.use_task_loss):
             self.out = nn.Sequential(nn.Linear(self.sparse.output_size, output_size))
         else:
             self.out = None
 
     def _init_recover_layer(self):
-        orig_size = self.hparams.input_size
-        if self.hparams.use_recovery_loss:
+        orig_size = self.hparams.model.input_size
+        if self.hparams.model.use_recovery_loss:
             self.recover = nn.Linear(self.sparse.output_size, orig_size)
         else:
             self.recover = None
@@ -153,11 +155,11 @@ class SparseNet(pl.LightningModule):
         # autoencoder loss * lambda
         loss_recovery = (
             self.loss_recovery(outputs["recover"], outputs["x"])
-            * self.hparams.recovery_loss_ratio
+            * self.hparams.model.recovery_loss_ratio
         )
 
         # task loss
-        if self.hparams.use_task_loss:
+        if self.hparams.model.use_task_loss:
             loss_task = self.loss_classify(outputs["out"], target)
         else:
             loss_task = torch.zeros((1,)).type_as(loss_recovery)
@@ -313,14 +315,14 @@ class SparseNet(pl.LightningModule):
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers
         optimizer = torch_optimizer.RAdam(
-            self.parameters(), lr=self.hparams.learning_rate
+            self.parameters(), lr=self.hparams.train.learning_rate
         )
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return [optimizer], [scheduler]
 
     def _get_dataloader(self, dataset, test=False):
         # dist_sampler = DistributedSampler(dataset) if self.use_ddp else None
-        batch_size = self.hparams.batch_size if not test else 2 ** 13
+        batch_size = self.hparams.train.batch_size if not test else 2 ** 13
         num_workers = int(cpu_count() / 2) or 1
         pin_memory = True
         # num_workers = 0
@@ -394,7 +396,7 @@ class SparseNetModel(nn.Module):
         return self.layers(x)
 
     def _preprocess_params(self):
-        hparams = self.hparams
+        hparams = self.hparams.model
 
         # to make compatible with pytorch-lightning model loading
         if type(hparams.n) is str:
@@ -405,16 +407,16 @@ class SparseNetModel(nn.Module):
             hparams.weight_sparsity = eval(hparams.weight_sparsity)
 
         # validate & clean
-        if type(hparams.n) is not list:
+        if not type(hparams.n) in (list, ListConfig):
             hparams.n = [hparams.n]
             hparams.n = [int(n) for n in hparams.n]
-        if type(hparams.k) is not list:
+        if not type(hparams.k) in (list, ListConfig):
             hparams.k = [hparams.k] * len(hparams.n)
             hparams.k = [int(k) for k in hparams.k]
         assert len(hparams.n) == len(hparams.k)
         for i in range(len(hparams.n)):
             assert hparams.k[i] <= hparams.n[i]
-        if type(hparams.weight_sparsity) is not list:
+        if not type(hparams.weight_sparsity) in (list, ListConfig):
             hparams.weight_sparsity = [hparams.weight_sparsity] * len(hparams.n)
             hparams.weight_sparsity = [float(w) for w in hparams.weight_sparsity]
         assert len(hparams.n) == len(hparams.weight_sparsity)
