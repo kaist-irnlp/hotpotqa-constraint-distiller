@@ -1,0 +1,21 @@
+model:
+  # architecture
+  input_size: 300
+  output_size: 20
+  n:
+    - 2000
+  k:
+    - 40
+  # boosting
+  k_inference_factor: 1.5
+  weight_sparsity: 0.3
+  boost_strength: 1.5
+  boost_strength_factor: 0.85
+  # regularizer
+  dropout: 0.2
+  normalize_weights: true
+  use_batch_norm: true
+  # loss
+  use_task_loss: true
+  use_recovery_loss: false
+  recovery_loss_ratio: 1.0

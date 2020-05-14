@@ -1,6 +1,7 @@
 defaults:
-  - data: news20
-  - model: defaults
+  - experiment: defaults
+  - dataset: news20
+  - model: sparsenet
   - trainer: defaults
   - device: defaults
   - precision: full
