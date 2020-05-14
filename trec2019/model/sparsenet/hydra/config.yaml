@@ -1,0 +1,6 @@
+defaults:
+  - data: news20
+  - model: defaults
+  - trainer: defaults
+  - device: defaults
+  - precision: full

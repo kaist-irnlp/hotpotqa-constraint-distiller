@@ -27,13 +27,13 @@ import os
 root_dir = Path(__file__).parent.absolute()
 
 
-@hydra.main(config_path="conf/config.yaml")
+@hydra.main(config_path="hydra/config.yaml")
 def main_hydra(cfg: DictConfig) -> None:
     print(cfg.pretty())
     print(os.getcwd())
 
 
-class DummyCallback(pl.Callback):
+class UploadFinalCheckpointCallback(pl.Callback):
     def on_init_start(self, trainer):
         pass
 
@@ -74,24 +74,8 @@ def main(hparams):
     # checkpoint_dir = "sparsenet/checkpoints"
     # checkpoint_callback = ModelCheckpoint(filepath=checkpoint_dir)
 
-    #     >>> class LitModel(LightningModule):
-    # ...     def training_step(self, batch, batch_idx):
-    # ...         # log metrics
-    # ...         self.logger.experiment.log_metric('acc_train', ...)
-    # ...         # log images
-    # ...         self.logger.experiment.log_image('worse_predictions', ...)
-    # ...         # log model checkpoint
-    # ...         self.logger.experiment.log_artifact('model_checkpoint.pt', ...)
-    # ...         self.logger.experiment.whatever_neptune_supports(...)
-    # ...
-    # ...     def any_lightning_module_function_or_hook(self):
-    # ...         self.logger.experiment.log_metric('acc_train', ...)
-    # ...         self.logger.experiment.log_image('worse_predictions', ...)
-    # ...         self.logger.experiment.log_artifact('model_checkpoint.pt', ...)
-    # ...         self.logger.experiment.whatever_neptune_supports(...)
-
     # custom callbacks
-    callbacks = [DummyCallback()]
+    callbacks = [UploadFinalCheckpointCallback()]
 
     # profile
     if hparams.profile:
@@ -102,7 +86,7 @@ def main(hparams):
     # train
     # trainer = Trainer.from_argparse_args(hparams)
     trainer = Trainer(
-        default_root_dir=root_dir,
+        # default_root_dir=root_dir,
         max_nb_epochs=hparams.max_nb_epochs,
         gpus=hparams.gpus,
         distributed_backend=hparams.distributed_backend,
@@ -126,9 +110,9 @@ def main(hparams):
     neptune_logger.experiment.stop()
 
 
-# if __name__ == "__main__":
-#     main_hydra()
-#     sys.exit(-1)
+if __name__ == "__main__":
+    main_hydra()
+    sys.exit(-1)
 
 
 if __name__ == "__main__":

@@ -29,6 +29,7 @@ setup(
         "cython",
         "torch_optimizer",
         "neptune-client",
+        "neptune-contrib",
     ],
     packages=find_packages(),
 )

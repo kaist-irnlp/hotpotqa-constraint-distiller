@@ -1,0 +1,6 @@
+model:
+  n:
+    - 2000
+  k:
+    - 40
+  output_size: 20

@@ -19,3 +19,4 @@ fse
 cython
 torch_optimizer
 neptune-client
+neptune-contrib
