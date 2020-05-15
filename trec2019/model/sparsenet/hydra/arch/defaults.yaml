@@ -1,7 +1,5 @@
 # architecture
 model:
-  input_size: 300
-  output_size: 20
   n:
     - 2000
   k:
