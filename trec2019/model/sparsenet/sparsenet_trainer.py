@@ -75,10 +75,16 @@ def main(hparams):
     # log_dir = str(root_dir / "lightning_logs")/
     # tt_logger = loggers.TestTubeLogger("tb_logs", name=hparams.experiment_name)
     # tb_logger = loggers.TensorBoardLogger("tb_logs")
+
+    # flatten hparams
+    log_params = {}
+    for vals in vars(hparams)["content"].values():
+        log_params.update(vals)
+    # init logger
     neptune_logger = NeptuneLogger(
         project_name=hparams.project,
         experiment_name=hparams.experiment.name,  # Optional,
-        params=vars(hparams)["content"],  # Optional,
+        params=log_params,  # Optional,
         tags=list(hparams.experiment.tags),  # Optional,
         close_after_fit=False,
         upload_source_files=["*.py"],
