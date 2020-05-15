@@ -5,4 +5,4 @@ defaults:
   - model: sparsenet
   - arch: defaults
   - train: defaults
-  - objective: defaults
+  - loss: defaults

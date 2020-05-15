@@ -86,7 +86,6 @@ def main(hparams):
 
     # train
     # trainer = Trainer.from_argparse_args(hparams)
-    print(hparams.train.gpus)
     trainer = Trainer(
         # default_root_dir=root_dir,
         max_nb_epochs=hparams.train.max_nb_epochs,
@@ -98,7 +97,7 @@ def main(hparams):
         benchmark=True,
         profiler=profiler,
         logger=neptune_logger,
-        early_stop_callback=early_stop_callback,
+        # early_stop_callback=early_stop_callback,
         # checkpoint_callback=checkpoint_callback,
         callbacks=callbacks,
     )
