@@ -53,13 +53,13 @@ class UploadFinalCheckpointCallback(pl.Callback):
         )
 
 
-class MyNeptuneLogger(NeptuneLogger):
-    @rank_zero_only
-    def log_hyperparams(self, params):
-        params = self._convert_params(params.content)
-        params = self._flatten_dict(params)
-        for key, val in params.items():
-            self.experiment.set_property(f'param__{key}', val)
+# class MyNeptuneLogger(NeptuneLogger):
+#     @rank_zero_only
+#     def log_hyperparams(self, params):
+#         params = self._convert_params(params.content)
+#         params = self._flatten_dict(params)
+#         for key, val in params.items():
+#             self.experiment.set_property(f'param__{key}', val)
 
 
 def main(hparams):
@@ -75,10 +75,10 @@ def main(hparams):
     # log_dir = str(root_dir / "lightning_logs")/
     # tt_logger = loggers.TestTubeLogger("tb_logs", name=hparams.experiment_name)
     # tb_logger = loggers.TensorBoardLogger("tb_logs")
-    neptune_logger = MyNeptuneLogger(
+    neptune_logger = NeptuneLogger(
         project_name=hparams.project,
         experiment_name=hparams.experiment.name,  # Optional,
-        params=vars(hparams),  # Optional,
+        params=vars(hparams["content"]),  # Optional,
         tags=list(hparams.experiment.tags),  # Optional,
         close_after_fit=False,
         upload_source_files=["*.py"],
