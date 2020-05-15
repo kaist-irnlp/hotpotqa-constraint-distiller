@@ -102,7 +102,7 @@ def main(hparams):
     trainer = Trainer(
         # default_root_dir=root_dir,
         max_nb_epochs=hparams.train.max_nb_epochs,
-        gpus=hparams.train.gpus,
+        gpus=str(hparams.train.gpus),
         distributed_backend=hparams.train.distributed_backend,
         fast_dev_run=hparams.train.fast_dev_run,
         amp_level=hparams.train.amp_level,
