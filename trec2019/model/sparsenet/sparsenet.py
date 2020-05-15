@@ -399,7 +399,6 @@ class SparseNetModel(nn.Module):
         hparams = self.hparams
 
         # to make compatible with pytorch-lightning model loading
-        print(vars(hparams.model))
         if type(hparams.arch.n) is str:
             hparams.arch.n = eval(hparams.arch.n)
         if type(hparams.arch.k) is str:

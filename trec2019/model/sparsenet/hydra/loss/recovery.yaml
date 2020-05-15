@@ -1,4 +1,4 @@
 loss:
   use_task_loss: false
-  use_recovery_loss: false
+  use_recovery_loss: true
   recovery_loss_ratio: 1.0
