@@ -1,4 +1,4 @@
-model:
+arch:
   n:
     - 10000
   k:

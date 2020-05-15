@@ -70,7 +70,7 @@ class SparseNet(pl.LightningModule):
 
     def _init_dataset(self):
         data_dir = Path(self.hparams.dataset.data_dir)
-
+        print(data_dir.resolve())
         self._train_dataset = self._dset_cls(str(data_dir / "train.zarr"))
         self._val_dataset = self._dset_cls(str(data_dir / "val.zarr"))
         self._test_dataset = self._dset_cls(str(data_dir / "test.zarr"))
@@ -399,31 +399,32 @@ class SparseNetModel(nn.Module):
         hparams = self.hparams
 
         # to make compatible with pytorch-lightning model loading
-        if type(hparams.model.n) is str:
-            hparams.model.n = eval(hparams.model.n)
-        if type(hparams.model.k) is str:
-            hparams.model.k = eval(hparams.model.k)
+        print(vars(hparams.model))
+        if type(hparams.arch.n) is str:
+            hparams.arch.n = eval(hparams.arch.n)
+        if type(hparams.arch.k) is str:
+            hparams.arch.k = eval(hparams.arch.k)
         if type(hparams.model.weight_sparsity) is str:
             hparams.model.weight_sparsity = eval(hparams.model.weight_sparsity)
 
         # validate & clean
-        if not type(hparams.model.n) in (list, ListConfig):
-            hparams.model.n = [hparams.model.n]
-            hparams.model.n = [int(n) for n in hparams.model.n]
-        if not type(hparams.model.k) in (list, ListConfig):
-            hparams.model.k = [hparams.model.k] * len(hparams.model.n)
-            hparams.model.k = [int(k) for k in hparams.model.k]
-        assert len(hparams.model.n) == len(hparams.model.k)
-        for i in range(len(hparams.model.n)):
-            assert hparams.model.k[i] <= hparams.model.n[i]
+        if not type(hparams.arch.n) in (list, ListConfig):
+            hparams.arch.n = [hparams.arch.n]
+            hparams.arch.n = [int(n) for n in hparams.arch.n]
+        if not type(hparams.arch.k) in (list, ListConfig):
+            hparams.arch.k = [hparams.arch.k] * len(hparams.arch.n)
+            hparams.arch.k = [int(k) for k in hparams.arch.k]
+        assert len(hparams.arch.n) == len(hparams.arch.k)
+        for i in range(len(hparams.arch.n)):
+            assert hparams.arch.k[i] <= hparams.arch.n[i]
         if not type(hparams.model.weight_sparsity) in (list, ListConfig):
             hparams.model.weight_sparsity = [hparams.model.weight_sparsity] * len(
-                hparams.model.n
+                hparams.arch.n
             )
             hparams.model.weight_sparsity = [
                 float(w) for w in hparams.model.weight_sparsity
             ]
-        assert len(hparams.model.n) == len(hparams.model.weight_sparsity)
+        assert len(hparams.arch.n) == len(hparams.model.weight_sparsity)
         for i in range(len(hparams.model.weight_sparsity)):
             assert hparams.model.weight_sparsity[i] >= 0
 
@@ -437,8 +438,8 @@ class SparseNetModel(nn.Module):
         # extract params
         hparams = self.hparams
         input_size = hparams.model.input_size
-        n = hparams.model.n
-        k = hparams.model.k
+        n = hparams.arch.n
+        k = hparams.arch.k
         normalize_weights = self.hparams.model.normalize_weights
         use_batch_norm = self.hparams.model.use_batch_norm
         dropout = self.hparams.model.dropout

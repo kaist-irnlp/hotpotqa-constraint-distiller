@@ -1,0 +1,41 @@
+arch:
+  k:
+  - 25
+  n:
+  - 5000
+dataset:
+  data_dir: /home/kyoungrok/Code/trec-2019-deep-learning/trec2019/model/sparsenet/data/news20
+  name: news20
+experiment:
+  name: news20
+  tags:
+  - news20
+  - sparsenet
+loss:
+  recovery_loss_ratio: 1.0
+  use_recovery_loss: false
+  use_task_loss: true
+model:
+  boost_strength: 1.5
+  boost_strength_factor: 0.85
+  dropout: 0.2
+  input_size: 300
+  k_inference_factor: 1.5
+  name: sparsenet
+  normalize_weights: true
+  output_size: 20
+  tags:
+  - sparsenet
+  use_batch_norm: true
+  weight_sparsity: 0.3
+project: kjang0517/sparsenet
+train:
+  amp_level: O0
+  batch_size: 64
+  distributed_backend: null
+  fast_dev_run: false
+  gpus: 1
+  learning_rate: 0.0002
+  max_nb_epochs: 1000
+  precision: 32
+  profile: false
