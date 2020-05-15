@@ -87,14 +87,14 @@ class SparseNet(pl.LightningModule):
 
     def _init_out_layer(self):
         output_size = self.hparams.model.output_size
-        if (output_size and (output_size > 0)) and (self.hparams.loss.use_task_loss):
+        if (output_size and (output_size > 0)) and (self.hparams.objective.use_task_loss):
             self.out = nn.Sequential(nn.Linear(self.sparse.output_size, output_size))
         else:
             self.out = None
 
     def _init_recover_layer(self):
         orig_size = self.hparams.model.input_size
-        if self.hparams.loss.use_recovery_loss:
+        if self.hparams.objective.use_recovery_loss:
             self.recover = nn.Linear(self.sparse.output_size, orig_size)
         else:
             self.recover = None
@@ -155,11 +155,11 @@ class SparseNet(pl.LightningModule):
         # autoencoder loss * lambda
         loss_recovery = (
             self.loss_recovery(outputs["recover"], outputs["x"])
-            * self.hparams.model.recovery_loss_ratio
+            * self.hparams.objective.recovery_loss_ratio
         )
 
         # task loss
-        if self.hparams.loss.use_task_loss:
+        if self.hparams.objective.use_task_loss:
             loss_task = self.loss_classify(outputs["out"], target)
         else:
             loss_task = torch.zeros((1,)).type_as(loss_recovery)

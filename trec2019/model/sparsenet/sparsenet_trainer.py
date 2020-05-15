@@ -86,6 +86,7 @@ def main(hparams):
 
     # train
     # trainer = Trainer.from_argparse_args(hparams)
+    print(hparams.train.gpus)
     trainer = Trainer(
         # default_root_dir=root_dir,
         max_nb_epochs=hparams.train.max_nb_epochs,
