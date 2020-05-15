@@ -79,7 +79,7 @@ def main(hparams):
     # flatten hparams
     log_params = {}
     for vals in vars(hparams)["content"].values():
-        log_params.update(vals)
+        log_params.update(dict(vals))
     # init logger
     neptune_logger = NeptuneLogger(
         project_name=hparams.project,
