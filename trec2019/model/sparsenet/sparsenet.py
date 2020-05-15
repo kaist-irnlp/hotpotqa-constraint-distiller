@@ -155,7 +155,7 @@ class SparseNet(pl.LightningModule):
         # autoencoder loss * lambda
         loss_recovery = (
             self.loss_recovery(outputs["recover"], outputs["x"])
-            * self.hparams.model.recovery_loss_ratio
+            * self.hparams.loss.recovery_loss_ratio
         )
 
         # task loss
