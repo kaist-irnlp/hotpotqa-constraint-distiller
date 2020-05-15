@@ -22,6 +22,8 @@ import hydra
 from omegaconf import DictConfig
 from argparse import Namespace
 import os
+from pytorch_lightning.utilities import rank_zero_only
+from pytorch_lightning.loggers import LightningLoggerBase
 
 
 # cudnn.benchmark = True
@@ -51,6 +53,15 @@ class UploadFinalCheckpointCallback(pl.Callback):
         )
 
 
+class MyNeptuneLogger(LightningLoggerBase):
+    @rank_zero_only
+    def log_hyperparams(self, params):
+        params = self._convert_params(params.content)
+        params = self._flatten_dict(params)
+        for key, val in params.items():
+            self.experiment.set_property(f'param__{key}', val)
+
+
 def main(hparams):
     # init model
     model = SparseNet(hparams)
@@ -64,7 +75,7 @@ def main(hparams):
     # log_dir = str(root_dir / "lightning_logs")/
     # tt_logger = loggers.TestTubeLogger("tb_logs", name=hparams.experiment_name)
     # tb_logger = loggers.TensorBoardLogger("tb_logs")
-    neptune_logger = NeptuneLogger(
+    neptune_logger = MyNeptuneLogger(
         project_name=hparams.project,
         experiment_name=hparams.experiment.name,  # Optional,
         params=vars(hparams),  # Optional,
