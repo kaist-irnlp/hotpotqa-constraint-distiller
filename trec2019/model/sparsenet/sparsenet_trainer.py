@@ -76,11 +76,11 @@ def main(hparams):
     # tt_logger = loggers.TestTubeLogger("tb_logs", name=hparams.experiment_name)
     # tb_logger = loggers.TensorBoardLogger("tb_logs")
 
-    # flatten hparams
+    # flatten hparams (for hydra only)
     log_params = {}
     for vals in vars(hparams)["content"].values():
-        print(dir(vals))
-        log_params.update(dict(vals.value))
+        log_params.update(vals.value())
+
     # init logger
     neptune_logger = NeptuneLogger(
         project_name=hparams.project,
