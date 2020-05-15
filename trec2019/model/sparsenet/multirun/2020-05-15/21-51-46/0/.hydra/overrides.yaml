@@ -1,0 +1,4 @@
+- arch=1_1
+- loss=task
+- train.gpus=1
+- dataset.data_dir=/home/kyoungrok/Code/trec-2019-deep-learning/trec2019/model/sparsenet/data/news20

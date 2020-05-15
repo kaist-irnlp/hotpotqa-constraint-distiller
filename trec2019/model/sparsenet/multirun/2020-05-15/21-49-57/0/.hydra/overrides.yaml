@@ -1,0 +1,3 @@
+- arch=1_1
+- loss=task
+- train.gpus=1
