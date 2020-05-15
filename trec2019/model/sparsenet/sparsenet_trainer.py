@@ -78,7 +78,7 @@ def main(hparams):
     neptune_logger = NeptuneLogger(
         project_name=hparams.project,
         experiment_name=hparams.experiment.name,  # Optional,
-        params=vars(hparams["content"]),  # Optional,
+        params=vars(hparams)["content"],  # Optional,
         tags=list(hparams.experiment.tags),  # Optional,
         close_after_fit=False,
         upload_source_files=["*.py"],
