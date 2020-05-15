@@ -12,6 +12,7 @@ embedding/
 **/outputs/
 **/*_cache
 *.swp
+**/multirun
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
