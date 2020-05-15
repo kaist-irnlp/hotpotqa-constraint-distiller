@@ -87,14 +87,14 @@ class SparseNet(pl.LightningModule):
 
     def _init_out_layer(self):
         output_size = self.hparams.model.output_size
-        if (output_size and (output_size > 0)) and (self.hparams.model.use_task_loss):
+        if (output_size and (output_size > 0)) and (self.hparams.loss.use_task_loss):
             self.out = nn.Sequential(nn.Linear(self.sparse.output_size, output_size))
         else:
             self.out = None
 
     def _init_recover_layer(self):
         orig_size = self.hparams.model.input_size
-        if self.hparams.model.use_recovery_loss:
+        if self.hparams.loss.use_recovery_loss:
             self.recover = nn.Linear(self.sparse.output_size, orig_size)
         else:
             self.recover = None
@@ -159,7 +159,7 @@ class SparseNet(pl.LightningModule):
         )
 
         # task loss
-        if self.hparams.model.use_task_loss:
+        if self.hparams.loss.use_task_loss:
             loss_task = self.loss_classify(outputs["out"], target)
         else:
             loss_task = torch.zeros((1,)).type_as(loss_recovery)
@@ -396,32 +396,36 @@ class SparseNetModel(nn.Module):
         return self.layers(x)
 
     def _preprocess_params(self):
-        hparams = self.hparams.model
+        hparams = self.hparams
 
         # to make compatible with pytorch-lightning model loading
-        if type(hparams.n) is str:
-            hparams.n = eval(hparams.n)
-        if type(hparams.k) is str:
-            hparams.k = eval(hparams.k)
-        if type(hparams.weight_sparsity) is str:
-            hparams.weight_sparsity = eval(hparams.weight_sparsity)
+        if type(hparams.model.n) is str:
+            hparams.model.n = eval(hparams.model.n)
+        if type(hparams.model.k) is str:
+            hparams.model.k = eval(hparams.model.k)
+        if type(hparams.model.weight_sparsity) is str:
+            hparams.model.weight_sparsity = eval(hparams.model.weight_sparsity)
 
         # validate & clean
-        if not type(hparams.n) in (list, ListConfig):
-            hparams.n = [hparams.n]
-            hparams.n = [int(n) for n in hparams.n]
-        if not type(hparams.k) in (list, ListConfig):
-            hparams.k = [hparams.k] * len(hparams.n)
-            hparams.k = [int(k) for k in hparams.k]
-        assert len(hparams.n) == len(hparams.k)
-        for i in range(len(hparams.n)):
-            assert hparams.k[i] <= hparams.n[i]
-        if not type(hparams.weight_sparsity) in (list, ListConfig):
-            hparams.weight_sparsity = [hparams.weight_sparsity] * len(hparams.n)
-            hparams.weight_sparsity = [float(w) for w in hparams.weight_sparsity]
-        assert len(hparams.n) == len(hparams.weight_sparsity)
-        for i in range(len(hparams.weight_sparsity)):
-            assert hparams.weight_sparsity[i] >= 0
+        if not type(hparams.model.n) in (list, ListConfig):
+            hparams.model.n = [hparams.model.n]
+            hparams.model.n = [int(n) for n in hparams.model.n]
+        if not type(hparams.model.k) in (list, ListConfig):
+            hparams.model.k = [hparams.model.k] * len(hparams.model.n)
+            hparams.model.k = [int(k) for k in hparams.model.k]
+        assert len(hparams.model.n) == len(hparams.model.k)
+        for i in range(len(hparams.model.n)):
+            assert hparams.model.k[i] <= hparams.model.n[i]
+        if not type(hparams.model.weight_sparsity) in (list, ListConfig):
+            hparams.model.weight_sparsity = [hparams.model.weight_sparsity] * len(
+                hparams.model.n
+            )
+            hparams.model.weight_sparsity = [
+                float(w) for w in hparams.model.weight_sparsity
+            ]
+        assert len(hparams.model.n) == len(hparams.model.weight_sparsity)
+        for i in range(len(hparams.model.weight_sparsity)):
+            assert hparams.model.weight_sparsity[i] >= 0
 
         # DEBUG
         print(vars(hparams))
@@ -432,16 +436,18 @@ class SparseNetModel(nn.Module):
     def _init_layers(self):
         # extract params
         hparams = self.hparams
-        input_size = hparams.input_size
-        n = hparams.n
-        k = hparams.k
-        normalize_weights = self.hparams.normalize_weights
-        use_batch_norm = self.hparams.use_batch_norm
-        dropout = self.hparams.dropout
-        weight_sparsity = self.weightSparsity = hparams.weight_sparsity
-        k_inference_factor = self.kInferenceFactor = hparams.k_inference_factor
-        boost_strength = self.boostStrength = hparams.boost_strength
-        boost_strength_factor = self.boostStrengthFactor = hparams.boost_strength_factor
+        input_size = hparams.model.input_size
+        n = hparams.model.n
+        k = hparams.model.k
+        normalize_weights = self.hparams.model.normalize_weights
+        use_batch_norm = self.hparams.model.use_batch_norm
+        dropout = self.hparams.model.dropout
+        weight_sparsity = self.weightSparsity = hparams.model.weight_sparsity
+        k_inference_factor = self.kInferenceFactor = hparams.model.k_inference_factor
+        boost_strength = self.boostStrength = hparams.model.boost_strength
+        boost_strength_factor = (
+            self.boostStrengthFactor
+        ) = hparams.model.boost_strength_factor
 
         # define network
         # TODO: May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)

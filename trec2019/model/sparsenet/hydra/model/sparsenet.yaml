@@ -1,11 +1,7 @@
 model:
-  # architecture
-  input_size: 300
-  output_size: 20
-  n:
-    - 2000
-  k:
-    - 40
+  name: sparsenet
+  tags:
+   - sparsenet
   # boosting
   k_inference_factor: 1.5
   weight_sparsity: 0.3

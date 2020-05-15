@@ -65,10 +65,10 @@ def main(hparams):
     # tt_logger = loggers.TestTubeLogger("tb_logs", name=hparams.experiment_name)
     # tb_logger = loggers.TensorBoardLogger("tb_logs")
     neptune_logger = NeptuneLogger(
-        project_name="kjang0517/news20",
+        project_name=hparams.project,
         experiment_name=hparams.experiment.name,  # Optional,
         params=vars(hparams),  # Optional,
-        tags=hparams.experiment.tags,  # Optional,
+        tags=list(hparams.experiment.tags),  # Optional,
         close_after_fit=False,
         upload_source_files=["*.py"],
     )
