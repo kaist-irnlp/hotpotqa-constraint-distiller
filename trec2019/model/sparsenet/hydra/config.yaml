@@ -4,5 +4,5 @@ defaults:
   - dataset: news20
   - model: sparsenet
   - arch: defaults
-  - loss: defaults
   - train: defaults
+  - loss: defaults

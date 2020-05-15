@@ -8,7 +8,7 @@ train:
   distributed_backend: null
   # precision
   precision: 32
-  amp_level: null
+  amp_level: O0
   # etc
   profile: false
   fast_dev_run: false
