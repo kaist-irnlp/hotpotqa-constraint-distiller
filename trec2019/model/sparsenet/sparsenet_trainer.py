@@ -77,7 +77,7 @@ def main(hparams):
     # tb_logger = loggers.TensorBoardLogger("tb_logs")
 
     # flatten hparams (for hydra only)
-    print(type(hparams))
+    print(type(hparams.content))
 
     # init logger
     neptune_logger = NeptuneLogger(
