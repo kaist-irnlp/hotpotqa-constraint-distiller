@@ -53,7 +53,7 @@ class UploadFinalCheckpointCallback(pl.Callback):
         )
 
 
-class MyNeptuneLogger(LightningLoggerBase):
+class MyNeptuneLogger(NeptuneLogger):
     @rank_zero_only
     def log_hyperparams(self, params):
         params = self._convert_params(params.content)
