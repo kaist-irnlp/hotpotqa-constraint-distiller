@@ -34,7 +34,7 @@ class EmbeddingLabelDataset(Dataset):
 
     def _load_data(self):
         self.data = zarr.open(str(self.data_path), "r", synchronizer=self.sync)
-        self.embedding = self.data[self.arr_path]
+        self.embedding = self.data[self.arr_path][:]
         self.label = self.data.label[:]
 
     def __len__(self):
