@@ -1,4 +1,4 @@
-project: "kjang0517/sparsenet"
+project: "kjang0517/sparsenet-news20-electra"
 defaults:
   - experiment: news20
   - model: sparsenet
