@@ -61,9 +61,8 @@ class UploadFinalCheckpointCallback(pl.Callback):
 #         for key, val in params.items():
 #             self.experiment.set_property(f'param__{key}', val)
 def gather_tags(hparams):
-    groups = ["dataset", "loss", "model"]
     tags = []
-    for grp in groups:
+    for grp in hparams.keys():
         _tags = hparams[grp].get('tags', [])
         tags += list(_tags)
     return tags
