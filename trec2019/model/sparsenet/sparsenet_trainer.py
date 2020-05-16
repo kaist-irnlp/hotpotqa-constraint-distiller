@@ -60,7 +60,13 @@ class UploadFinalCheckpointCallback(pl.Callback):
 #         params = self._flatten_dict(params)
 #         for key, val in params.items():
 #             self.experiment.set_property(f'param__{key}', val)
-
+def gather_tags(hparams):
+    groups = ["dataset", "loss", "model"]
+    tags = []
+    for grp in groups:
+        _tags = hparams[grp].get('tags', [])
+        tags += list(_tags)
+    return tags
 
 def main(hparams):
     # init model
@@ -77,13 +83,15 @@ def main(hparams):
     # tb_logger = loggers.TensorBoardLogger("tb_logs")
 
     # init logger
+    source_files_path = str(Path(hydra.utils.get_original_cwd()) / "*.py")
+    tags = gather_tags(hparams)
     neptune_logger = NeptuneLogger(
         project_name=hparams.project,
         experiment_name=hparams.experiment.name,  # Optional,
         params=hparams.content,  # Optional,
-        tags=list(hparams.experiment.tags),  # Optional,
+        tags=tags,  # Optional,
         close_after_fit=False,
-        upload_source_files=["*.py"],
+        upload_source_files=[source_files_path],
     )
     # logger_list = [neptune_logger, tb_logger]
 
