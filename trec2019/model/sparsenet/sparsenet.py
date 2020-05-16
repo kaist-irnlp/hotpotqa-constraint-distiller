@@ -40,6 +40,7 @@ import numpy as np
 import pandas as pd
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
+from argparse import Namespace
 
 from trec2019.model.sparsenet.helper import *
 from collections import OrderedDict
