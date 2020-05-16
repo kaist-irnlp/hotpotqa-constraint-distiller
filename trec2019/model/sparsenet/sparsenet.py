@@ -69,11 +69,11 @@ class SparseNet(pl.LightningModule):
         self._init_layers()
 
     def _init_dataset(self):
-        data_dir = Path(self.hparams.dataset.data_dir)
-        print(data_dir.resolve())
-        self._train_dataset = self._dset_cls(str(data_dir / "train.zarr"))
-        self._val_dataset = self._dset_cls(str(data_dir / "val.zarr"))
-        self._test_dataset = self._dset_cls(str(data_dir / "test.zarr"))
+        data_path = Path(self.hparams.dataset.path)
+        arr_path = self.hparams.dataset.arr_path
+        self._train_dataset = self._dset_cls(str(data_path / "train.zarr"), arr_path)
+        self._val_dataset = self._dset_cls(str(data_path / "val.zarr"), arr_path)
+        self._test_dataset = self._dset_cls(str(data_path / "test.zarr"), arr_path)
 
     def _init_layers(self):
         # self._init_dense_layer()

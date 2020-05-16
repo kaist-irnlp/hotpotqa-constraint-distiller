@@ -22,6 +22,7 @@ import hydra
 from omegaconf import DictConfig
 from argparse import Namespace
 import os
+from pprint import pprint
 from pytorch_lightning.utilities import rank_zero_only
 from pytorch_lightning.loggers import LightningLoggerBase
 
@@ -62,10 +63,21 @@ class UploadFinalCheckpointCallback(pl.Callback):
 #             self.experiment.set_property(f'param__{key}', val)
 def gather_tags(hparams):
     tags = []
-    for grp in hparams.keys():
-        _tags = hparams[grp].get('tags', [])
-        tags += list(_tags)
+    for grp, val in hparams.items():
+        if isinstance(val, DictConfig):
+            _tags = hparams[grp].get("tags", [])
+            tags += list(_tags)
     return tags
+
+
+def flatten_params(hparams):
+    params = {}
+    for grp, val in hparams.items():
+        if isinstance(val, DictConfig):
+            for k, v in val.items():
+                params[f"{grp}.{k}"] = v
+    return params
+
 
 def main(hparams):
     # init model
@@ -84,10 +96,13 @@ def main(hparams):
     # init logger
     source_files_path = str(Path(hydra.utils.get_original_cwd()) / "*.py")
     tags = gather_tags(hparams)
+    log_params = flatten_params(hparams)
+    pprint(log_params)
+    sys.exit(-1)
     neptune_logger = NeptuneLogger(
         project_name=hparams.project,
         experiment_name=hparams.experiment.name,  # Optional,
-        params=hparams.content,  # Optional,
+        params=log_params,  # Optional,
         tags=tags,  # Optional,
         close_after_fit=False,
         upload_source_files=[source_files_path],

@@ -1,8 +1,8 @@
 project: "kjang0517/sparsenet"
 defaults:
   - experiment: news20
-  - dataset: news20
   - model: sparsenet
   - arch: defaults
+  - dataset: news20-electra
   - train: defaults
   - loss: defaults
