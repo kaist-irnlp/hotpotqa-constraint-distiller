@@ -31,7 +31,6 @@ from multiprocessing import cpu_count
 from pathlib import Path
 from torch.utils.data import DataLoader
 from torchtext.vocab import Vocab, SubwordVocab
-from argparse import Namespace
 
 # from transformers import BertModel
 # from transformers import BertTokenizer
@@ -41,6 +40,7 @@ import numpy as np
 import pandas as pd
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
+from argparse import Namespace
 
 from trec2019.model.sparsenet.helper import *
 from collections import OrderedDict
@@ -61,7 +61,7 @@ _root_dir = str(Path(__file__).parent.absolute())
 class SparseNet(pl.LightningModule):
     def __init__(self, hparams):
         super(SparseNet, self).__init__()
-        self.hparams = Namespace(**OmegaConf.to_container(hparams, resolve=True))
+        self.hparams = hparams
 
         # dataset type
         self._dset_cls = EmbeddingLabelDataset
@@ -409,8 +409,7 @@ class SparseNetModel(nn.Module):
             hparams.model.weight_sparsity = eval(hparams.model.weight_sparsity)
 
         # validate & clean
-        if not type(hparams.model.n) in (list, 
-        from omegaconf import OmegaConf):
+        if not type(hparams.model.n) in (list, ListConfig):
             hparams.model.n = [hparams.model.n]
             hparams.model.n = [int(n) for n in hparams.model.n]
         if not type(hparams.model.k) in (list, ListConfig):
