@@ -20,6 +20,7 @@ from trec2019.utils.dense import *
 from trec2019.model.sparsenet import SparseNet
 import hydra
 from omegaconf import DictConfig
+from omegaconf import OmegaConf
 from argparse import Namespace
 import os
 from pprint import pprint
@@ -64,7 +65,7 @@ class UploadFinalCheckpointCallback(pl.Callback):
 def gather_tags(hparams):
     tags = []
     for grp, val in hparams.items():
-        if isinstance(val, DictConfig):
+        if OmegaConf.is_dict(val):
             _tags = hparams[grp].get("tags", [])
             tags += list(_tags)
     return tags
@@ -73,7 +74,7 @@ def gather_tags(hparams):
 def flatten_params(hparams):
     params = {}
     for grp, val in hparams.items():
-        if isinstance(val, DictConfig):
+        if OmegaConf.is_dict(val):
             for k, v in val.items():
                 params[f"{grp}.{k}"] = v
     return params
