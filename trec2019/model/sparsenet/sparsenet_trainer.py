@@ -97,8 +97,6 @@ def main(hparams):
     source_files_path = str(Path(hydra.utils.get_original_cwd()) / "*.py")
     tags = gather_tags(hparams)
     log_params = flatten_params(hparams)
-    pprint(log_params)
-    sys.exit(-1)
     neptune_logger = NeptuneLogger(
         project_name=hparams.project,
         experiment_name=hparams.experiment.name,  # Optional,
