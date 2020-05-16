@@ -57,7 +57,6 @@ def get_model(model_dir):
     model = SparseNet.load_from_checkpoint(
         model_path, tags_csv=tags_path, map_location=device
     )
-    model.freeze()
     return model
 
 
@@ -97,7 +96,9 @@ if __name__ == "__main__":
                 row["data"],
                 row["target"].numpy(),
             )
-            out = model.sparse(data).numpy()
+            # infer
+            with torch.no_grad():
+                out = model.sparse(data).numpy()
             # write when batch_idx = 0 else append
             if i == 0:
                 n_rows = len(index)
