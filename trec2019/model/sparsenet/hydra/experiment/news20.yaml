@@ -1,5 +1,2 @@
 experiment:
  name: news20
- tags:
-  - news20
-  - sparsenet
