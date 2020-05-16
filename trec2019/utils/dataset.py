@@ -24,16 +24,17 @@ blosc.use_threads = False
 
 
 class EmbeddingLabelDataset(Dataset):
-    def __init__(self, data_path):
+    def __init__(self, data_path, arr_path):
         super().__init__()
         self.data_path = Path(data_path)
         self.data = None
+        self.arr_path = arr_path
         data_name = f"{self.data_path.parent.stem}_{self.data_path.stem}"
         self.sync = zarr.ProcessSynchronizer(f"sync/{data_name}.sync")
 
     def _load_data(self):
         self.data = zarr.open(str(self.data_path), "r", synchronizer=self.sync)
-        self.embedding = self.data.dense["fse"]
+        self.embedding = self.data[self.arr_path]
         self.label = self.data.label[:]
 
     def __len__(self):
