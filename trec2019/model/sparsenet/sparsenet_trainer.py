@@ -65,7 +65,7 @@ class UploadFinalCheckpointCallback(pl.Callback):
 def gather_tags(hparams):
     tags = []
     for grp, val in hparams.items():
-        if OmegaConf.is_dict(val):
+        if isinstance(val, DictConfig):
             _tags = hparams[grp].get("tags", [])
             tags += list(_tags)
     return tags
@@ -74,7 +74,7 @@ def gather_tags(hparams):
 def flatten_params(hparams):
     params = {}
     for grp, val in hparams.items():
-        if OmegaConf.is_dict(val):
+        if isinstance(val, DictConfig):
             for k, v in val.items():
                 params[f"{grp}.{k}"] = v
     return params
