@@ -6,5 +6,5 @@ dataset:
     - news20
     - fse
 model:
-  input_size: 768
+  input_size: 300
   output_size: 20
