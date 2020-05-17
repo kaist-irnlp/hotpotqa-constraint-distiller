@@ -3,6 +3,6 @@ defaults:
   - experiment: news20
   - model: sparsenet
   - trial: defaults
-  - dataset: news20-fse
+  - dataset: news20
   - train: defaults
   - loss: defaults
