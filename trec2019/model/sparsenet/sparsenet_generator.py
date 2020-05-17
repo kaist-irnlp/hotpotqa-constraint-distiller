@@ -25,7 +25,7 @@ def load_datasets(data_dir, ext=".zarr"):
     datasets = {}
     for f in fnames:
         fpath = (data_dir / f).with_suffix(ext)
-        datasets[f] = News20EmbeddingDataset(fpath)
+        datasets[f] = EmbeddingLabelDataset(fpath)
     return datasets
 
 
@@ -57,6 +57,8 @@ def get_model(model_dir):
     model = SparseNet.load_from_checkpoint(
         model_path, tags_csv=tags_path, map_location=device
     )
+    # make eval mode
+    model.eval()
     return model
 
 
