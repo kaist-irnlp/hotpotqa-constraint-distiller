@@ -7,10 +7,10 @@ model:
   output_size: 20
   # boosting
   k_inference_factor: 1.5
-  weight_sparsity: 0.3
+  weight_sparsity: 0.8
   boost_strength: 1.5
   boost_strength_factor: 0.85
   # regularizer
-  dropout: 0.0
+  dropout: 0.2
   normalize_weights: false
   use_batch_norm: true
