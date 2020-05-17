@@ -26,30 +26,53 @@ blosc.use_threads = False
 class EmbeddingLabelDataset(Dataset):
     def __init__(self, data_path, arr_path):
         super().__init__()
-        self.data_path = Path(data_path)
-        self.data = None
+        self.data_path = data_path
         self.arr_path = arr_path
-        data_name = f"{self.data_path.parent.stem}_{self.data_path.stem}"
-        self.sync = zarr.ProcessSynchronizer(f"sync/{data_name}.sync")
+        self._load_data()
 
     def _load_data(self):
-        self.data = zarr.open(str(self.data_path), "r", synchronizer=self.sync)
-        self.embedding = self.data[self.arr_path]
-        self.label = self.data.label[:]
+        data = zarr.open(str(self.data_path), "r")
+        self.embedding = data[self.arr_path][:]
+        self.label = data.label[:]
 
     def __len__(self):
-        data = zarr.open(str(self.data_path), "r", synchronizer=self.sync)
-        return len(data.label)
+        return len(self.label)
 
     def __getitem__(self, index):
-        if self.data is None:
-            self._load_data()
-
         emb, lbl = (
             self.embedding[index].astype(np.float32),
             self.label[index],
         )
         return {"index": index, "data": emb, "target": lbl}
+
+
+# class EmbeddingLabelDataset(Dataset):
+#     def __init__(self, data_path, arr_path):
+#         super().__init__()
+#         self.data_path = Path(data_path)
+#         self.data = None
+#         self.arr_path = arr_path
+#         data_name = f"{self.data_path.parent.stem}_{self.data_path.stem}"
+#         self.sync = zarr.ProcessSynchronizer(f"sync/{data_name}.sync")
+
+#     def _load_data(self):
+#         self.data = zarr.open(str(self.data_path), "r", synchronizer=self.sync)
+#         self.embedding = self.data[self.arr_path]
+#         self.label = self.data.label[:]
+
+#     def __len__(self):
+#         data = zarr.open(str(self.data_path), "r", synchronizer=self.sync)
+#         return len(data.label)
+
+#     def __getitem__(self, index):
+#         if self.data is None:
+#             self._load_data()
+
+#         emb, lbl = (
+#             self.embedding[index].astype(np.float32),
+#             self.label[index],
+#         )
+#         return {"index": index, "data": emb, "target": lbl}
 
 
 class News20Dataset(Dataset):
