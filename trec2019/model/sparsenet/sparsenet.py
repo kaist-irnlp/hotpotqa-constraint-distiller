@@ -88,9 +88,11 @@ class SparseNet(pl.LightningModule):
         self.noise = GaussianNoise()
 
     def _init_out_layer(self):
-        output_size = self.hparams.model.output_size
-        if (output_size and (output_size > 0)) and (self.hparams.loss.use_task_loss):
-            self.out = nn.Sequential(nn.Linear(self.sparse.output_size, output_size))
+        D_in = self.sparse.output_size
+        H = self.sparse.output_size
+        D_out = self.hparams.model.output_size
+        if (D_out is not None) and (self.hparams.loss.use_task_loss):
+            self.out = nn.Sequential(nn.Linear(D_in, H), nn.ReLU(), nn.Linear(H, D_out))
         else:
             self.out = None
 
