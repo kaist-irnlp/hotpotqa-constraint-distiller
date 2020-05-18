@@ -82,7 +82,7 @@ class Distiller(pl.LightningModule):
 
     def _init_task_layer(self):
         if self.hparams.use_task_loss:
-            self.task = self.task_cls()
+            self.task = self.task_cls(self.hparams)
         else:
             self.task = None
         # D_in = self.sparse.output_size
