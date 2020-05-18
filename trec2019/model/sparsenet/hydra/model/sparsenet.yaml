@@ -12,5 +12,5 @@ model:
   boost_strength_factor: 0.85
   # regularizer
   dropout: 0.0
-  normalize_weights: false
+  normalize_weights: true
   use_batch_norm: true
