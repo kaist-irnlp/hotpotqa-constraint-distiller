@@ -1,44 +1,35 @@
 """
 This file runs the main training/val loop, etc... using Lightning Trainer    
 """
+import os
 from argparse import ArgumentParser
 from pathlib import Path
 from collections import Counter
+from pprint import pprint
 
 import torch
 from torch.backends import cudnn
+import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning import loggers
-from test_tube import HyperOptArgumentParser
-from test_tube import Experiment
 from pytorch_lightning.loggers import NeptuneLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
-import pytorch_lightning as pl
-from trec2019.utils.dense import *
-from trec2019.model.sparsenet import SparseNet
+from pytorch_lightning.utilities import rank_zero_only
+from pytorch_lightning.loggers import LightningLoggerBase
+from test_tube import HyperOptArgumentParser
+from test_tube import Experiment
 import hydra
 from omegaconf import DictConfig
 from omegaconf import OmegaConf
-from argparse import Namespace
-import os
-from pprint import pprint
-from pytorch_lightning.utilities import rank_zero_only
-from pytorch_lightning.loggers import LightningLoggerBase
+
+# project specific
+from trec2019.model.sparsenet import SparseNet
+from trec2019.utils.dataset import EmbeddingLabelDataset
 
 
-# cudnn.benchmark = True
 root_dir = Path(__file__).parent.absolute()
-
-
-@hydra.main(config_path="hydra/config.yaml")
-def main_hydra(cfg: DictConfig) -> None:
-    # print(cfg.pretty())
-    # print(os.getcwd())
-    # hparams = Namespace(**cfg)
-    hparams = cfg
-    main(hparams)
 
 
 class UploadFinalCheckpointCallback(pl.Callback):
@@ -55,13 +46,6 @@ class UploadFinalCheckpointCallback(pl.Callback):
         )
 
 
-# class MyNeptuneLogger(NeptuneLogger):
-#     @rank_zero_only
-#     def log_hyperparams(self, params):
-#         params = self._convert_params(params.content)
-#         params = self._flatten_dict(params)
-#         for key, val in params.items():
-#             self.experiment.set_property(f'param__{key}', val)
 def gather_tags(hparams):
     tags = []
     for grp, val in hparams.items():
@@ -78,6 +62,29 @@ def flatten_params(hparams):
             for k, v in val.items():
                 params[f"{grp}.{k}"] = v
     return params
+
+
+def get_data_cls(name):
+    if name in ("news20"):
+        return EmbeddingLabelDataset
+    else:
+        raise ValueError("Unkonwn dataset")
+
+
+def get_sparse_cls(name):
+    if name == "sparsenet":
+        return SparseNet
+    else:
+        raise ValueError("Unknown sparse model")
+
+
+@hydra.main(config_path="conf/config.yaml")
+def main_hydra(cfg: DictConfig) -> None:
+    # print(cfg.pretty())
+    # print(os.getcwd())
+    # hparams = Namespace(**cfg)
+    hparams = cfg
+    main(hparams)
 
 
 def main(hparams):
@@ -145,41 +152,3 @@ def main(hparams):
 
 if __name__ == "__main__":
     main_hydra()
-    sys.exit(-1)
-
-
-# if __name__ == "__main__":
-#     parser = ArgumentParser(add_help=False)
-
-#     parser.add_argument("--experiment_name", "-e", type=str, default="default")
-#     parser.add_argument("--tags", "-t", type=str, nargs="+")
-#     parser.add_argument("--distributed_backend", "-d", type=str, default=None)
-#     parser.add_argument("--profile", action="store_true")
-#     parser.add_argument("--gpus", default=None, type=str)
-#     parser.add_argument(
-#         "--check_grad_nans", dest="check_grad_nans", action="store_true"
-#     )
-#     parser.add_argument("--amp_level", default=None, type=str)
-#     parser.add_argument("--precision", default=32, type=int)
-#     parser.add_argument(
-#         "--fast_dev_run",
-#         dest="fast_dev_run",
-#         default=False,
-#         action="store_true",
-#         help="runs validation after 1 training step",
-#     )
-
-#     # model params
-#     parser.add_argument("--data_dir", type=str, default=None, required=True)
-#     parser.add_argument("--batch_size", type=int, default=128)
-#     parser.add_argument("--epochs", dest="max_nb_epochs", default=1000, type=int)
-#     parser.add_argument("--learning_rate", "-lr", default=0.0002, type=float)
-
-#     # add default & model params
-#     parser = SparseNet.add_model_specific_args(parser)
-
-#     # parse params
-#     hparams = parser.parse_args()
-
-#     # run fixed params
-#     main(hparams)
