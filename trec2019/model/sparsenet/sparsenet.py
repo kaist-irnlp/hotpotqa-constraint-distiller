@@ -317,8 +317,8 @@ class SparseNet(pl.LightningModule):
     ###
 
     def on_epoch_end(self):
-        self.apply(updateBoostStrength)
-        self.apply(rezeroWeights)
+        if isinstance(self.sparse, SparseNetModel):
+            self.sparse.update_boost_weights()
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers
@@ -402,6 +402,10 @@ class SparseNetModel(nn.Module):
 
     def forward(self, x):
         return self.layers(x)
+
+    def update_boost_weights(self):
+        self.apply(updateBoostStrength)
+        self.apply(rezeroWeights)
 
     def _preprocess_params(self):
         hparams = self.hparams
