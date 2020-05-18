@@ -40,7 +40,7 @@ _root_dir = str(Path(__file__).parent.absolute())
 
 
 class Distiller(pl.LightningModule):
-    def __init__(self, hparams, sparse_cls, data_cls, data_path, arr_path):
+    def __init__(self, hparams, sparse_cls, task_cls, data_cls, data_path, arr_path):
         super(Distiller, self).__init__()
         self.hparams = hparams
 
@@ -51,6 +51,9 @@ class Distiller(pl.LightningModule):
 
         # sparse type
         self.sparse_cls = sparse_cls
+
+        # task type
+        self.task_cls = task_cls
 
         # network
         self._init_dataset()
@@ -71,20 +74,24 @@ class Distiller(pl.LightningModule):
         # self._init_dense_layer()
         self._init_noise_layer()
         self._init_sparse_layer()
-        self._init_out_layer()
+        self._init_task_layer()
         self._init_recover_layer()
 
     def _init_noise_layer(self):
         self.noise = GaussianNoise()
 
-    def _init_out_layer(self):
-        D_in = self.sparse.output_size
-        H = 100
-        D_out = self.hparams.model.output_size
-        if (D_out is not None) and (self.hparams.loss.use_task_loss):
-            self.out = nn.Sequential(nn.Linear(D_in, H), nn.ReLU(), nn.Linear(H, D_out))
+    def _init_task_layer(self):
+        if self.hparams.use_task_loss:
+            self.task = self.task_cls()
         else:
-            self.out = None
+            self.task = None
+        # D_in = self.sparse.output_size
+        # H = 100
+        # D_out = self.hparams.model.output_size
+        # if (D_out is not None) and (self.hparams.loss.use_task_loss):
+        #     self.out = nn.Sequential(nn.Linear(D_in, H), nn.ReLU(), nn.Linear(H, D_out))
+        # else:
+        #     self.out = None
 
     def _init_recover_layer(self):
         orig_size = self.hparams.model.input_size
@@ -95,26 +102,6 @@ class Distiller(pl.LightningModule):
 
     def _init_sparse_layer(self):
         self.sparse = self.sparse_cls(self.hparams)
-
-    # Task Loss: Ranking
-    def distance(self, x1, x2):
-        # TODO: 고민 필요
-        # return torch.pow(a - b, 2).sum(1).sqrt()
-        # return F.cosine_similarity(a, b)
-        return torch.norm(x1 - x2, dim=1)
-
-    def loss_triplet(self, q, pos, neg):
-        distance_p = self.distance(q, pos)
-        distance_n = self.distance(q, neg)
-        # Should be distance_n > distance_p, so mark all as 1 (not -1)
-        return F.margin_ranking_loss(
-            distance_n, distance_p, torch.ones_like(distance_p), margin=1.0
-        )
-
-    # Task Loss: Classification
-    def loss_classify(self, input, target):
-        # input.shape() == (minibatch, C)
-        return F.cross_entropy(input, target)
 
     # Autoencoder Loss (For generalizability)
     def loss_recovery(self, input, target):
@@ -130,8 +117,8 @@ class Distiller(pl.LightningModule):
         )
 
         # task loss
-        if self.hparams.loss.use_task_loss:
-            loss_task = self.loss_classify(outputs["out"], target)
+        if self.task:
+            loss_task = self.task.loss(outputs["out"], target)
         else:
             loss_task = torch.zeros((1,)).type_as(loss_recovery)
 
@@ -141,7 +128,7 @@ class Distiller(pl.LightningModule):
             "recovery": loss_recovery,
         }
 
-    def forward(self, x):
+    def forward(self, x, y):
         # dense
         # if self.dense is not None:
         #     dense_x = self.forward_dense(x)
@@ -161,21 +148,28 @@ class Distiller(pl.LightningModule):
             recover_x = x
 
         # 2. out
-        if self.out is not None:
-            out_x = self.out(sparse_x)
+        if self.task is not None:
+            task_x = self.task(sparse_x)
         else:
-            out_x = torch.zeros_like(x)
+            task_x = torch.zeros_like(x)
 
-        features = {"x": x, "sparse": sparse_x, "recover": recover_x, "out": out_x}
+        features = {
+            "x": x,
+            "y": y,
+            "sparse": sparse_x,
+            "recover": recover_x,
+            "task": task_x,
+        }
         return features
 
-    def training_step(self, batch, batch_idx):
-        text, target = batch["data"], batch["target"]
+    def _forward_step(self, batch, batch_idx):
+        data, target = batch["data"], batch["target"]
 
         # forward
-        features = self.forward(text)
+        return self.forward(data, target)
 
-        return {**features, "target": target}
+    def training_step(self, batch, batch_idx):
+        return self._forward_step(batch, batch_idx)
 
     def training_step_end(self, outputs):
         # loss
@@ -193,12 +187,7 @@ class Distiller(pl.LightningModule):
         return {"loss": losses["total"], "progress_bar": tqdm_dict, "log": tqdm_dict}
 
     def validation_step(self, batch, batch_idx):
-        text, target = batch["data"], batch["target"]
-
-        # forward
-        features = self.forward(text)
-
-        return {**features, "target": target}
+        return self._forward_step(batch, batch_idx)
 
     def validation_step_end(self, outputs):
         # loss
@@ -238,12 +227,7 @@ class Distiller(pl.LightningModule):
 
     ###
     def test_step(self, batch, batch_idx):
-        text, target = batch["data"], batch["target"]
-
-        # forward
-        features = self.forward(text)
-
-        return {**features, "target": target}
+        return self._forward_step(batch, batch_idx)
 
     def test_step_end(self, outputs):
         # loss

@@ -29,6 +29,7 @@ from omegaconf import OmegaConf
 from trec2019.distiller import Distiller
 from trec2019.model.sparsenet import SparseNet
 from trec2019.utils.dataset import EmbeddingLabelDataset
+from trec2019.task import ClassificationTask, RankingTask
 
 
 root_dir = Path(__file__).parent.absolute()
@@ -80,6 +81,15 @@ def get_sparse_cls(name):
         raise ValueError("Unknown sparse model")
 
 
+def get_task_cls(name, opt):
+    if name == "classification":
+        return ClassificationTask(opt)
+    elif name == "ranking":
+        return RankingTask(opt)
+    else:
+        raise ValueError("Unknown task")
+
+
 @hydra.main(config_path="conf/config.yaml")
 def main_hydra(cfg: DictConfig) -> None:
     print(cfg.pretty())
@@ -95,8 +105,10 @@ def main(hparams):
     arr_path = hparams.dataset.arr_path
     ## sparse model
     sparse_cls = get_sparse_cls(hparams.model.name)
+    ## task model
+    task_cls = get_task_cls(hparams.task.name, hparams.task.opt)
     ## init Distiller
-    model = Distiller(hparams, sparse_cls, data_cls, data_path, arr_path)
+    model = Distiller(hparams, sparse_cls, task_cls, data_cls, data_path, arr_path)
 
     # early stop
     early_stop_callback = EarlyStopping(
