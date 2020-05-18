@@ -292,13 +292,10 @@ class SparseNet(pl.LightningModule):
             "loss_task": losses["task"],
             "loss_recovery": losses["recovery"],
         }
-        log_dict = {
-            "test_losses": tqdm_dict,
-        }
         return {
             "test_loss": losses["total"],
             "progress_bar": tqdm_dict,
-            "log": log_dict,
+            "log": tqdm_dict,
         }
 
     def test_epoch_end(self, outputs):
@@ -309,7 +306,7 @@ class SparseNet(pl.LightningModule):
         results = {
             "test_loss": avg_test_loss,
             "progress_bar": tqdm_dict,
-            "log": {"test_loss": avg_test_loss},
+            "log": tqdm_dict,
         }
 
         return results
