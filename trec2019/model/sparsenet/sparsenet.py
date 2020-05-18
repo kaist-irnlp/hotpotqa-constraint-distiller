@@ -89,7 +89,11 @@ class SparseNet(pl.LightningModule):
 
     def _init_out_layer(self):
         D_in = self.sparse.output_size
+<<<<<<< HEAD
         H = self.sparse.output_size
+=======
+        H = 100
+>>>>>>> c561df78b8a92f4ff343da2bc48191a6428be556
         D_out = self.hparams.model.output_size
         if (D_out is not None) and (self.hparams.loss.use_task_loss):
             self.out = nn.Sequential(nn.Linear(D_in, H), nn.ReLU(), nn.Linear(H, D_out))
