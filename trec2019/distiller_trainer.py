@@ -2,6 +2,7 @@
 This file runs the main training/val loop, etc... using Lightning Trainer    
 """
 import os
+import sys
 from argparse import ArgumentParser
 from pathlib import Path
 from collections import Counter
@@ -25,6 +26,7 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf
 
 # project specific
+from trec2019.distiller import Distiller
 from trec2019.model.sparsenet import SparseNet
 from trec2019.utils.dataset import EmbeddingLabelDataset
 
@@ -80,16 +82,21 @@ def get_sparse_cls(name):
 
 @hydra.main(config_path="conf/config.yaml")
 def main_hydra(cfg: DictConfig) -> None:
-    # print(cfg.pretty())
-    # print(os.getcwd())
-    # hparams = Namespace(**cfg)
+    print(cfg.pretty())
     hparams = cfg
     main(hparams)
 
 
 def main(hparams):
     # init model
-    model = SparseNet(hparams)
+    ## dataset
+    data_cls = get_data_cls(hparams.dataset.name)
+    data_path = hparams.dataset.path
+    arr_path = hparams.dataset.arr_path
+    ## sparse model
+    sparse_cls = get_sparse_cls(hparams.model.name)
+    ## init Distiller
+    model = Distiller(hparams, sparse_cls, data_cls, data_path, arr_path)
 
     # early stop
     early_stop_callback = EarlyStopping(

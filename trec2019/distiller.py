@@ -40,7 +40,7 @@ _root_dir = str(Path(__file__).parent.absolute())
 
 
 class Distiller(pl.LightningModule):
-    def __init__(self, hparams, data_path, arr_path, data_cls, sparse_cls):
+    def __init__(self, hparams, sparse_cls, data_cls, data_path, arr_path):
         super(Distiller, self).__init__()
         self.hparams = hparams
 
