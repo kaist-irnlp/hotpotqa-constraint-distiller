@@ -59,23 +59,32 @@ _root_dir = str(Path(__file__).parent.absolute())
 
 
 class SparseNet(pl.LightningModule):
-    def __init__(self, hparams):
+    def __init__(self, hparams, data_path, arr_path, data_cls, sparse_cls):
         super(SparseNet, self).__init__()
         self.hparams = hparams
 
         # dataset type
-        self._dset_cls = EmbeddingLabelDataset
+        self.data_path = Path(data_path)
+        self.arr_path = arr_path
+        self.data_cls = data_cls
+
+        # sparse type
+        self.sparse_cls = sparse_cls
 
         # network
         self._init_dataset()
         self._init_layers()
 
     def _init_dataset(self):
-        data_path = Path(self.hparams.dataset.path)
-        arr_path = self.hparams.dataset.arr_path
-        self._train_dataset = self._dset_cls(str(data_path / "train.zarr"), arr_path)
-        self._val_dataset = self._dset_cls(str(data_path / "val.zarr"), arr_path)
-        self._test_dataset = self._dset_cls(str(data_path / "test.zarr"), arr_path)
+        self._train_dataset = self.data_cls(
+            str(self.data_path / "train.zarr"), self.arr_path
+        )
+        self._val_dataset = self.data_cls(
+            str(self.data_path / "val.zarr"), self.arr_path
+        )
+        self._test_dataset = self.data_cls(
+            str(self.data_path / "test.zarr"), self.arr_path
+        )
 
     def _init_layers(self):
         # self._init_dense_layer()
@@ -104,29 +113,7 @@ class SparseNet(pl.LightningModule):
             self.recover = None
 
     def _init_sparse_layer(self):
-        # self.hparams.input_size = (
-        #     self.dense.get_dim()
-        #     if (self.dense is not None)
-        #     else self._train_dataset.get_dim()
-        # )  # TODO: is it safe to do this automatically?
-        self.sparse = SparseNetModel(self.hparams)
-
-    # def _init_dense_layer(self):
-    #     dense_model = self.hparams.dense or None
-    #     if dense_model is None:
-    #         self.tokenizer = None
-    #         self.dense = None
-    #     elif dense_model == "bow":
-    #         vocab = get_bow_vocab()
-    #         # vocab.vectors = F.normalize(vocab.vectors, p=2, dim=1)
-    #         self.tokenizer = BowTokenizer(vocab)
-    #         self.dense = BowEmbedding(vocab)
-    #     elif dense_model == "bert":
-    #         weights = "bert-base-uncased"
-    #         self.tokenizer = BertTokenizer(weights)
-    #         self.dense = BertEmbedding(weights)
-    #     else:
-    #         raise ValueError(f"Unknown dense model: {dense_model}")
+        self.sparse = self.sparse_cls(self.hparams)
 
     # Task Loss: Ranking
     def distance(self, x1, x2):
@@ -151,7 +138,6 @@ class SparseNet(pl.LightningModule):
     # Autoencoder Loss (For generalizability)
     def loss_recovery(self, input, target):
         return F.mse_loss(input, target)
-        # return F.l1_loss(input, target)
 
     def loss(self, outputs):
         target = outputs["target"].type(torch.long)
@@ -310,8 +296,7 @@ class SparseNet(pl.LightningModule):
     ###
 
     def on_epoch_end(self):
-        if isinstance(self.sparse, SparseNetModel):
-            self.sparse.update_boost_weights()
+        self.sparse.on_epoch_end()
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers
@@ -321,12 +306,10 @@ class SparseNet(pl.LightningModule):
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return [optimizer], [scheduler]
 
-    def _get_dataloader(self, dataset, test=False):
-        # dist_sampler = DistributedSampler(dataset) if self.use_ddp else None
-        batch_size = self.hparams.train.batch_size if not test else 2 ** 13
+    def _get_dataloader(self, dataset):
+        batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
         num_workers = int(cpu_count() / 2) or 1
         pin_memory = True
-        # num_workers = 0
         return DataLoader(
             dataset,
             batch_size=batch_size,
@@ -341,7 +324,24 @@ class SparseNet(pl.LightningModule):
         return self._get_dataloader(self._val_dataset)
 
     def test_dataloader(self):
-        return self._get_dataloader(self._test_dataset, test=True)
+        return self._get_dataloader(self._test_dataset)
+
+
+class SparseNetModel(nn.Module):
+    def __init__(self, hparams):
+        super().__init__()
+        self.hparams = hparams
+
+        # init
+        self._preprocess_params()
+        self._init_layers()
+
+    def forward(self, x):
+        return self.layers(x)
+
+    def on_epoch_end(self):
+        self.apply(updateBoostStrength)
+        self.apply(rezeroWeights)
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -382,23 +382,6 @@ class SparseNet(pl.LightningModule):
         )
 
         return parser
-
-
-class SparseNetModel(nn.Module):
-    def __init__(self, hparams):
-        super().__init__()
-        self.hparams = hparams
-
-        # init
-        self._preprocess_params()
-        self._init_layers()
-
-    def forward(self, x):
-        return self.layers(x)
-
-    def update_boost_weights(self):
-        self.apply(updateBoostStrength)
-        self.apply(rezeroWeights)
 
     def _preprocess_params(self):
         hparams = self.hparams
