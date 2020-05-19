@@ -1,6 +1,8 @@
 project: "kjang0517/wta"
 experiment:
   name: wta
+  tags: 
+    - 1-layer
 defaults:
   - model: wta
   - trial: defaults
