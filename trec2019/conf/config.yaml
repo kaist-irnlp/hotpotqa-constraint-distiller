@@ -1,7 +1,8 @@
-project: "kjang0517/sparsenet"
+project: "kjang0517/wta"
+experiment:
+  name: wta
 defaults:
-  - experiment: news20
-  - model: sparsenet
+  - model: wta
   - trial: defaults
   - dataset: news20
   - train: defaults

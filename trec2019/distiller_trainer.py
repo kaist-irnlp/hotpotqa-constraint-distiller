@@ -27,7 +27,7 @@ from omegaconf import OmegaConf
 
 # project specific
 from trec2019.distiller import Distiller
-from trec2019.model.sparsenet import SparseNet
+from trec2019.model import SparseNetModel, WTAModel
 from trec2019.utils.dataset import EmbeddingLabelDataset
 from trec2019.task import ClassificationTask, RankingTask
 
@@ -76,7 +76,9 @@ def get_data_cls(name):
 
 def get_sparse_cls(name):
     if name == "sparsenet":
-        return SparseNet
+        return SparseNetModel
+    elif name == "wta":
+        return WTAModel
     else:
         raise ValueError("Unknown sparse model")
 
