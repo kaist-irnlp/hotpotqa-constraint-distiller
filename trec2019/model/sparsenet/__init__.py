@@ -1,1 +1,1 @@
-from .sparsenet import SparseNet
+from .sparsenet import SparseNetModel

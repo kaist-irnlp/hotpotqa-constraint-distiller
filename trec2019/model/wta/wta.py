@@ -12,6 +12,12 @@ class WTAModel(nn.Module):
         self._init_layers()
         self.apply(self._init_weights)
 
+    def forward(self, x):
+        return self.layers(x)
+
+    def on_epoch_end(self):
+        pass
+
     def _init_layers(self):
         self.layers = nn.Sequential()
 
@@ -32,9 +38,6 @@ class WTAModel(nn.Module):
             torch.nn.init.kaiming_normal_(m.weight)
             m.bias.data.fill_(0.01)
 
-    def forward(self, x):
-        return self.layers(x)
-
 
 class BatchTopK(nn.Module):
     def __init__(self, k):
@@ -54,7 +57,8 @@ class BatchTopK(nn.Module):
             output = x
 
         # register backward hook
-        output.register_hook(self._backward_hook)
+        if self.training:
+            output.register_hook(self._backward_hook)
         return output
 
     def set_k(self, k):
