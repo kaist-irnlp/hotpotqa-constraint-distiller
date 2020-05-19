@@ -17,7 +17,6 @@ from torch import nn
 from torch import tensor
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from test_tube import HyperOptArgumentParser
 from omegaconf import ListConfig

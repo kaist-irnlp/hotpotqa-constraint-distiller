@@ -82,7 +82,7 @@ def get_sparse_cls(name):
 
 
 def get_task_cls(name):
-    if name == "classification":
+    if name == "classify":
         return ClassificationTask
     elif name == "ranking":
         return RankingTask
@@ -121,7 +121,7 @@ def main(hparams):
     # tb_logger = loggers.TensorBoardLogger("tb_logs")
 
     # init logger
-    source_files_path = str(Path(hydra.utils.get_original_cwd()) / "*.py")
+    source_files_path = str(Path(hydra.utils.get_original_cwd()) / "**/*.py")
     tags = gather_tags(hparams)
     log_params = flatten_params(hparams)
     neptune_logger = NeptuneLogger(
