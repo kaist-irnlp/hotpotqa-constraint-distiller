@@ -59,19 +59,8 @@ class Distiller(pl.LightningModule):
         self._init_dataset()
         self._init_layers()
 
-    def _init_dataset(self):
-        self._train_dataset = self.data_cls(
-            str(self.data_path / "train.zarr"), self.arr_path
-        )
-        self._val_dataset = self.data_cls(
-            str(self.data_path / "val.zarr"), self.arr_path
-        )
-        self._test_dataset = self.data_cls(
-            str(self.data_path / "test.zarr"), self.arr_path
-        )
-
+    # layers
     def _init_layers(self):
-        # self._init_dense_layer()
         self._init_noise_layer()
         self._init_sparse_layer()
         self._init_task_layer()
@@ -85,25 +74,19 @@ class Distiller(pl.LightningModule):
             self.task = self.task_cls(self.hparams)
         else:
             self.task = None
-        # D_in = self.sparse.output_size
-        # H = 100
-        # D_out = self.hparams.model.output_size
-        # if (D_out is not None) and (self.hparams.loss.use_task_loss):
-        #     self.out = nn.Sequential(nn.Linear(D_in, H), nn.ReLU(), nn.Linear(H, D_out))
-        # else:
-        #     self.out = None
-
-    def _init_recover_layer(self):
-        orig_size = self.hparams.model.input_size
-        if self.hparams.loss.use_recovery_loss:
-            self.recover = nn.Linear(self.sparse.output_size, orig_size)
-        else:
-            self.recover = None
 
     def _init_sparse_layer(self):
         self.sparse = self.sparse_cls(self.hparams)
 
-    # Autoencoder Loss (For generalizability)
+    def _init_recover_layer(self):
+        input_size = self.sparse.output_size
+        output_size = self.hparams.model.input_size
+        if self.hparams.loss.use_recovery_loss:
+            self.recover = nn.Linear(input_size, output_size)
+        else:
+            self.recover = None
+
+    # Losses
     def loss_recovery(self, input, target):
         return F.mse_loss(input, target)
 
@@ -129,12 +112,6 @@ class Distiller(pl.LightningModule):
         }
 
     def forward(self, x, y):
-        # dense
-        # if self.dense is not None:
-        #     dense_x = self.forward_dense(x)
-        # else:
-        #     dense_x = x
-
         # noise
         noise_x = self.noise(x)
 
@@ -258,8 +235,7 @@ class Distiller(pl.LightningModule):
 
         return results
 
-    ###
-
+    # sparsity boosting weight adjustment, etc.
     def on_epoch_end(self):
         self.sparse.on_epoch_end()
 
@@ -270,6 +246,18 @@ class Distiller(pl.LightningModule):
         )
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return [optimizer], [scheduler]
+
+    # dataset
+    def _init_dataset(self):
+        self._train_dataset = self.data_cls(
+            str(self.data_path / "train.zarr"), self.arr_path
+        )
+        self._val_dataset = self.data_cls(
+            str(self.data_path / "val.zarr"), self.arr_path
+        )
+        self._test_dataset = self.data_cls(
+            str(self.data_path / "test.zarr"), self.arr_path
+        )
 
     def _get_dataloader(self, dataset):
         batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
