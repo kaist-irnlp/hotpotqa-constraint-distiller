@@ -11,16 +11,16 @@ class ClassificationTask(nn.Module):
         self._init_layers()
 
     def _init_layers(self):
-        input_size = self.hparams.model.n[-1]
+        input_size = self.hparams.model.n[-1]  # sparse layer's output size
         hidden_size = self.hparams.task.hidden_size
         output_size = self.hparams.task.output_size
         self.layers = nn.Sequential(
-            nn.Linear(self.input_size, self.hidden_size),
+            nn.Linear(input_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.output_size),
+            nn.Linear(hidden_size, output_size),
         )
 
-    def forward(self, x, target):
+    def forward(self, x):
         # assert len(x.shape) == 2  # (minibatch, C)
         return self.layers(x)
 

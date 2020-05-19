@@ -81,10 +81,10 @@ def get_sparse_cls(name):
         raise ValueError("Unknown sparse model")
 
 
-def get_task_cls(name):
-    if name == "classify":
+def get_task_cls(tp):
+    if tp == "classify":
         return ClassificationTask
-    elif name == "ranking":
+    elif tp == "ranking":
         return RankingTask
     else:
         raise ValueError("Unknown task")
@@ -106,7 +106,7 @@ def main(hparams):
     ## sparse model
     sparse_cls = get_sparse_cls(hparams.model.name)
     ## task model
-    task_cls = get_task_cls(hparams.task.name)
+    task_cls = get_task_cls(hparams.task.type)
     ## init Distiller
     model = Distiller(hparams, sparse_cls, task_cls, data_cls, data_path, arr_path)
 

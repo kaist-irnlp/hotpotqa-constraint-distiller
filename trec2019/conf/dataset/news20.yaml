@@ -8,5 +8,6 @@ dataset:
 model:
   input_size: 300
 task:
+  type: classify
   hidden_size: 100
   output_size: 20
