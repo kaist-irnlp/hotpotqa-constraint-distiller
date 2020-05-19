@@ -166,7 +166,8 @@ def main(hparams):
     trainer.fit(model)
 
     # upload the best model and configs
-    checkpoints_dir = os.getcwd()
+    # checkpoints_dir = os.getcwd()
+    checkpoints_dir = Path(trainer.ckpt_path)
     neptune_logger.experiment.log_artifact(str(checkpoints_dir))
     neptune_logger.experiment.stop()
 
