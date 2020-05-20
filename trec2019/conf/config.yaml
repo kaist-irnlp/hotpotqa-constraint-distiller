@@ -1,11 +1,11 @@
 project: "kjang0517/wta"
 experiment:
-  name: wta
+  name: wta-electra
   tags: 
     - 1-layer
 defaults:
   - model: wta
-  - dataset: news20
+  - dataset: news20-electra
   - trial: defaults
   - train: defaults
   - loss: defaults
