@@ -36,6 +36,7 @@ class WTAModel(nn.Module):
     def _init_weights(self, m):
         if type(m) == nn.Linear:
             torch.nn.init.kaiming_normal_(m.weight)
+            # nn.init.sparse_(w, sparsity=0.1) # TODO 적용 고려
             m.bias.data.fill_(0.01)
 
 
