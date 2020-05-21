@@ -1,4 +1,5 @@
 model:
   name: wta
   tags:
-   - wta
+    - wta
+  use_sparse_weights: true
