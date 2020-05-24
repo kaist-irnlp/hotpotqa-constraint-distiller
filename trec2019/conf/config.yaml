@@ -1,8 +1,11 @@
 project: "kjang0517/news20"
+experiment:
+  name: tfidf
+  tags:
+    - 1-layer
 defaults:
-  - experiment: news20
-  - model: sparsenet
-  - trial: defaults
+  - model: wta
   - dataset: news20-tfidf
+  - trial: defaults
   - train: defaults
   - loss: defaults

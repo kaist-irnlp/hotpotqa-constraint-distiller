@@ -27,7 +27,7 @@ from omegaconf import OmegaConf
 
 # project specific
 from trec2019.distiller import Distiller
-from trec2019.model.sparsenet import SparseNet
+from trec2019.model import SparseNetModel, WTAModel
 from trec2019.utils.dataset import EmbeddingLabelDataset
 from trec2019.task import ClassificationTask, RankingTask
 
@@ -76,15 +76,17 @@ def get_data_cls(name):
 
 def get_sparse_cls(name):
     if name == "sparsenet":
-        return SparseNet
+        return SparseNetModel
+    elif name == "wta":
+        return WTAModel
     else:
         raise ValueError("Unknown sparse model")
 
 
-def get_task_cls(name):
-    if name == "classify":
+def get_task_cls(tp):
+    if tp == "classify":
         return ClassificationTask
-    elif name == "ranking":
+    elif tp == "ranking":
         return RankingTask
     else:
         raise ValueError("Unknown task")
@@ -92,8 +94,12 @@ def get_task_cls(name):
 
 @hydra.main(config_path="conf/config.yaml")
 def main_hydra(cfg: DictConfig) -> None:
-    print(cfg.pretty())
+    print(cfg)
     hparams = cfg
+    if hparams.train.gpus.strip() == "":
+        hparams.train.gpus = None
+    else:
+        hparams.train.gpus = str(hparams.train.gpus)
     main(hparams)
 
 
@@ -106,7 +112,7 @@ def main(hparams):
     ## sparse model
     sparse_cls = get_sparse_cls(hparams.model.name)
     ## task model
-    task_cls = get_task_cls(hparams.task.name)
+    task_cls = get_task_cls(hparams.task.type)
     ## init Distiller
     model = Distiller(hparams, sparse_cls, task_cls, data_cls, data_path, arr_path)
 
@@ -134,10 +140,6 @@ def main(hparams):
     )
     # logger_list = [neptune_logger, tb_logger]
 
-    # checkpoint
-    # checkpoint_dir = "sparsenet/checkpoints"
-    # checkpoint_callback = ModelCheckpoint(filepath=checkpoint_dir)
-
     # custom callbacks
     callbacks = [UploadFinalCheckpointCallback()]
 
@@ -149,7 +151,7 @@ def main(hparams):
     trainer = Trainer(
         # default_root_dir=root_dir,
         max_nb_epochs=hparams.train.max_nb_epochs,
-        gpus=str(hparams.train.gpus),
+        gpus=hparams.train.gpus,
         distributed_backend=hparams.train.distributed_backend,
         fast_dev_run=hparams.train.fast_dev_run,
         amp_level=hparams.train.amp_level,
@@ -158,13 +160,13 @@ def main(hparams):
         profiler=profiler,
         logger=neptune_logger,
         # early_stop_callback=early_stop_callback,
-        # checkpoint_callback=checkpoint_callback,
         callbacks=callbacks,
     )
     trainer.fit(model)
 
     # upload the best model and configs
-    checkpoints_dir = os.getcwd()
+    # checkpoints_dir = os.getcwd()
+    checkpoints_dir = Path(trainer.ckpt_path)
     neptune_logger.experiment.log_artifact(str(checkpoints_dir))
     neptune_logger.experiment.stop()
 

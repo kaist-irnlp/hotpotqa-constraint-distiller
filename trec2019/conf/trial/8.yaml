@@ -1,5 +1,6 @@
+# architecture
 model:
   n:
-    - 10000
+    - 5000
   k:
-    - 50
+    - 0.01

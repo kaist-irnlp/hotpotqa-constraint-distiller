@@ -69,7 +69,7 @@ class Distiller(pl.LightningModule):
         self.noise = GaussianNoise()
 
     def _init_task_layer(self):
-        if self.hparams.use_task_loss:
+        if self.hparams.loss.use_task_loss:
             self.task = self.task_cls(self.hparams)
         else:
             self.task = None
@@ -100,7 +100,7 @@ class Distiller(pl.LightningModule):
 
         # task loss
         if self.task:
-            loss_task = self.task.loss(outputs["out"], target)
+            loss_task = self.task.loss(outputs["task"], target)
         else:
             loss_task = torch.zeros((1,)).type_as(loss_recovery)
 
@@ -110,7 +110,7 @@ class Distiller(pl.LightningModule):
             "recovery": loss_recovery,
         }
 
-    def forward(self, x, y):
+    def forward(self, x, target):
         # noise
         noise_x = self.noise(x)
 
@@ -131,7 +131,7 @@ class Distiller(pl.LightningModule):
 
         features = {
             "x": x,
-            "y": y,
+            "target": target,
             "sparse": sparse_x,
             "recover": recover_x,
             "task": task_x,

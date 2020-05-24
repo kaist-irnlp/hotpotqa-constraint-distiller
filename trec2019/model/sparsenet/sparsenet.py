@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 _root_dir = str(Path(__file__).parent.absolute())
 
 
-class SparseNet(nn.Module):
+class SparseNetModel(nn.Module):
     def __init__(self, hparams):
         super().__init__()
         self.hparams = hparams
