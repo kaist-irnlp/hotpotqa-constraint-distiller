@@ -24,11 +24,16 @@ blosc.use_threads = False
 
 
 class EmbeddingLabelDataset(Dataset):
-    def __init__(self, data_path, arr_path):
+    def __init__(self, data_path, arr_path, noise="gaussian"):
         super().__init__()
         self.data_path = data_path
         self.arr_path = arr_path
         self._load_data()
+        self._noise = {
+            "gaussian": self.add_gaussian_noise,
+            "masking": self.add_masking_noise,
+            "salt": self.add_salt_pepper_noise,
+        }.get(noise, None)
 
     def _load_data(self):
         data = zarr.open(str(self.data_path), "r")
@@ -39,11 +44,50 @@ class EmbeddingLabelDataset(Dataset):
         return len(self.label)
 
     def __getitem__(self, index):
-        emb, lbl = (
+        data, lbl = (
             self.embedding[index].astype(np.float32),
             self.label[index],
         )
-        return {"index": index, "data": emb, "target": lbl}
+        orig_data = np.copy(data)
+        # add noise
+        if self._noise:
+            data = self._noise(data)
+        return {
+            "index": index,
+            "data": data.astype("f4"),
+            "orig_data": orig_data.astype("f4"),
+            "target": lbl,
+        }
+
+    def add_gaussian_noise(self, X, corruption_ratio=0.02, range_=[0, 1]):
+        X_noisy = X + corruption_ratio * np.random.normal(
+            loc=0.0, scale=1.0, size=X.shape
+        )
+        X_noisy = np.clip(X_noisy, range_[0], range_[1])
+
+        return X_noisy
+
+    def add_masking_noise(self, X, fraction=0.2):
+        assert fraction >= 0 and fraction <= 1
+        X_noisy = np.copy(X)
+        nrow, ncol = X.shape
+        n = int(ncol * fraction)
+        for i in range(nrow):
+            idx_noisy = np.random.choice(ncol, n, replace=False)
+            X_noisy[i, idx_noisy] = 0
+
+        return X_noisy
+
+    def add_salt_pepper_noise(self, X, fraction=0.2):
+        assert fraction >= 0 and fraction <= 1
+        X_noisy = np.copy(X)
+        nrow, ncol = X.shape
+        n = int(ncol * fraction)
+        for i in range(nrow):
+            idx_noisy = np.random.choice(ncol, n, replace=False)
+            X_noisy[i, idx_noisy] = np.random.binomial(1, 0.5, n)
+
+        return X_noisy
 
 
 # class EmbeddingLabelDataset(Dataset):
