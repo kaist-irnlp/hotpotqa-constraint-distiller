@@ -4,7 +4,7 @@ train:
   max_nb_epochs: 500
   learning_rate: 0.00001
   # device
-  gpus: ""
+  gpus: null
   distributed_backend: null
   # precision
   precision: 32
