@@ -29,6 +29,9 @@ import pandas as pd
 # project specific
 from trec2019.utils.dataset import *
 from trec2019.utils.noise import *
+from trec2019.model import SparseNetModel, WTAModel
+from trec2019.utils.dataset import EmbeddingLabelDataset
+from trec2019.task import ClassificationTask, RankingTask
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -39,28 +42,47 @@ _root_dir = str(Path(__file__).parent.absolute())
 
 
 class Distiller(pl.LightningModule):
-    def __init__(self, hparams, sparse_cls, task_cls, data_cls, data_path, arr_path):
-        super(Distiller, self).__init__()
+    def __init__(self, hparams, data_path=None):
+        super().__init__()
         self.hparams = hparams
 
-        # dataset type
-        self.data_path = Path(data_path)
-        self.arr_path = arr_path
-        self.data_cls = data_cls
+        # dataset
+        data_path = data_path or self.hparams.dataset.path
+        self._init_dataset(data_path)
 
-        # sparse type
-        self.sparse_cls = sparse_cls
-
-        # task type
-        self.task_cls = task_cls
-
-        # network
-        self._init_dataset()
+        # layers
         self._init_layers()
+
+    def _get_data_cls(self):
+        name = self.hparams.dataset.name
+        if name in ("news20"):
+            return EmbeddingLabelDataset
+        else:
+            raise ValueError("Unkonwn dataset")
+
+    def _get_sparse_cls(self):
+        name = self.hparams.model.name
+        if name == "sparsenet":
+            return SparseNetModel
+        elif name == "wta":
+            return WTAModel
+        else:
+            raise ValueError("Unknown sparse model")
+
+    def _get_task_cls(self):
+        tp = self.hparams.task.type
+        if tp == "classify":
+            return ClassificationTask
+        elif tp == "ranking":
+            return RankingTask
+        else:
+            raise ValueError("Unknown task")
 
     # layers
     def _init_layers(self):
         # self._init_noise_layer()
+        self.sparse_cls = self._get_sparse_cls()
+        self.task_cls = self._get_task_cls()
         self._init_sparse_layer()
         self._init_task_layer()
         self._init_recover_layer()
@@ -248,7 +270,11 @@ class Distiller(pl.LightningModule):
         return [optimizer], [scheduler]
 
     # dataset
-    def _init_dataset(self):
+    def _init_dataset(self, data_path):
+        self.data_path = Path(data_path)
+        self.data_cls = self._get_data_cls()
+        self.arr_path = self.hparams.dataset.arr_path
+
         self._train_dataset = self.data_cls(
             str(self.data_path / "train.zarr"), self.arr_path
         )
