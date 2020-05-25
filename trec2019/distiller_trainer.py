@@ -96,9 +96,7 @@ def get_task_cls(tp):
 def main_hydra(cfg: DictConfig) -> None:
     print(cfg)
     hparams = cfg
-    if hparams.train.gpus.strip() == "":
-        hparams.train.gpus = None
-    else:
+    if hparams.train.gpus is not None:
         hparams.train.gpus = str(hparams.train.gpus)
     main(hparams)
 
@@ -159,7 +157,7 @@ def main(hparams):
         benchmark=True,
         profiler=profiler,
         logger=neptune_logger,
-        # early_stop_callback=early_stop_callback,
+        early_stop_callback=early_stop_callback,
         callbacks=callbacks,
     )
     trainer.fit(model)

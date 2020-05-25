@@ -60,7 +60,7 @@ class Distiller(pl.LightningModule):
 
     # layers
     def _init_layers(self):
-        self._init_noise_layer()
+        # self._init_noise_layer()
         self._init_sparse_layer()
         self._init_task_layer()
         self._init_recover_layer()
@@ -112,10 +112,10 @@ class Distiller(pl.LightningModule):
 
     def forward(self, x, target):
         # noise
-        noise_x = self.noise(x)
+        # noise_x = self.noise(x)
 
         # sparse
-        sparse_x = self.sparse(noise_x)
+        sparse_x = self.sparse(x)
 
         # 1. recover
         if self.recover is not None:
@@ -138,8 +138,9 @@ class Distiller(pl.LightningModule):
         }
         return features
 
-    def _forward_step(self, batch, batch_idx):
-        data, target = batch["data"], batch["target"]
+    def _forward_step(self, batch, batch_idx, is_eval=False):
+        data = batch["data"] if not is_eval else batch["orig_data"]
+        target = batch["target"]
 
         # forward
         return self.forward(data, target)
@@ -163,7 +164,7 @@ class Distiller(pl.LightningModule):
         return {"loss": losses["total"], "progress_bar": tqdm_dict, "log": tqdm_dict}
 
     def validation_step(self, batch, batch_idx):
-        return self._forward_step(batch, batch_idx)
+        return self._forward_step(batch, batch_idx, is_eval=True)
 
     def validation_step_end(self, outputs):
         # loss
@@ -203,7 +204,7 @@ class Distiller(pl.LightningModule):
 
     ###
     def test_step(self, batch, batch_idx):
-        return self._forward_step(batch, batch_idx)
+        return self._forward_step(batch, batch_idx, is_eval=True)
 
     def test_step_end(self, outputs):
         # loss

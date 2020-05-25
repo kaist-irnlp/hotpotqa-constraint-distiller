@@ -6,7 +6,7 @@ dataset:
     - news20
     - tfidf
 model:
-  input_size: 2000
+  input_size: 10000
 task:
   type: classify
   hidden_size: 100
