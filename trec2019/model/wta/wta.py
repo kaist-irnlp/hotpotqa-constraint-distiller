@@ -44,21 +44,25 @@ class WTAModel(nn.Module):
 
 
 class BatchTopK(nn.Module):
-    def __init__(self, k=1.0):
+    def __init__(self, k=1.0, is_adaptive=False):
         super().__init__()
         self._k = k
         self._h = None
+        if is_adaptive:
+            self._topk = self._get_adaptive_k
+        else:
+            self._topk = torch.topk
 
     def forward(self, x):
         if self.training:
             # assert x.dim() == 2
             batch_size = x.shape[0]
-            # k = self.k_list[self.curr_epoch]
             k = math.ceil(self._k * batch_size)
-
-            self.buffer, self.indices = torch.topk(x, k, dim=0, largest=True)
-            output = torch.zeros_like(x).scatter(0, self.indices, self.buffer)
-            self._h = output.register_hook(self._backward_hook)
+            # fixed or adaptive
+            buffer, self.indices = self._topk(x, k, dim=0, largest=True)
+            # output
+            output = torch.zeros_like(x).scatter(0, self.indices, buffer)
+            output.register_hook(self._backward_hook)
         else:
             output = x
 
@@ -66,6 +70,11 @@ class BatchTopK(nn.Module):
 
     def set_k(self, k):
         self._k = k
+
+    def _get_adaptive_k(self, x, k, dim, largest=True):
+        avg_sparsity = len(x.nonzero()) / x.nelement()
+        buffer, indices = torch.topk(x, k, dim=dim, largest=largest)
+        output = torch.zeros_like(x).scatter(0, indices, buffer)
 
     def _backward_hook(self, grad):
         if self.training:
