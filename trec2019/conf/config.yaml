@@ -6,6 +6,7 @@ experiment:
 defaults:
   - model: wta
   - dataset: news20-tfidf
-  - trial: defaults
+  - model_n: defaults
+  - model_k: defaults
   - train: defaults
   - loss: defaults
