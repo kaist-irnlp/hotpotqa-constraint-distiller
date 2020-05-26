@@ -159,7 +159,7 @@ def main(hparams):
         benchmark=True,
         profiler=profiler,
         logger=neptune_logger,
-        # early_stop_callback=early_stop_callback,
+        early_stop_callback=early_stop_callback,
         callbacks=callbacks,
         deterministic=True,
     )
