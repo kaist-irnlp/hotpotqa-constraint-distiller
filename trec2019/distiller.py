@@ -109,7 +109,7 @@ class Distiller(pl.LightningModule):
 
     # Losses
     def loss_recovery(self, input, target):
-        return F.mse_loss(input, target)
+        return F.l1_loss(input, target)
 
     def loss(self, outputs):
         target = outputs["target"].type(torch.long)
@@ -273,17 +273,13 @@ class Distiller(pl.LightningModule):
     def _init_dataset(self, data_path):
         self.data_path = Path(data_path)
         self.data_cls = self._get_data_cls()
-        self.arr_path = self.hparams.dataset.arr_path
+        arr_path = self.hparams.dataset.arr_path
 
         self._train_dataset = self.data_cls(
-            str(self.data_path / "train.zarr"), self.arr_path
+            str(self.data_path / "train.zarr"), arr_path
         )
-        self._val_dataset = self.data_cls(
-            str(self.data_path / "val.zarr"), self.arr_path
-        )
-        self._test_dataset = self.data_cls(
-            str(self.data_path / "test.zarr"), self.arr_path
-        )
+        self._val_dataset = self.data_cls(str(self.data_path / "val.zarr"), arr_path)
+        self._test_dataset = self.data_cls(str(self.data_path / "test.zarr"), arr_path)
 
     def _get_dataloader(self, dataset):
         batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
