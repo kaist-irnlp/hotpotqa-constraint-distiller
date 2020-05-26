@@ -44,25 +44,35 @@ class WTAModel(nn.Module):
 
 
 class BatchTopK(nn.Module):
+    DIM_BATCH = 0
+
     def __init__(self, k=1.0, is_adaptive=False):
         super().__init__()
         self._k = k
         self._h = None
+        # fixed or adaptive
         if is_adaptive:
             self._topk = self._get_adaptive_k
         else:
             self._topk = torch.topk
 
+    # https://discuss.pytorch.org/t/implementing-k-sparse-autoencoder-on-fasttext-embedding-the-output-is-strange/39245/2
     def forward(self, x):
         if self.training:
             # assert x.dim() == 2
             batch_size = x.shape[0]
             k = math.ceil(self._k * batch_size)
-            # fixed or adaptive
-            buffer, self.indices = self._topk(x, k, dim=0, largest=True)
-            # output
-            output = torch.zeros_like(x).scatter(0, self.indices, buffer)
+            #
+            _, self.indices = self._topk(x, k, dim=self.DIM_BATCH)
+            mask = torch.zeros(x.size()).type_as(x)
+            mask.scatter_(self.DIM_BATCH, self.indices, 1)
+            output = torch.mul(x, mask)
             output.register_hook(self._backward_hook)
+
+            # buffer, self.indices = self._topk(x, k, dim=0, largest=True)
+            # # output
+            # output = torch.zeros_like(x).scatter(0, self.indices, buffer)
+            # output.register_hook(self._backward_hook)
         else:
             output = x
 
@@ -78,9 +88,15 @@ class BatchTopK(nn.Module):
 
     def _backward_hook(self, grad):
         if self.training:
-            _grad = torch.zeros_like(grad).scatter(
-                0, self.indices, torch.gather(grad, 0, self.indices)
-            )
+            mask = torch.zeros(grad.size()).type_as(grad)
+            mask.scatter_(self.DIM_BATCH, self.indices, 1)
+            _grad = torch.mul(grad, mask)
+
+            # _grad = torch.zeros_like(grad).scatter(
+            #     self.DIM_BATCH,
+            #     self.indices,
+            #     torch.gather(grad, self.DIM_BATCH, self.indices),
+            # )
         else:
             _grad = grad
         return _grad
