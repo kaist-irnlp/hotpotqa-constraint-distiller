@@ -141,7 +141,8 @@ def main(hparams):
     # logger_list = [neptune_logger, tb_logger]
 
     # custom callbacks
-    callbacks = [UploadFinalCheckpointCallback()]
+    # callbacks = [UploadFinalCheckpointCallback()]
+    callbacks = []
 
     # use profiler
     profiler = AdvancedProfiler() if hparams.train.profile else None
