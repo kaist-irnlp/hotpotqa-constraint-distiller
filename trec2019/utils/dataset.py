@@ -25,37 +25,38 @@ blosc.use_threads = False
 
 
 class AbstractNoisyDataset(Dataset):
-    def __init__(self, noise=None):
+    def __init__(self, noise=None, noise_ratio=0.0):
         self._add_noise = {
             "gaussian": self.add_gaussian_noise,
             "masking": self.add_masking_noise,
             "salt": self.add_salt_pepper_noise,
         }.get(noise, None)
+        self._noise_ratio = noise_ratio
 
-    def add_gaussian_noise(self, X, corruption_ratio=0.01, range_=[0, 1]):
-        X_noisy = X + corruption_ratio * np.random.normal(
+    def add_gaussian_noise(self, X, range_=[0, 1]):
+        X_noisy = X + self._noise_ratio * np.random.normal(
             loc=0.0, scale=1.0, size=X.shape
         )
         X_noisy = np.clip(X_noisy, range_[0], range_[1])
 
         return X_noisy
 
-    def add_masking_noise(self, X, fraction=0.2):
-        assert fraction >= 0 and fraction <= 1
+    def add_masking_noise(self, X):
+        assert self._noise_ratio >= 0 and self._noise_ratio <= 1
         X_noisy = np.copy(X)
         nrow, ncol = X.shape
-        n = int(ncol * fraction)
+        n = int(ncol * self._noise_ratio)
         for i in range(nrow):
             idx_noisy = np.random.choice(ncol, n, replace=False)
             X_noisy[i, idx_noisy] = 0
 
         return X_noisy
 
-    def add_salt_pepper_noise(self, X, fraction=0.2):
-        assert fraction >= 0 and fraction <= 1
+    def add_salt_pepper_noise(self, X):
+        assert self._noise_ratio >= 0 and self._noise_ratio <= 1
         X_noisy = np.copy(X)
         nrow, ncol = X.shape
-        n = int(ncol * fraction)
+        n = int(ncol * self._noise_ratio)
         for i in range(nrow):
             idx_noisy = np.random.choice(ncol, n, replace=False)
             X_noisy[i, idx_noisy] = np.random.binomial(1, 0.5, n)
@@ -64,8 +65,8 @@ class AbstractNoisyDataset(Dataset):
 
 
 class EmbeddingLabelDataset(AbstractNoisyDataset):
-    def __init__(self, data_path, arr_path, noise=None):
-        super().__init__(noise=noise)
+    def __init__(self, data_path, arr_path, noise=None, noise_ratio=0.0):
+        super().__init__(noise=noise, noise_ratio=noise_ratio)
         self.data_path = data_path
         self.arr_path = arr_path
         self._load_data()

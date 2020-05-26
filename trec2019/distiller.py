@@ -277,15 +277,25 @@ class Distiller(pl.LightningModule):
         self.data_cls = self._get_data_cls()
         arr_path = self.hparams.dataset.arr_path
         noise = self.hparams.train.noise
+        noise_ratio = self.hparams.train.noise_ratio
 
         self._train_dataset = self.data_cls(
-            str(self.data_path / "train.zarr"), arr_path, noise=noise
+            str(self.data_path / "train.zarr"),
+            arr_path,
+            noise=noise,
+            noise_ratio=noise_ratio,
         )
         self._val_dataset = self.data_cls(
-            str(self.data_path / "val.zarr"), arr_path, noise=noise
+            str(self.data_path / "val.zarr"),
+            arr_path,
+            noise=noise,
+            noise_ratio=noise_ratio,
         )
         self._test_dataset = self.data_cls(
-            str(self.data_path / "test.zarr"), arr_path, noise=noise
+            str(self.data_path / "test.zarr"),
+            arr_path,
+            noise=noise,
+            noise_ratio=noise_ratio,
         )
 
     def _get_dataloader(self, dataset):
