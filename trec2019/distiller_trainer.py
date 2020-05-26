@@ -117,9 +117,6 @@ def main(hparams):
     model = Distiller(hparams)
 
     # early stop
-    early_stop_callback = EarlyStopping(
-        monitor="val_loss", patience=20, verbose=True, mode="min"
-    )
 
     # logger
     # log_dir = str(root_dir / "lightning_logs")/
@@ -140,9 +137,15 @@ def main(hparams):
     )
     # logger_list = [neptune_logger, tb_logger]
 
-    # custom callbacks
-    # callbacks = [UploadFinalCheckpointCallback()]
-    callbacks = []
+    # Early stop
+    if hparams.train.use_early_stop:
+        callbacks = []  # no point to save the last checkpoint
+        early_stop_callback = EarlyStopping(
+            monitor="val_loss", patience=20, verbose=True, mode="min"
+        )
+    else:
+        callbacks = [UploadFinalCheckpointCallback()]
+        early_stop_callback = None
 
     # use profiler
     profiler = AdvancedProfiler() if hparams.train.profile else None
