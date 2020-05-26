@@ -274,12 +274,17 @@ class Distiller(pl.LightningModule):
         self.data_path = Path(data_path)
         self.data_cls = self._get_data_cls()
         arr_path = self.hparams.dataset.arr_path
+        noise = self.hparams.train.noise
 
         self._train_dataset = self.data_cls(
-            str(self.data_path / "train.zarr"), arr_path
+            str(self.data_path / "train.zarr"), arr_path, noise=noise
         )
-        self._val_dataset = self.data_cls(str(self.data_path / "val.zarr"), arr_path)
-        self._test_dataset = self.data_cls(str(self.data_path / "test.zarr"), arr_path)
+        self._val_dataset = self.data_cls(
+            str(self.data_path / "val.zarr"), arr_path, noise=noise
+        )
+        self._test_dataset = self.data_cls(
+            str(self.data_path / "test.zarr"), arr_path, noise=noise
+        )
 
     def _get_dataloader(self, dataset):
         batch_size = self.hparams.train.batch_size if self.training else 2 ** 13

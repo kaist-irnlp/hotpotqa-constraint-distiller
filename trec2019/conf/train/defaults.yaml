@@ -3,6 +3,7 @@ train:
   batch_size: 128
   max_nb_epochs: 100
   learning_rate: 0.0001
+  noise: gaussian
   # device
   gpus: null
   distributed_backend: null

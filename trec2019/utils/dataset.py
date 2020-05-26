@@ -14,6 +14,7 @@ import torchtext
 from collections import Counter
 import json
 from textblob import TextBlob
+from gensim.corpora import Dictionary
 
 # from transformers import BertTokenizer
 # from transformers.tokenization_auto import AutoTokenizer
@@ -23,43 +24,15 @@ _root_dir = str(Path(__file__).parent.absolute())
 blosc.use_threads = False
 
 
-class EmbeddingLabelDataset(Dataset):
-    def __init__(self, data_path, arr_path, noise="gaussian"):
-        super().__init__()
-        self.data_path = data_path
-        self.arr_path = arr_path
-        self._load_data()
-        self._noise = {
+class AbstractNoisyDataset(Dataset):
+    def __init__(self, noise=None):
+        self._add_noise = {
             "gaussian": self.add_gaussian_noise,
             "masking": self.add_masking_noise,
             "salt": self.add_salt_pepper_noise,
         }.get(noise, None)
 
-    def _load_data(self):
-        data = zarr.open(str(self.data_path), "r")
-        self.embedding = data[self.arr_path][:]
-        self.label = data.label[:]
-
-    def __len__(self):
-        return len(self.label)
-
-    def __getitem__(self, index):
-        data, lbl = (
-            self.embedding[index].astype(np.float32),
-            self.label[index],
-        )
-        orig_data = np.copy(data)
-        # add noise
-        if self._noise:
-            data = self._noise(data)
-        return {
-            "index": index,
-            "data": data.astype("f4"),
-            "orig_data": orig_data.astype("f4"),
-            "target": lbl,
-        }
-
-    def add_gaussian_noise(self, X, corruption_ratio=0.02, range_=[0, 1]):
+    def add_gaussian_noise(self, X, corruption_ratio=0.01, range_=[0, 1]):
         X_noisy = X + corruption_ratio * np.random.normal(
             loc=0.0, scale=1.0, size=X.shape
         )
@@ -88,6 +61,38 @@ class EmbeddingLabelDataset(Dataset):
             X_noisy[i, idx_noisy] = np.random.binomial(1, 0.5, n)
 
         return X_noisy
+
+
+class EmbeddingLabelDataset(AbstractNoisyDataset):
+    def __init__(self, data_path, arr_path, noise=None):
+        super().__init__(noise=noise)
+        self.data_path = data_path
+        self.arr_path = arr_path
+        self._load_data()
+
+    def _load_data(self):
+        data = zarr.open(str(self.data_path), "r")
+        self.embedding = data[self.arr_path][:]
+        self.label = data.label[:]
+
+    def __len__(self):
+        return len(self.label)
+
+    def __getitem__(self, index):
+        data, lbl = (
+            self.embedding[index].astype(np.float32),
+            self.label[index],
+        )
+        orig_data = np.copy(data)
+        # add noise
+        if self._add_noise:
+            data = self._add_noise(data)
+        return {
+            "index": index,
+            "data": data.astype("f4"),
+            "orig_data": orig_data.astype("f4"),
+            "target": lbl,
+        }
 
 
 # class EmbeddingLabelDataset(Dataset):
