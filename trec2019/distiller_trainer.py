@@ -11,7 +11,7 @@ from pprint import pprint
 import torch
 from torch.backends import cudnn
 import pytorch_lightning as pl
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning import loggers
 from pytorch_lightning.loggers import NeptuneLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -33,6 +33,8 @@ from trec2019.task import ClassificationTask, RankingTask
 
 
 root_dir = Path(__file__).parent.absolute()
+
+seed_everything(2020)
 
 
 class UploadFinalCheckpointCallback(pl.Callback):
@@ -102,17 +104,17 @@ def main_hydra(cfg: DictConfig) -> None:
 
 
 def main(hparams):
-    # init model
-    ## dataset
-    data_cls = get_data_cls(hparams.dataset.name)
-    data_path = hparams.dataset.path
-    arr_path = hparams.dataset.arr_path
-    ## sparse model
-    sparse_cls = get_sparse_cls(hparams.model.name)
-    ## task model
-    task_cls = get_task_cls(hparams.task.type)
+    # # init model
+    # ## dataset
+    # data_cls = get_data_cls(hparams.dataset.name)
+    # data_path = hparams.dataset.path
+    # arr_path = hparams.dataset.arr_path
+    # ## sparse model
+    # sparse_cls = get_sparse_cls(hparams.model.name)
+    # ## task model
+    # task_cls = get_task_cls(hparams.task.type)
     ## init Distiller
-    model = Distiller(hparams, sparse_cls, task_cls, data_cls, data_path, arr_path)
+    model = Distiller(hparams)
 
     # early stop
     early_stop_callback = EarlyStopping(
@@ -159,6 +161,7 @@ def main(hparams):
         logger=neptune_logger,
         early_stop_callback=early_stop_callback,
         callbacks=callbacks,
+        deterministic=True,
     )
     trainer.fit(model)
 
