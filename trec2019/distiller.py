@@ -116,7 +116,7 @@ class Distiller(pl.LightningModule):
 
         # autoencoder loss * lambda
         loss_recovery = (
-            self.loss_recovery(outputs["recover"], outputs["x"])
+            self.loss_recovery(outputs["recover"], outputs["orig_x"])
             * self.hparams.loss.recovery_loss_ratio
         )
 
@@ -161,11 +161,13 @@ class Distiller(pl.LightningModule):
         return features
 
     def _forward_step(self, batch, batch_idx, is_eval=False):
-        data = batch["data"] if not is_eval else batch["orig_data"]
+        data = batch["data"]
+        orig_data = batch["orig_data"]
         target = batch["target"]
 
         # forward
-        return self.forward(data, target)
+        features = self.forward(data, target)
+        return {**features, "orig_x": orig_data}
 
     def training_step(self, batch, batch_idx):
         return self._forward_step(batch, batch_idx)
