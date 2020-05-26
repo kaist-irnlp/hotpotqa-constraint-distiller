@@ -1,4 +1,4 @@
-project: "kjang0517/news20"
+project: "kjang0517/news20-recovery"
 experiment:
   name: tfidf
   tags:
