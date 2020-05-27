@@ -93,7 +93,7 @@ class EmbeddingDataset(AbstractNoisyDataset):
 
 class EmbeddingLabelDataset(EmbeddingDataset):
     def __init__(self, data_path, arr_path, noise=None, noise_ratio=0.0):
-        super().__init__(noise=noise, noise_ratio=noise_ratio)
+        super().__init__(data_path, arr_path, noise=noise, noise_ratio=noise_ratio)
 
     def _load_data(self):
         super()._load_data()

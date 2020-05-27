@@ -314,6 +314,7 @@ class Distiller(pl.LightningModule):
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=pin_memory,
+            shuffle=True,
         )
 
     def train_dataloader(self):

@@ -5,98 +5,87 @@ from torch.utils.data import Dataset, ConcatDataset, IterableDataset, DataLoader
 from argparse import ArgumentParser
 from tqdm import tqdm
 import zarr
+from omegaconf import OmegaConf
 
-from trec2019.model.sparsenet import SparseNet
+from trec2019.distiller import Distiller
 from trec2019.utils.dataset import *
-from trec2019.utils.dense import *
-
-OUT_DIR = "./generated"
 
 parser = ArgumentParser()
-parser.add_argument("--model_dir", type=str, required=True)
-parser.add_argument("--data_dir", type=str, default=None)
+parser.add_argument("--model_path", type=str, required=True)
+parser.add_argument("--data_path", type=str, required=True)
+parser.add_argument("--arr_path", type=str, required=True)
+parser.add_argument("--out_dir", type=str, default="generated")
 parser.add_argument("--batch_size", type=int, default=8192)
 args = parser.parse_args()
 
 
-def load_datasets(data_dir, ext=".zarr"):
+def load_datasets(data_dir, arr_path):
     data_dir = Path(data_dir)
     fnames = ["train", "test", "val"]
     datasets = {}
     for f in fnames:
-        fpath = (data_dir / f).with_suffix(ext)
-        datasets[f] = EmbeddingLabelDataset(fpath)
+        fpath = (data_dir / f).with_suffix(".zarr")
+        datasets[f] = EmbeddingDataset(fpath, arr_path)
     return datasets
-
-
-def get_out_dir(model_name, out_dir=OUT_DIR):
-    _out_dir = Path(out_dir) / model_name
-    if not _out_dir.exists():
-        _out_dir.mkdir(parents=True)
-    return _out_dir
-
-
-def open_zarr(model_name, fname, out_dir=OUT_DIR):
-    _out_dir = get_out_dir(model_name, out_dir)
-    out_path = (_out_dir / fname).with_suffix(".zarr")
-    store = zarr.DirectoryStore(str(out_path))
-    z = zarr.group(store=store)
-    return z
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def get_model(model_dir):
-    model_dir = Path(model_dir)
-    tags_path = model_dir / "meta_tags.csv"
-    model_paths = list((model_dir / "checkpoints").glob("*.ckpt"))
-    assert len(model_paths) == 1
-    model_path = model_paths[0]
+def get_model(model_path):
     # load model
-    model = SparseNet.load_from_checkpoint(
-        model_path, tags_csv=tags_path, map_location=device
+    model = Distiller.load_from_checkpoint(
+        model_path, map_location=device, data_path=data_path
     )
     # make eval mode
     model.eval()
     return model
 
 
+# def open_zarr(model_name, fname, out_dir):
+#     _out_dir = get_out_dir(model_name, out_dir)
+#     out_path = (_out_dir / fname).with_suffix(".zarr")
+#     store = zarr.DirectoryStore(str(out_path))
+#     z = zarr.group(store=store)
+#     return z
+
+
 if __name__ == "__main__":
-    model_dir = Path(args.model_dir)
-    data_dir = Path(args.data_dir)
+    model_path = Path(args.model_path)
+    data_path = Path(args.data_path)
+    arr_path = args.arr_path
+    out_dir = Path(args.out_dir)
+    if not out_dir.exists():
+        out_dir.mkdir(parents=True)
 
     # load model
-    model = get_model(model_dir)
-    model_name = model_dir.stem
-
-    # get out dir
-    out_dir = get_out_dir(model_name)
+    model = get_model(model_path)
+    model_name = model_path.stem
 
     # copy hparams
-    hparams = vars(model.hparams)
+    hparams = OmegaConf.to_container(model.hparams)
     with open(out_dir / "hparams.json", "w", encoding="utf-8") as f:
         json.dump(hparams, f, indent=4, ensure_ascii=False)
 
     # generate
-    datasets = load_datasets(data_dir)
+    datasets = load_datasets(data_path, arr_path)
     for dset_name, dset in datasets.items():
         print("Processing", dset_name)
         # init storage
-        init_shape = (args.batch_size, model.hparams.n[-1])
+        init_shape = (args.batch_size, model.hparams.model.n[-1])
         chunks = (1024, None)
-        z = open_zarr(model_name, dset_name)
+        z = zarr.open(str(out_dir / dset_name), mode="w")
         z_index = z.zeros("index", shape=init_shape[0], chunks=chunks[0])
-        z_target = z.zeros("target", shape=init_shape[0], chunks=chunks[0])
+        # z_target = z.zeros("target", shape=init_shape[0], chunks=chunks[0])
         z_out = z.zeros("out", shape=init_shape, chunks=chunks)
 
         # save
-        loader = DataLoader(dset, batch_size=args.batch_size)
+        loader = DataLoader(dset, batch_size=args.batch_size, shuffle=False)
         for i, row in enumerate(tqdm(loader)):
-            index, data, target = (
+            index, data = (
                 row["index"].numpy(),
                 row["data"],
-                row["target"].numpy(),
+                # row["target"].numpy(),
             )
             # infer
             with torch.no_grad():
@@ -106,14 +95,14 @@ if __name__ == "__main__":
                 n_rows = len(index)
                 # resize to fit the batch size
                 z_index.resize(n_rows)
-                z_target.resize(n_rows)
+                # z_target.resize(n_rows)
                 z_out.resize(n_rows, None)
                 # write the first row
                 z_index[:] = index
-                z_target[:] = target
+                # z_target[:] = target
                 z_out[:] = out
             else:
                 # append afterward
                 z_index.append(index, axis=0)
-                z_target.append(target, axis=0)
+                # z_target.append(target, axis=0)
                 z_out.append(out, axis=0)
