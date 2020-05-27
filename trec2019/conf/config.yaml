@@ -1,9 +1,9 @@
-project: "kjang0517/w2v"
+project: "kjang0517/hotpotqa"
 experiment:
-  name: w2v
+  name: hotpotqa-question
 defaults:
   - model: wta
-  - dataset: w2v
+  - dataset: hotpotqa-q
   - model_n: defaults
   - model_k: defaults
   - train: defaults

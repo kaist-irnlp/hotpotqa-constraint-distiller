@@ -1,0 +1,15 @@
+dataset:
+  name: hotpotqa-question
+  type: emb-lbl
+  path: ""
+  arr_path: "sparse/tfidf"
+  tags:
+    - hotpotqa
+    - question
+    - tfidf
+model:
+  input_size: 114383
+task:
+  type: classify
+  hidden_size: 100
+  output_size: 2
