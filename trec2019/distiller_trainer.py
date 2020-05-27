@@ -154,19 +154,20 @@ def main(hparams):
     # trainer = Trainer.from_argparse_args(hparams)
     trainer = Trainer(
         # default_root_dir=root_dir,
-        max_nb_epochs=hparams.train.max_nb_epochs,
-        gpus=hparams.train.gpus,
-        distributed_backend=hparams.train.distributed_backend,
-        fast_dev_run=hparams.train.fast_dev_run,
-        amp_level=hparams.train.amp_level,
-        precision=hparams.train.precision,
+        # max_nb_epochs=hparams.train.max_nb_epochs,
+        # gpus=hparams.train.gpus,
+        # distributed_backend=hparams.train.distributed_backend,
+        # fast_dev_run=hparams.train.fast_dev_run,
+        # amp_level=hparams.train.amp_level,
+        # precision=hparams.train.precision,
+        **hparams.train,
         benchmark=True,
         profiler=profiler,
         logger=neptune_logger,
         early_stop_callback=early_stop_callback,
         callbacks=callbacks,
         # deterministic=True,
-        val_percent_check=hparams.train.val_percent_check,
+        # val_percent_check=hparams.train.val_percent_check,
     )
     trainer.fit(model)
 

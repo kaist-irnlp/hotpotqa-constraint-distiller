@@ -92,8 +92,8 @@ class Distiller(pl.LightningModule):
         self._init_task_layer()
         self._init_recover_layer()
 
-    def _init_noise_layer(self):
-        self.noise = GaussianNoise()
+    # def _init_noise_layer(self):
+    #     self.noise = GaussianNoise()
 
     def _init_task_layer(self):
         if self.hparams.loss.use_task_loss:
@@ -286,8 +286,8 @@ class Distiller(pl.LightningModule):
         self.data_path = Path(data_path)
         self.data_cls = self._get_data_cls()
         arr_path = self.hparams.dataset.arr_path
-        noise = self.hparams.train.noise
-        noise_ratio = self.hparams.train.noise_ratio
+        noise = self.hparams.noise.type
+        noise_ratio = self.hparams.noise.ratio
 
         self._train_dataset = self.data_cls(
             str(self.data_path / "train.zarr"),

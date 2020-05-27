@@ -4,6 +4,7 @@ experiment:
 defaults:
   - model: wta
   - dataset: hotpotqa-q
+  - noise: gaussian
   - model_n: defaults
   - model_k: defaults
   - train: defaults
