@@ -120,7 +120,7 @@ class Distiller(pl.LightningModule):
         target = outputs["target"].long() if ("target" in outputs) else None
 
         # autoencoder loss * lambda
-        if self.recovery:
+        if self.recover:
             loss_recovery = (
                 self.loss_recovery(outputs["recover"], outputs["orig_x"])
                 * self.hparams.loss.recovery_loss_ratio
