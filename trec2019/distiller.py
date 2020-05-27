@@ -117,7 +117,7 @@ class Distiller(pl.LightningModule):
         return F.l1_loss(input, target)
 
     def loss(self, outputs):
-        target = outputs["target"].long()
+        target = outputs["target"].long() if ("target" in outputs) else None
 
         # autoencoder loss * lambda
         loss_recovery = (
@@ -158,18 +158,19 @@ class Distiller(pl.LightningModule):
 
         features = {
             "x": x,
-            "target": target,
             "sparse": sparse_x,
             "recover": recover_x,
             "task": task_x,
         }
+        if target is not None:
+            features["target"] = target
         return features
 
     def _forward_step(self, batch, batch_idx, is_eval=False):
         data = batch["data"]
         orig_data = batch["orig_data"]
-        missing_target_vals = -torch.ones((data.size()[0],)).type_as(data).long()
-        target = batch.get("target", missing_target_vals)
+        # missing_target_vals = -torch.ones((data.size()[0],)).type_as(data).long()
+        target = batch.get("target", None)
 
         # forward
         features = self.forward(data, target)
