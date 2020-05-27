@@ -120,16 +120,19 @@ class Distiller(pl.LightningModule):
         target = outputs["target"].long() if ("target" in outputs) else None
 
         # autoencoder loss * lambda
-        loss_recovery = (
-            self.loss_recovery(outputs["recover"], outputs["orig_x"])
-            * self.hparams.loss.recovery_loss_ratio
-        )
+        if self.recovery:
+            loss_recovery = (
+                self.loss_recovery(outputs["recover"], outputs["orig_x"])
+                * self.hparams.loss.recovery_loss_ratio
+            )
+        else:
+            loss_recovery = torch.zeros((1,)).type_as(outputs["sparse"])
 
         # task loss
         if self.task:
             loss_task = self.task.loss(outputs["task"], target)
         else:
-            loss_task = torch.zeros((1,)).type_as(loss_recovery)
+            loss_task = torch.zeros((1,)).type_as(outputs["sparse"])
 
         return {
             "total": loss_task + loss_recovery,
