@@ -24,6 +24,8 @@ class WTAModel(nn.Module):
         n = self.hparams.model.n
         k = self.hparams.model.k
         next_input_size = self.hparams.model.input_size
+        # TODO: May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
+        # TODO: Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
         for i in range(len(n)):
             self.layers.add_module(f"linear_{i+1}", nn.Linear(next_input_size, n[i]))
             self.layers.add_module(f"bn_{i+1}", nn.BatchNorm1d(n[i]))
@@ -56,7 +58,7 @@ class BatchTopK(nn.Module):
         else:
             self._topk = torch.topk
 
-    # https://discuss.pytorch.org/t/implementing-k-sparse-autoencoder-on-fasttext-embedding-the-output-is-strange/39245/2
+    # TODO: https://discuss.pytorch.org/t/implementing-k-sparse-autoencoder-on-fasttext-embedding-the-output-is-strange/39245/2
     def forward(self, x):
         if self.training:
             # assert x.dim() == 2
