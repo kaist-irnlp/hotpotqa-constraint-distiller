@@ -1,11 +1,11 @@
 train:
   # general
-  batch_size: 128
-  max_nb_epochs: 100
+  batch_size: 64
+  max_nb_epochs: 500
   learning_rate: 0.001
   noise: gaussian
   noise_ratio: 0.01
-  use_early_stop: false
+  use_early_stop: true
   tags:
     - "noise-gaussian"
   # device
