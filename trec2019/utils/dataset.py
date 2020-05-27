@@ -64,7 +64,7 @@ class AbstractNoisyDataset(Dataset):
         return X_noisy
 
 
-class EmbeddingLabelDataset(AbstractNoisyDataset):
+class EmbeddingDataset(AbstractNoisyDataset):
     def __init__(self, data_path, arr_path, noise=None, noise_ratio=0.0):
         super().__init__(noise=noise, noise_ratio=noise_ratio)
         self.data_path = data_path
@@ -73,17 +73,13 @@ class EmbeddingLabelDataset(AbstractNoisyDataset):
 
     def _load_data(self):
         data = zarr.open(str(self.data_path), "r")
-        self.embedding = data[self.arr_path][:]
-        self.label = data.label[:]
+        self.embedding = data[self.arr_path]
 
     def __len__(self):
-        return len(self.label)
+        return len(self.embedding)
 
     def __getitem__(self, index):
-        data, lbl = (
-            self.embedding[index].astype(np.float32),
-            self.label[index],
-        )
+        data = self.embedding[index]
         orig_data = np.copy(data)
         # add noise
         if self._add_noise:
@@ -92,8 +88,22 @@ class EmbeddingLabelDataset(AbstractNoisyDataset):
             "index": index,
             "data": data.astype("f4"),
             "orig_data": orig_data.astype("f4"),
-            "target": lbl,
         }
+
+
+class EmbeddingLabelDataset(EmbeddingDataset):
+    def __init__(self, data_path, arr_path, noise=None, noise_ratio=0.0):
+        super().__init__(noise=noise, noise_ratio=noise_ratio)
+
+    def _load_data(self):
+        super()._load_data()
+        data = zarr.open(str(self.data_path), "r")
+        self.label = data.label[:]
+
+    def __getitem__(self, index):
+        item = super().__getitem__(index)
+        item["target"] = self.label[index].astype("i8")
+        return item
 
 
 # class EmbeddingLabelDataset(Dataset):

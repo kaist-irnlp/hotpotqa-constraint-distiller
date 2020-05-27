@@ -1,0 +1,11 @@
+dataset:
+  name: w2v
+  type: emb
+  path: "data/news20"
+  arr_path: "vector"
+  tags:
+    - w2v
+model:
+  input_size: 300
+task:
+  type: null

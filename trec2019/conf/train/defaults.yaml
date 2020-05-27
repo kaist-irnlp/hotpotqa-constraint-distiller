@@ -17,3 +17,4 @@ train:
   # etc
   profile: false
   fast_dev_run: false
+  val_percent_check: 1.0

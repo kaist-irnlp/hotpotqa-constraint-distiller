@@ -54,8 +54,10 @@ class Distiller(pl.LightningModule):
         self._init_layers()
 
     def _get_data_cls(self):
-        name = self.hparams.dataset.name
-        if name in ("news20"):
+        tp = self.hparams.dataset.type
+        if tp == "emb":
+            return EmbeddingDataset
+        elif tp == "emb_lbl":
             return EmbeddingLabelDataset
         else:
             raise ValueError("Unkonwn dataset")
@@ -71,12 +73,15 @@ class Distiller(pl.LightningModule):
 
     def _get_task_cls(self):
         tp = self.hparams.task.type
-        if tp == "classify":
-            return ClassificationTask
-        elif tp == "ranking":
-            return RankingTask
+        if tp is None:
+            return None
         else:
-            raise ValueError("Unknown task")
+            if tp == "classify":
+                return ClassificationTask
+            elif tp == "ranking":
+                return RankingTask
+            else:
+                raise ValueError("Unknown task")
 
     # layers
     def _init_layers(self):
@@ -112,7 +117,7 @@ class Distiller(pl.LightningModule):
         return F.l1_loss(input, target)
 
     def loss(self, outputs):
-        target = outputs["target"].type(torch.long)
+        target = outputs["target"].long()
 
         # autoencoder loss * lambda
         loss_recovery = (
@@ -163,7 +168,8 @@ class Distiller(pl.LightningModule):
     def _forward_step(self, batch, batch_idx, is_eval=False):
         data = batch["data"]
         orig_data = batch["orig_data"]
-        target = batch["target"]
+        missing_target_vals = -torch.ones((data.size()[0],)).type_as(data).long()
+        target = batch.get("target", missing_target_vals)
 
         # forward
         features = self.forward(data, target)
