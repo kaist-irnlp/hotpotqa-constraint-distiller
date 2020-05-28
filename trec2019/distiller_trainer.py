@@ -127,12 +127,13 @@ def main(hparams):
     source_files_path = str(Path(hydra.utils.get_original_cwd()) / "**/*.py")
     tags = gather_tags(hparams)
     log_params = flatten_params(hparams)
+    close_after_fit = not hparams.train.upload_checkpoints
     neptune_logger = NeptuneLogger(
         project_name=hparams.project,
         experiment_name=hparams.experiment.name,  # Optional,
         params=log_params,  # Optional,
         tags=tags,  # Optional,
-        close_after_fit=False,
+        close_after_fit=close_after_fit,
         upload_source_files=[source_files_path],
     )
     # logger_list = [neptune_logger, tb_logger]
@@ -176,7 +177,7 @@ def main(hparams):
     if hparams.train.upload_checkpoints:
         checkpoints_dir = Path(trainer.ckpt_path)
         neptune_logger.experiment.log_artifact(str(checkpoints_dir))
-    neptune_logger.experiment.stop()
+        neptune_logger.experiment.stop()
 
 
 if __name__ == "__main__":
