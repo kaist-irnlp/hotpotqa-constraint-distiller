@@ -15,3 +15,5 @@ train:
   fast_dev_run: false
   val_percent_check: 1.0
   train_percent_check: 0.2
+  # logging
+  upload_checkpoints: false
