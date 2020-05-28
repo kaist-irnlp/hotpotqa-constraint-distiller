@@ -173,7 +173,7 @@ def main(hparams):
 
     # upload the best model and configs
     # checkpoints_dir = os.getcwd()
-    if hparams.train.upload_artifacts:
+    if hparams.train.upload_checkpoints:
         checkpoints_dir = Path(trainer.ckpt_path)
         neptune_logger.experiment.log_artifact(str(checkpoints_dir))
     neptune_logger.experiment.stop()
