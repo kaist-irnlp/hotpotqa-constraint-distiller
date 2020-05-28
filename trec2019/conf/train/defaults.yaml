@@ -3,7 +3,7 @@ train:
   batch_size: 64
   max_nb_epochs: 200
   learning_rate: 0.001
-  use_early_stop: true
+  use_early_stop: false
   # device
   gpus: null
   distributed_backend: null
