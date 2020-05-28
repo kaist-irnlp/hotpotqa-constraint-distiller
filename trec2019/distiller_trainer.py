@@ -141,7 +141,7 @@ def main(hparams):
     if hparams.train.use_early_stop:
         callbacks = []  # no point to save the last checkpoint
         early_stop_callback = EarlyStopping(
-            monitor="val_loss", patience=20, verbose=True, mode="min"
+            monitor="val_loss", patience=50, verbose=True, mode="min"
         )
     else:
         callbacks = [UploadFinalCheckpointCallback()]
