@@ -69,7 +69,8 @@ class SparseNetModel(nn.Module):
         self._init_layers()
 
     def forward(self, x):
-        return self.layers(x)
+        features = self.layers(x)
+        return F.normalize(features, p=2, dim=1)
 
     def on_epoch_end(self):
         self.apply(updateBoostStrength)

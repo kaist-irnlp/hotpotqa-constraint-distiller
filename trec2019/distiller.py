@@ -115,10 +115,11 @@ class Distiller(pl.LightningModule):
 
     # Losses
     def loss_recovery(self, input, target):
-        if self.hparams.loss.use_cosine_loss:
-            loss = (1 - F.cosine_similarity(input, target)).mean()
-        else:
-            loss = F.l1_loss(input, target)
+        loss = F.l1_loss(input, target)
+        # if self.hparams.loss.use_cosine_loss:
+        #     loss = (1 - F.cosine_similarity(input, target)).mean()
+        # else:
+        #     loss = F.l1_loss(input, target)
         return loss
 
     def loss(self, outputs):
