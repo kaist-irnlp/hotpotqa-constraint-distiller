@@ -1,9 +1,9 @@
-project: "kjang0517/hotpotqa"
+project: "kjang0517/news20"
 experiment:
-  name: hotpotqa-question
+  name: news20-tfidf
 defaults:
   - model: wta
-  - dataset: hotpotqa-q
+  - dataset: news20-tfidf
   - noise: gaussian
   - model_n: defaults
   - model_k: defaults
