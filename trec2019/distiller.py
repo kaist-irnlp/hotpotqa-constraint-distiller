@@ -30,7 +30,7 @@ import pandas as pd
 from trec2019.utils.dataset import *
 from trec2019.utils.noise import *
 from trec2019.model import SparseNetModel, WTAModel
-from trec2019.utils.dataset import EmbeddingLabelDataset
+from trec2019.utils.dataset import *
 from trec2019.task import ClassificationTask, RankingTask
 
 logging.basicConfig(
@@ -68,20 +68,21 @@ class Distiller(pl.LightningModule):
             return SparseNetModel
         elif name == "wta":
             return WTAModel
+        elif name == "kate":
+            raise NotImplementedError()
         else:
             raise ValueError("Unknown sparse model")
 
     def _get_task_cls(self):
         tp = self.hparams.task.type
-        if tp is None:
+        if tp == "classify":
+            return ClassificationTask
+        elif tp == "ranking":
+            return RankingTask
+        elif tp is None:
             return None
         else:
-            if tp == "classify":
-                return ClassificationTask
-            elif tp == "ranking":
-                return RankingTask
-            else:
-                raise ValueError("Unknown task")
+            raise ValueError("Unknown task")
 
     # layers
     def _init_layers(self):
@@ -114,10 +115,10 @@ class Distiller(pl.LightningModule):
 
     # Losses
     def loss_recovery(self, input, target):
-        loss = F.l1_loss(input, target)
         if self.hparams.loss.use_cosine_loss:
-            loss += (1 - F.cosine_similarity(input, target)).mean()
-        # loss = F.l1_loss(input, target)
+            loss = (1 - F.cosine_similarity(input, target)).mean()
+        else:
+            loss = F.l1_loss(input, target)
         return loss
 
     def loss(self, outputs):
@@ -155,7 +156,7 @@ class Distiller(pl.LightningModule):
         if self.recover is not None:
             recover_x = self.recover(sparse_x)
         else:
-            recover_x = x
+            recover_x = torch.zeros_like(x)
 
         # 2. out
         if self.task is not None:
@@ -174,8 +175,7 @@ class Distiller(pl.LightningModule):
         return features
 
     def _forward_step(self, batch, batch_idx, is_eval=False):
-        data = batch["data"]
-        orig_data = batch["orig_data"]
+        data, orig_data = batch["data"], batch["orig_data"]
         # missing_target_vals = -torch.ones((data.size()[0],)).type_as(data).long()
         target = batch.get("target", None)
 
