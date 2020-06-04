@@ -1,6 +1,7 @@
 from torch import nn
 import torch
 import math
+import torch.nn.functional as F
 
 
 class WTAModel(nn.Module):
@@ -13,7 +14,8 @@ class WTAModel(nn.Module):
         self.apply(self._init_weights)
 
     def forward(self, x):
-        return self.layers(x)
+        features = self.layers(x)
+        return F.normalize(features, p=2, dim=1)
 
     def on_epoch_end(self):
         pass

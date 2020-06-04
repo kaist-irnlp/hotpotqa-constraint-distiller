@@ -1,0 +1,15 @@
+dataset:
+  name: hotpotqa-question
+  type: emb-lbl
+  path: ""
+  arr_path: "dense/fse"
+  tags:
+    - hotpotqa
+    - question
+    - fse
+model:
+  input_size: 300
+task:
+  type: classify
+  hidden_size: 100
+  output_size: 2

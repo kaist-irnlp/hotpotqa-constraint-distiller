@@ -74,7 +74,7 @@ class EmbeddingDataset(AbstractNoisyDataset):
 
     def _load_data(self):
         data = zarr.open(str(self.data_path), "r")
-        self.embedding = data[self.arr_path]
+        self.embedding = data[self.arr_path][:]
 
     def __len__(self):
         return len(self.embedding)

@@ -127,12 +127,13 @@ def main(hparams):
     source_files_path = str(Path(hydra.utils.get_original_cwd()) / "**/*.py")
     tags = gather_tags(hparams)
     log_params = flatten_params(hparams)
+    close_after_fit = not hparams.train.upload_checkpoints
     neptune_logger = NeptuneLogger(
         project_name=hparams.project,
         experiment_name=hparams.experiment.name,  # Optional,
         params=log_params,  # Optional,
         tags=tags,  # Optional,
-        close_after_fit=False,
+        close_after_fit=close_after_fit,
         upload_source_files=[source_files_path],
     )
     # logger_list = [neptune_logger, tb_logger]
@@ -141,7 +142,7 @@ def main(hparams):
     if hparams.train.use_early_stop:
         callbacks = []  # no point to save the last checkpoint
         early_stop_callback = EarlyStopping(
-            monitor="val_loss", patience=20, verbose=True, mode="min"
+            monitor="val_loss", patience=50, verbose=True, mode="min"
         )
     else:
         callbacks = [UploadFinalCheckpointCallback()]
@@ -153,28 +154,30 @@ def main(hparams):
     # train
     # trainer = Trainer.from_argparse_args(hparams)
     trainer = Trainer(
-        # default_root_dir=root_dir,
+        default_root_dir=root_dir,
         max_nb_epochs=hparams.train.max_nb_epochs,
         gpus=hparams.train.gpus,
         distributed_backend=hparams.train.distributed_backend,
         fast_dev_run=hparams.train.fast_dev_run,
         amp_level=hparams.train.amp_level,
         precision=hparams.train.precision,
+        val_percent_check=hparams.train.val_percent_check,
+        # **hparams.train,
         benchmark=True,
         profiler=profiler,
         logger=neptune_logger,
         early_stop_callback=early_stop_callback,
         callbacks=callbacks,
         # deterministic=True,
-        val_percent_check=hparams.train.val_percent_check,
     )
     trainer.fit(model)
 
     # upload the best model and configs
     # checkpoints_dir = os.getcwd()
-    checkpoints_dir = Path(trainer.ckpt_path)
-    neptune_logger.experiment.log_artifact(str(checkpoints_dir))
-    neptune_logger.experiment.stop()
+    if hparams.train.upload_checkpoints:
+        checkpoints_dir = Path(trainer.ckpt_path)
+        neptune_logger.experiment.log_artifact(str(checkpoints_dir))
+        neptune_logger.experiment.stop()
 
 
 if __name__ == "__main__":

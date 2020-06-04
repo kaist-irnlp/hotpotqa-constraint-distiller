@@ -5,6 +5,7 @@ import os
 import sys
 import torch
 import gc
+import math
 
 from torch import optim
 import torch_optimizer
@@ -68,7 +69,8 @@ class SparseNetModel(nn.Module):
         self._init_layers()
 
     def forward(self, x):
-        return self.layers(x)
+        features = self.layers(x)
+        return F.normalize(features, p=2, dim=1)
 
     def on_epoch_end(self):
         self.apply(updateBoostStrength)
@@ -145,6 +147,10 @@ class SparseNetModel(nn.Module):
         assert len(hparams.model.n) == len(hparams.model.weight_sparsity)
         for i in range(len(hparams.model.weight_sparsity)):
             assert hparams.model.weight_sparsity[i] >= 0
+
+        # convert k_ratio to k
+        for i, k in enumerate(hparams.model.k):
+            hparams.model.k[i] = math.ceil(k * hparams.model.n[i])
 
         # DEBUG
         print(vars(hparams))
