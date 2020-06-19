@@ -42,6 +42,7 @@ class AbstractNoisyDataset(Dataset):
         return X_noisy
 
     def add_masking_noise(self, X):
+        # TODO: non-zero만 골라서 제거하도록 구현
         assert self._noise_ratio >= 0 and self._noise_ratio <= 1
         X_noisy = np.copy(X)
         nrow, ncol = X.shape
@@ -116,7 +117,7 @@ class EmbeddingDataset(AbstractNoisyDataset):
 
     def _load_data(self):
         data = zarr.open(str(self.data_path), "r")
-        self.embedding = data[self.arr_path]
+        self.embedding = data[self.arr_path][:]
 
     def __len__(self):
         return len(self.embedding)
