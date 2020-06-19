@@ -40,6 +40,29 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 _root_dir = str(Path(__file__).parent.absolute())
 
+# class SupConResNet(nn.Module):
+#     """backbone + projection head"""
+#     def __init__(self, name='resnet50', head='mlp', feat_dim=128):
+#         super(SupConResNet, self).__init__()
+#         model_fun, dim_in = model_dict[name]
+#         self.encoder = model_fun()
+#         if head == 'linear':
+#             self.head = nn.Linear(dim_in, feat_dim)
+#         elif head == 'mlp':
+#             self.head = nn.Sequential(
+#                 nn.Linear(dim_in, dim_in),
+#                 nn.ReLU(inplace=True),
+#                 nn.Linear(dim_in, feat_dim)
+#             )
+#         else:
+#             raise NotImplementedError(
+#                 'head not supported: {}'.format(head))
+
+#     def forward(self, x):
+#         feat = self.encoder(x)
+#         feat = F.normalize(self.head(feat), dim=1)
+#         return feat
+
 
 class Distiller(pl.LightningModule):
     def __init__(self, hparams, data_path=None):
