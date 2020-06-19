@@ -64,6 +64,49 @@ class AbstractNoisyDataset(Dataset):
         return X_noisy
 
 
+class TripleDataset(AbstractNoisyDataset):
+    def __init__(
+        self, tr_path, query_path, doc_path, emb_path, noise=None, noise_ratio=0.0
+    ):
+        super().__init__(noise=noise, noise_ratio=noise_ratio)
+        self.tr_path = str(tr_path)
+        self.query_path = str(query_path)
+        self.doc_path = str(doc_path)
+        self.emb_path = str(emb_path)
+        self._load_data()
+
+    def _load_data(self):
+        self.triples = zarr.open(self.tr_path, "r")
+        self.queries = zarr.open(self.query_path, "r")[self.emb_path]
+        self.docs = zarr.open(self.doc_path, "r")[self.emb_path]
+
+    def __len__(self):
+        return len(self.triples)
+
+    def __getitem__(self, index):
+        q_id, pos_id, neg_id = self.triples[index]
+        q = orig_q = self.queries[q_id]
+        pos = orig_pos = self.docs[pos_id]
+        neg = orig_neg = self.docs[neg_id]
+
+        # add noise
+        if self._add_noise:
+            q = self._add_noise(q)
+            pos = self._add_noise(pos)
+            neg = self._add_noise(neg)
+
+        # return
+        return {
+            "index": index,
+            "q": q,
+            "pos": pos,
+            "neg": neg,
+            "orig_q": orig_q,
+            "orig_pos": orig_pos,
+            "orig_neg": orig_neg,
+        }
+
+
 class EmbeddingDataset(AbstractNoisyDataset):
     def __init__(self, data_path, arr_path, noise=None, noise_ratio=0.0):
         super().__init__(noise=noise, noise_ratio=noise_ratio)
