@@ -66,20 +66,18 @@ class AbstractNoisyDataset(Dataset):
 
 
 class TripleDataset(AbstractNoisyDataset):
-    def __init__(
-        self, tr_path, query_path, doc_path, emb_path, noise=None, noise_ratio=0.0
-    ):
+    def __init__(self, data_dir, emb_path, noise=None, noise_ratio=0.0):
         super().__init__(noise=noise, noise_ratio=noise_ratio)
-        self.tr_path = str(tr_path)
-        self.query_path = str(query_path)
-        self.doc_path = str(doc_path)
+        self.data_dir = Path(data_dir)
         self.emb_path = str(emb_path)
         self._load_data()
 
     def _load_data(self):
-        self.triples = zarr.open(self.tr_path, "r")
-        self.queries = zarr.open(self.query_path, "r")[self.emb_path]
-        self.docs = zarr.open(self.doc_path, "r")[self.emb_path]
+        self.triples = zarr.open(str(self.data_dir / "triples.zarr"), "r")
+        self.queries = zarr.open(str(self.data_dir / "queries.zarr"), "r")[
+            self.emb_path
+        ]
+        self.docs = zarr.open(str(self.data_dir / "docs.zarr"), "r")[self.emb_path]
 
     def __len__(self):
         return len(self.triples)
@@ -231,20 +229,12 @@ class TripleEmbeddingDataset(Dataset):
 
 
 if __name__ == "__main__":
-    # tokenizer
-    # vocab_path = Path(_root_dir) / "../vocab/vocab.json.gz"
-    # with gzip.open(vocab_path, "rt", encoding="utf-8") as f:
-    #     vocab_counts = Counter(json.load(f))
-    # vocab = Vocab(
-    #     vocab_counts, vectors="fasttext.en.300d", min_freq=10, max_size=100000,
-    # )
-    # tokenizer = BowTokenizer(vocab)
     # data
-    data_path = "/Users/kyoungrok/Dropbox/Project/naver/experiment/200324_SparseNet/data/news20/train.zarr"
-    dataset = EmbeddingLabelDataset(data_path)
+    data_dir = r"E:\msmarco-passages"
+    dataset = TripleDataset(data_dir, "dense/fse_Average")
     # test
-    loader = DataLoader(dataset, batch_size=2)
+    loader = DataLoader(dataset, batch_size=128)
     for i, sample in enumerate(loader):
-        print(sample["data"])
+        print(sample["q"].shape)
         if i > 3:
             break
