@@ -30,7 +30,6 @@ import pandas as pd
 from trec2019.utils.dataset import *
 from trec2019.utils.noise import *
 from trec2019.model import SparseNetModel, WTAModel
-from trec2019.utils.dataset import *
 from trec2019.task import ClassificationTask, RankingTask
 
 logging.basicConfig(
