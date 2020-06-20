@@ -81,6 +81,8 @@ class Distiller(pl.LightningModule):
             return EmbeddingDataset
         elif tp == "emb-lbl":
             return EmbeddingLabelDataset
+        elif tp == "tr":
+            return TripleEmbeddingDataset
         else:
             raise ValueError("Unkonwn dataset")
 
@@ -338,12 +340,11 @@ class Distiller(pl.LightningModule):
     def _get_dataloader(self, dataset, shuffle=False):
         batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
         num_workers = int(cpu_count() / 2) or 1
-        pin_memory = True
         return DataLoader(
             dataset,
             batch_size=batch_size,
             num_workers=num_workers,
-            pin_memory=pin_memory,
+            pin_memory=True,
             shuffle=shuffle,
         )
 

@@ -65,7 +65,7 @@ class AbstractNoisyDataset(Dataset):
         return X_noisy
 
 
-class TripleDataset(AbstractNoisyDataset):
+class TripleEmbeddingDataset(AbstractNoisyDataset):
     def __init__(self, data_dir, emb_path, noise=None, noise_ratio=0.0):
         super().__init__(noise=noise, noise_ratio=noise_ratio)
         self.data_dir = Path(data_dir)
@@ -190,23 +190,6 @@ class News20Dataset(Dataset):
         row = self.data.iloc[index]
         text_ids = self.tokenizer.encode(row.text)
         return {"data": text_ids, "target": row.label}
-
-
-class TripleEmbeddingDataset(Dataset):
-    def __init__(self, data_path):
-        super().__init__()
-        self.data = zarr.open(data_path, "r")
-
-    def get_dim(self):
-        return self.data[0].shape[0]
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, index):
-        # get a sample
-        query, doc_pos, doc_neg = self.data[index]
-        return {"query": query, "doc_pos": doc_pos, "doc_neg": doc_neg}
 
 
 # class TripleDataset(Dataset):
