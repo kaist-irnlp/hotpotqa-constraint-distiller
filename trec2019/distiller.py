@@ -69,22 +69,10 @@ class Distiller(pl.LightningModule):
         self.hparams = hparams
 
         # dataset
-        data_path = data_path or self.hparams.dataset.path
-        self._init_dataset(data_path)
+        self._init_dataset(data_path or self.hparams.dataset.path)
 
         # layers
         self._init_layers()
-
-    def _get_data_cls(self):
-        tp = self.hparams.dataset.type
-        if tp == "emb":
-            return EmbeddingDataset
-        elif tp == "emb-lbl":
-            return EmbeddingLabelDataset
-        elif tp == "tr":
-            return TripleEmbeddingDataset
-        else:
-            raise ValueError("Unkonwn dataset")
 
     def _get_sparse_cls(self):
         name = self.hparams.model.name
@@ -97,54 +85,39 @@ class Distiller(pl.LightningModule):
         else:
             raise ValueError("Unknown sparse model")
 
-    def _get_task_cls(self):
-        tp = self.hparams.task.type
-        if tp == "classify":
-            return ClassificationTask
-        elif tp == "ranking":
-            return RankingTask
-        elif tp is None:
-            return None
-        else:
-            raise ValueError("Unknown task")
-
     # layers
     def _init_layers(self):
-        # self._init_noise_layer()
-        self.sparse_cls = self._get_sparse_cls()
-        self.task_cls = self._get_task_cls()
         self._init_sparse_layer()
         self._init_task_layer()
         self._init_recover_layer()
 
-    # def _init_noise_layer(self):
-    #     self.noise = GaussianNoise()
-
     def _init_task_layer(self):
         if self.hparams.loss.use_task_loss:
-            self.task = self.task_cls(self.hparams)
+            dim_in = self.sparse.output_size
+            feat_dim = 128
+            self.task = nn.Sequential(
+                nn.Linear(dim_in, dim_in),
+                nn.ReLU(inplace=True),
+                nn.Linear(dim_in, feat_dim),
+            )
         else:
             self.task = None
 
     def _init_sparse_layer(self):
-        self.sparse = self.sparse_cls(self.hparams)
+        sparse_cls = self._get_sparse_cls()
+        self.sparse = sparse_cls(self.hparams)
 
     def _init_recover_layer(self):
-        input_size = self.sparse.output_size
-        output_size = self.hparams.model.input_size
         if self.hparams.loss.use_recovery_loss:
+            input_size = self.sparse.output_size
+            output_size = self.hparams.model.input_size
             self.recover = nn.Linear(input_size, output_size)
         else:
             self.recover = None
 
     # Losses
     def loss_recovery(self, input, target):
-        loss = F.l1_loss(input, target)
-        # if self.hparams.loss.use_cosine_loss:
-        #     loss = (1 - F.cosine_similarity(input, target)).mean()
-        # else:
-        #     loss = F.l1_loss(input, target)
-        return loss
+        return F.mse_loss(input, target)
 
     def loss(self, outputs):
         target = outputs["target"].long() if ("target" in outputs) else None
@@ -170,46 +143,36 @@ class Distiller(pl.LightningModule):
             "recovery": loss_recovery,
         }
 
-    def forward(self, x, target):
-        # noise
-        # noise_x = self.noise(x)
+    def forward(self, batch):
+        # parse
+        q, orig_q = batch["q"], batch["orig_q"]
+        pos, orig_pos = batch["pos"], batch["orig_pos"]
+        neg, orig_neg = batch["neg"], batch["orig_neg"]
+
+        # features (copy orig_* data)
+        features = {k: v for (k, v) in batch.items() if "orig_" in k}
 
         # sparse
-        sparse_x = self.sparse(x)
+        features["sparse_q"] = self.sparse(q)
+        features["sparse_pos"] = self.sparse(pos)
+        features["sparse_neg"] = self.sparse(neg)
 
         # 1. recover
         if self.recover is not None:
-            recover_x = self.recover(sparse_x)
-        else:
-            recover_x = torch.zeros_like(x)
+            features["recover_q"] = self.recover(features["sparse_q"])
+            features["recover_pos"] = self.recover(features["sparse_pos"])
+            features["recover_neg"] = self.recover(features["sparse_neg"])
 
         # 2. out
         if self.task is not None:
-            task_x = self.task(sparse_x)
-        else:
-            task_x = torch.zeros_like(x)
+            features["task_q"] = self.task(features["sparse_q"])
+            features["task_pos"] = self.task(features["sparse_pos"])
+            features["task_neg"] = self.task(features["sparse_neg"])
 
-        features = {
-            "x": x,
-            "sparse": sparse_x,
-            "recover": recover_x,
-            "task": task_x,
-        }
-        if target is not None:
-            features["target"] = target
         return features
 
-    def _forward_step(self, batch, batch_idx, is_eval=False):
-        data, orig_data = batch["data"], batch["orig_data"]
-        # missing_target_vals = -torch.ones((data.size()[0],)).type_as(data).long()
-        target = batch.get("target", None)
-
-        # forward
-        features = self.forward(data, target)
-        return {**features, "orig_x": orig_data}
-
     def training_step(self, batch, batch_idx):
-        return self._forward_step(batch, batch_idx)
+        return self.forward(batch)
 
     def training_step_end(self, outputs):
         # loss
@@ -227,7 +190,7 @@ class Distiller(pl.LightningModule):
         return {"loss": losses["total"], "progress_bar": tqdm_dict, "log": tqdm_dict}
 
     def validation_step(self, batch, batch_idx):
-        return self._forward_step(batch, batch_idx, is_eval=True)
+        return self.forward(batch)
 
     def validation_step_end(self, outputs):
         # loss
@@ -267,7 +230,7 @@ class Distiller(pl.LightningModule):
 
     ###
     def test_step(self, batch, batch_idx):
-        return self._forward_step(batch, batch_idx, is_eval=True)
+        return self.forward(batch)
 
     def test_step_end(self, outputs):
         # loss
@@ -312,29 +275,18 @@ class Distiller(pl.LightningModule):
 
     # dataset
     def _init_dataset(self, data_path):
-        self.data_path = Path(data_path)
-        self.data_cls = self._get_data_cls()
-        arr_path = self.hparams.dataset.arr_path
+        emb_path = self.hparams.dataset.emb_path
         noise = self.hparams.noise.type
         noise_ratio = self.hparams.noise.ratio
 
-        self._train_dataset = self.data_cls(
-            str(self.data_path / "train.zarr"),
-            arr_path,
-            noise=noise,
-            noise_ratio=noise_ratio,
+        self._train_dataset = TripleEmbeddingDataset(
+            data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
         )
-        self._val_dataset = self.data_cls(
-            str(self.data_path / "val.zarr"),
-            arr_path,
-            noise=noise,
-            noise_ratio=noise_ratio,
+        self._val_dataset = TripleEmbeddingDataset(
+            data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
         )
-        self._test_dataset = self.data_cls(
-            str(self.data_path / "test.zarr"),
-            arr_path,
-            noise=noise,
-            noise_ratio=noise_ratio,
+        self._test_dataset = TripleEmbeddingDataset(
+            data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
         )
 
     def _get_dataloader(self, dataset, shuffle=False):
