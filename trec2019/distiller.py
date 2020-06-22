@@ -74,6 +74,11 @@ class Distiller(pl.LightningModule):
         # layers
         self._init_layers()
 
+    def _init_layers(self):
+        self._init_sparse_layer()
+        self._init_task_layer()
+        self._init_recover_layer()
+
     def _get_sparse_cls(self):
         name = self.hparams.model.name
         if name == "sparsenet":
@@ -84,12 +89,6 @@ class Distiller(pl.LightningModule):
             raise NotImplementedError()
         else:
             raise ValueError("Unknown sparse model")
-
-    # layers
-    def _init_layers(self):
-        self._init_sparse_layer()
-        self._init_task_layer()
-        self._init_recover_layer()
 
     def _init_task_layer(self):
         if self.hparams.loss.use_task_loss:
@@ -115,21 +114,23 @@ class Distiller(pl.LightningModule):
         else:
             self.recover = None
 
+    # TODO: 구현 필요
     def loss_task(self, outputs):
         pass
 
-    def loss_recovery(self, outputs):
+    def loss_recover(self, outputs):
         loss = 0.0
+        ratio = self.hparams.loss.recovery_loss_ratio
         for e in ["q", "pos", "neg"]:
             loss += F.mse_loss(outputs[f"orig_{e}"], outputs[f"recover_{e}"])
-        return loss * self.hparams.loss.recovery_loss_ratio
+        return loss * ratio
 
     def loss(self, outputs):
         # recover loss
         if self.recover:
-            loss_recovery = self.loss_recovery(outputs)
+            loss_recover = self.loss_recover(outputs)
         else:
-            loss_recovery = 0.0
+            loss_recover = 0.0
 
         # task loss
         if self.task:
@@ -138,30 +139,30 @@ class Distiller(pl.LightningModule):
             loss_task = 0.0
 
         return {
-            "total": loss_task + loss_recovery,
+            "total": loss_task + loss_recover,
             "task": loss_task,
-            "recovery": loss_recovery,
+            "recover": loss_recover,
         }
 
     def forward(self, batch):
         # elements to train
-        elements = ["q", "pos", "neg"]
+        trainable = ["q", "pos", "neg"]
 
-        # output features (copy orig_* data)
+        # output features (start with orig_* data)
         features = {k: v for (k, v) in batch.items() if "orig_" in k}
 
         # sparse
-        for e in elements:
+        for e in trainable:
             features[f"sparse_{e}"] = self.sparse(batch[e])
 
         # 1. recover
         if self.recover is not None:
-            for e in elements:
+            for e in trainable:
                 features[f"recover_{e}"] = self.recover(features[f"sparse_{e}"])
 
         # 2. task
         if self.task is not None:
-            for e in elements:
+            for e in trainable:
                 features[f"task_{e}"] = self.task(features[f"sparse_{e}"])
 
         return features
@@ -177,7 +178,7 @@ class Distiller(pl.LightningModule):
         tqdm_dict = {
             "train_loss": losses["total"],
             "loss_task": losses["task"],
-            "loss_recovery": losses["recovery"],
+            "loss_recover": losses["recover"],
         }
         log_dict = {
             "train_losses": tqdm_dict,
@@ -195,7 +196,7 @@ class Distiller(pl.LightningModule):
         tqdm_dict = {
             "val_loss": losses["total"],
             "loss_task": losses["task"],
-            "loss_recovery": losses["recovery"],
+            "loss_recover": losses["recover"],
         }
         log_dict = {
             "val_losses": tqdm_dict,
@@ -235,7 +236,7 @@ class Distiller(pl.LightningModule):
         tqdm_dict = {
             "test_loss": losses["total"],
             "loss_task": losses["task"],
-            "loss_recovery": losses["recovery"],
+            "loss_recover": losses["recover"],
         }
         return {
             "test_loss": losses["total"],
