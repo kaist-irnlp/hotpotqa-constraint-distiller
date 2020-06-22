@@ -127,13 +127,13 @@ class Distiller(pl.LightningModule):
 
     def loss(self, outputs):
         # recover loss
-        if self.recover:
+        if self.recover is not None:
             loss_recover = self.loss_recover(outputs)
         else:
             loss_recover = 0.0
 
         # task loss
-        if self.task:
+        if self.task is not None:
             loss_task = self.loss_task(outputs)
         else:
             loss_task = 0.0
