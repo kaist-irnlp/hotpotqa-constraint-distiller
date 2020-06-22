@@ -69,22 +69,15 @@ class Distiller(pl.LightningModule):
         self.hparams = hparams
 
         # dataset
-        data_path = data_path or self.hparams.dataset.path
-        self._init_dataset(data_path)
+        self._init_dataset(data_path or self.hparams.dataset.path)
 
         # layers
         self._init_layers()
 
-    def _get_data_cls(self):
-        tp = self.hparams.dataset.type
-        if tp == "emb":
-            return EmbeddingDataset
-        elif tp == "emb-lbl":
-            return EmbeddingLabelDataset
-        elif tp == "tr":
-            return TripleEmbeddingDataset
-        else:
-            raise ValueError("Unkonwn dataset")
+    def _init_layers(self):
+        self._init_sparse_layer()
+        self._init_task_layer()
+        self._init_recover_layer()
 
     def _get_sparse_cls(self):
         name = self.hparams.model.name
@@ -97,119 +90,85 @@ class Distiller(pl.LightningModule):
         else:
             raise ValueError("Unknown sparse model")
 
-    def _get_task_cls(self):
-        tp = self.hparams.task.type
-        if tp == "classify":
-            return ClassificationTask
-        elif tp == "ranking":
-            return RankingTask
-        elif tp is None:
-            return None
-        else:
-            raise ValueError("Unknown task")
-
-    # layers
-    def _init_layers(self):
-        # self._init_noise_layer()
-        self.sparse_cls = self._get_sparse_cls()
-        self.task_cls = self._get_task_cls()
-        self._init_sparse_layer()
-        self._init_task_layer()
-        self._init_recover_layer()
-
-    # def _init_noise_layer(self):
-    #     self.noise = GaussianNoise()
-
     def _init_task_layer(self):
         if self.hparams.loss.use_task_loss:
-            self.task = self.task_cls(self.hparams)
+            dim_in = self.sparse.output_size
+            feat_dim = 128
+            self.task = nn.Sequential(
+                nn.Linear(dim_in, dim_in),
+                nn.ReLU(inplace=True),
+                nn.Linear(dim_in, feat_dim),
+            )
         else:
             self.task = None
 
     def _init_sparse_layer(self):
-        self.sparse = self.sparse_cls(self.hparams)
+        sparse_cls = self._get_sparse_cls()
+        self.sparse = sparse_cls(self.hparams)
 
     def _init_recover_layer(self):
-        input_size = self.sparse.output_size
-        output_size = self.hparams.model.input_size
         if self.hparams.loss.use_recovery_loss:
+            input_size = self.sparse.output_size
+            output_size = self.hparams.model.input_size
             self.recover = nn.Linear(input_size, output_size)
         else:
             self.recover = None
 
-    # Losses
-    def loss_recovery(self, input, target):
-        loss = F.l1_loss(input, target)
-        # if self.hparams.loss.use_cosine_loss:
-        #     loss = (1 - F.cosine_similarity(input, target)).mean()
-        # else:
-        #     loss = F.l1_loss(input, target)
-        return loss
+    # TODO: 구현 필요
+    def loss_task(self, outputs):
+        pass
+
+    def loss_recover(self, outputs):
+        loss = 0.0
+        ratio = self.hparams.loss.recovery_loss_ratio
+        for e in ["q", "pos", "neg"]:
+            loss += F.mse_loss(outputs[f"orig_{e}"], outputs[f"recover_{e}"])
+        return loss * ratio
 
     def loss(self, outputs):
-        target = outputs["target"].long() if ("target" in outputs) else None
-
-        # autoencoder loss * lambda
-        if self.recover:
-            loss_recovery = (
-                self.loss_recovery(outputs["recover"], outputs["orig_x"])
-                * self.hparams.loss.recovery_loss_ratio
-            )
+        # recover loss
+        if self.recover is not None:
+            loss_recover = self.loss_recover(outputs)
         else:
-            loss_recovery = torch.zeros((1,)).type_as(outputs["sparse"])
+            loss_recover = 0.0
 
         # task loss
-        if self.task:
-            loss_task = self.task.loss(outputs["task"], target)
+        if self.task is not None:
+            loss_task = self.loss_task(outputs)
         else:
-            loss_task = torch.zeros((1,)).type_as(outputs["sparse"])
+            loss_task = 0.0
 
         return {
-            "total": loss_task + loss_recovery,
+            "total": loss_task + loss_recover,
             "task": loss_task,
-            "recovery": loss_recovery,
+            "recover": loss_recover,
         }
 
-    def forward(self, x, target):
-        # noise
-        # noise_x = self.noise(x)
+    def forward(self, batch):
+        # elements to train
+        trainable = ["q", "pos", "neg"]
+
+        # output features (start with orig_* data)
+        features = {k: v for (k, v) in batch.items() if "orig_" in k}
 
         # sparse
-        sparse_x = self.sparse(x)
+        for e in trainable:
+            features[f"sparse_{e}"] = self.sparse(batch[e])
 
         # 1. recover
         if self.recover is not None:
-            recover_x = self.recover(sparse_x)
-        else:
-            recover_x = torch.zeros_like(x)
+            for e in trainable:
+                features[f"recover_{e}"] = self.recover(features[f"sparse_{e}"])
 
-        # 2. out
+        # 2. task
         if self.task is not None:
-            task_x = self.task(sparse_x)
-        else:
-            task_x = torch.zeros_like(x)
+            for e in trainable:
+                features[f"task_{e}"] = self.task(features[f"sparse_{e}"])
 
-        features = {
-            "x": x,
-            "sparse": sparse_x,
-            "recover": recover_x,
-            "task": task_x,
-        }
-        if target is not None:
-            features["target"] = target
         return features
 
-    def _forward_step(self, batch, batch_idx, is_eval=False):
-        data, orig_data = batch["data"], batch["orig_data"]
-        # missing_target_vals = -torch.ones((data.size()[0],)).type_as(data).long()
-        target = batch.get("target", None)
-
-        # forward
-        features = self.forward(data, target)
-        return {**features, "orig_x": orig_data}
-
     def training_step(self, batch, batch_idx):
-        return self._forward_step(batch, batch_idx)
+        return self.forward(batch)
 
     def training_step_end(self, outputs):
         # loss
@@ -219,7 +178,7 @@ class Distiller(pl.LightningModule):
         tqdm_dict = {
             "train_loss": losses["total"],
             "loss_task": losses["task"],
-            "loss_recovery": losses["recovery"],
+            "loss_recover": losses["recover"],
         }
         log_dict = {
             "train_losses": tqdm_dict,
@@ -227,7 +186,7 @@ class Distiller(pl.LightningModule):
         return {"loss": losses["total"], "progress_bar": tqdm_dict, "log": tqdm_dict}
 
     def validation_step(self, batch, batch_idx):
-        return self._forward_step(batch, batch_idx, is_eval=True)
+        return self.forward(batch)
 
     def validation_step_end(self, outputs):
         # loss
@@ -237,7 +196,7 @@ class Distiller(pl.LightningModule):
         tqdm_dict = {
             "val_loss": losses["total"],
             "loss_task": losses["task"],
-            "loss_recovery": losses["recovery"],
+            "loss_recover": losses["recover"],
         }
         log_dict = {
             "val_losses": tqdm_dict,
@@ -267,7 +226,7 @@ class Distiller(pl.LightningModule):
 
     ###
     def test_step(self, batch, batch_idx):
-        return self._forward_step(batch, batch_idx, is_eval=True)
+        return self.forward(batch)
 
     def test_step_end(self, outputs):
         # loss
@@ -277,7 +236,7 @@ class Distiller(pl.LightningModule):
         tqdm_dict = {
             "test_loss": losses["total"],
             "loss_task": losses["task"],
-            "loss_recovery": losses["recovery"],
+            "loss_recover": losses["recover"],
         }
         return {
             "test_loss": losses["total"],
@@ -312,29 +271,18 @@ class Distiller(pl.LightningModule):
 
     # dataset
     def _init_dataset(self, data_path):
-        self.data_path = Path(data_path)
-        self.data_cls = self._get_data_cls()
-        arr_path = self.hparams.dataset.arr_path
+        emb_path = self.hparams.dataset.emb_path
         noise = self.hparams.noise.type
         noise_ratio = self.hparams.noise.ratio
 
-        self._train_dataset = self.data_cls(
-            str(self.data_path / "train.zarr"),
-            arr_path,
-            noise=noise,
-            noise_ratio=noise_ratio,
+        self._train_dataset = TripleEmbeddingDataset(
+            data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
         )
-        self._val_dataset = self.data_cls(
-            str(self.data_path / "val.zarr"),
-            arr_path,
-            noise=noise,
-            noise_ratio=noise_ratio,
+        self._val_dataset = TripleEmbeddingDataset(
+            data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
         )
-        self._test_dataset = self.data_cls(
-            str(self.data_path / "test.zarr"),
-            arr_path,
-            noise=noise,
-            noise_ratio=noise_ratio,
+        self._test_dataset = TripleEmbeddingDataset(
+            data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
         )
 
     def _get_dataloader(self, dataset, shuffle=False):
