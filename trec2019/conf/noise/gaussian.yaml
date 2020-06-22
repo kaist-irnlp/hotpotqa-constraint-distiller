@@ -1,5 +1,5 @@
 noise:
   type: gaussian
-  ratio: 0.01
+  ratio: 0.2
   tags:
     - "noise-gaussian"
