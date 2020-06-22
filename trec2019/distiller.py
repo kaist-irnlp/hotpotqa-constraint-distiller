@@ -147,36 +147,22 @@ class Distiller(pl.LightningModule):
         # elements to train
         elements = ["q", "pos", "neg"]
 
-        # extract from batch
-        # q, orig_q = batch["q"], batch["orig_q"]
-        # pos, orig_pos = batch["pos"], batch["orig_pos"]
-        # neg, orig_neg = batch["neg"], batch["orig_neg"]
-
         # output features (copy orig_* data)
         features = {k: v for (k, v) in batch.items() if "orig_" in k}
 
         # sparse
         for e in elements:
             features[f"sparse_{e}"] = self.sparse(batch[e])
-        # features["sparse_q"] = self.sparse(q)
-        # features["sparse_pos"] = self.sparse(pos)
-        # features["sparse_neg"] = self.sparse(neg)
 
         # 1. recover
         if self.recover is not None:
             for e in elements:
                 features[f"recover_{e}"] = self.recover(features[f"sparse_{e}"])
-            # features["recover_q"] = self.recover(features["sparse_q"])
-            # features["recover_pos"] = self.recover(features["sparse_pos"])
-            # features["recover_neg"] = self.recover(features["sparse_neg"])
 
         # 2. task
         if self.task is not None:
             for e in elements:
                 features[f"task_{e}"] = self.task(features[f"sparse_{e}"])
-            # features["task_q"] = self.task(features["sparse_q"])
-            # features["task_pos"] = self.task(features["sparse_pos"])
-            # features["task_neg"] = self.task(features["sparse_neg"])
 
         return features
 
