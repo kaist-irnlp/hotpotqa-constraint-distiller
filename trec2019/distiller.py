@@ -31,6 +31,7 @@ from trec2019.utils.dataset import *
 from trec2019.utils.noise import *
 from trec2019.model import SparseNetModel, WTAModel
 from trec2019.task import ClassificationTask, RankingTask
+from trec2019.utils.losses import SupConLoss
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -99,6 +100,7 @@ class Distiller(pl.LightningModule):
                 nn.ReLU(inplace=True),
                 nn.Linear(dim_in, feat_dim),
             )
+            self._loss_task = SupConLoss()
         else:
             self.task = None
 
@@ -115,8 +117,12 @@ class Distiller(pl.LightningModule):
             self.recover = None
 
     # TODO: 구현 필요
-    def loss_task(self, outputs):
-        pass
+    def loss_task(self, outputs, margin=0.0):
+        q, pos, neg = outputs["task_q"], outputs["task_pos"], outputs["task_neg"]
+        distance_p = q * pos
+        distance_n = q * neg
+        delta = distance_n - distance_p
+        return torch.sum(F.relu(margin + delta))
 
     def loss_recover(self, outputs):
         loss = 0.0
@@ -153,7 +159,7 @@ class Distiller(pl.LightningModule):
 
         # sparse
         for e in trainable:
-            features[f"sparse_{e}"] = self.sparse(batch[e])
+            features[f"sparse_{e}"] = F.normalize(self.sparse(batch[e]), dim=1)
 
         # 1. recover
         if self.recover is not None:
@@ -163,7 +169,9 @@ class Distiller(pl.LightningModule):
         # 2. task
         if self.task is not None:
             for e in trainable:
-                features[f"task_{e}"] = self.task(features[f"sparse_{e}"])
+                features[f"task_{e}"] = F.normalize(
+                    self.task(features[f"sparse_{e}"]), dim=1
+                )
 
         return features
 
