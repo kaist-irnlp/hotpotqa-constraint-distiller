@@ -122,7 +122,7 @@ class Distiller(pl.LightningModule):
         distance_p = q * pos
         distance_n = q * neg
         delta = distance_n - distance_p
-        return torch.sum(F.relu(margin + delta))
+        return torch.sum(F.relu(margin + delta)) * 0.1
 
     def loss_recover(self, outputs):
         loss = 0.0
