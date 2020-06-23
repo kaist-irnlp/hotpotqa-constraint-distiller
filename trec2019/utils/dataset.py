@@ -71,22 +71,32 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
         self.data_dir = Path(data_dir)
         self.emb_path = str(emb_path)
         self._load_data()
+        self._build_indexer()
+
+    def _build_indexer(self):
+        """  """
+        self.idx_queries = {
+            u_id: seq_id for (seq_id, u_id) in enumerate(self.queries.id[:])
+        }
+        self.idx_docs = {u_id: seq_id for (seq_id, u_id) in enumerate(self.docs.id[:])}
 
     def _load_data(self):
         self.triples = zarr.open(str(self.data_dir / "triples.zarr"), "r")
-        self.queries = zarr.open(str(self.data_dir / "queries.zarr"), "r")[
+        self.queries = zarr.open(str(self.data_dir / "queries.zarr"), "r")
+        self.queries_emb = zarr.open(str(self.data_dir / "queries.zarr"), "r")[
             self.emb_path
         ]
-        self.docs = zarr.open(str(self.data_dir / "docs.zarr"), "r")[self.emb_path]
+        self.docs = zarr.open(str(self.data_dir / "docs.zarr"), "r")
+        self.docs_emb = zarr.open(str(self.data_dir / "docs.zarr"), "r")[self.emb_path]
 
     def __len__(self):
         return len(self.triples)
 
     def __getitem__(self, index):
         q_id, pos_id, neg_id = self.triples[index]
-        q = orig_q = self.queries[q_id]
-        pos = orig_pos = self.docs[pos_id]
-        neg = orig_neg = self.docs[neg_id]
+        q = orig_q = self.queries_emb[self.idx_queries[q_id]]
+        pos = orig_pos = self.docs_emb[self.idx_docs[pos_id]]
+        neg = orig_neg = self.docs_emb[self.idx_docs[neg_id]]
 
         # add noise
         if self._add_noise:
