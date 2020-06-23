@@ -66,22 +66,33 @@ class AbstractNoisyDataset(Dataset):
 
 
 class TripleEmbeddingDataset(AbstractNoisyDataset):
-    def __init__(self, data_dir, emb_path, noise=None, noise_ratio=0.0):
+    def __init__(self, data_dir, emb_path, noise=None, noise_ratio=0.0, is_val=False):
         super().__init__(noise=noise, noise_ratio=noise_ratio)
         self.data_dir = Path(data_dir)
         self.emb_path = str(emb_path)
+        self.is_val = is_val
         self._load_data()
         self._build_indexer()
 
     def _build_indexer(self):
-        """  """
+        """"""
+        target_query_ids = set(self.triples[:, 0].tolist())
+        target_doc_ids = set(self.triples[:, 1].tolist() + self.triples[:, 2].tolist())
+
         self.idx_queries = {
-            u_id: seq_id for (seq_id, u_id) in enumerate(self.queries.id)
+            u_id: seq_id
+            for (seq_id, u_id) in enumerate(self.queries.id)
+            if u_id in target_query_ids
         }
-        self.idx_docs = {u_id: seq_id for (seq_id, u_id) in enumerate(self.docs.id)}
+        self.idx_docs = {
+            u_id: seq_id
+            for (seq_id, u_id) in enumerate(self.docs.id)
+            if u_id in target_doc_ids
+        }
 
     def _load_data(self):
-        self.triples = zarr.open(str(self.data_dir / "triples.zarr"), "r")
+        tr_type = "train" if (not self.is_val) else "val"
+        self.triples = zarr.open(str(self.data_dir / f"triples.{tr_type}.zarr"), "r")
         self.queries = zarr.open(str(self.data_dir / "queries.zarr"), "r")
         self.queries_emb = zarr.open(str(self.data_dir / "queries.zarr"), "r")[
             self.emb_path

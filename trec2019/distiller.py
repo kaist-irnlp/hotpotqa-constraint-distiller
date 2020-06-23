@@ -225,37 +225,37 @@ class Distiller(pl.LightningModule):
         return results
 
     ###
-    def test_step(self, batch, batch_idx):
-        return self.forward(batch)
+    # def test_step(self, batch, batch_idx):
+    #     return self.forward(batch)
 
-    def test_step_end(self, outputs):
-        # loss
-        losses = self.loss(outputs)
+    # def test_step_end(self, outputs):
+    #     # loss
+    #     losses = self.loss(outputs)
 
-        # logging
-        tqdm_dict = {
-            "test_loss": losses["total"],
-            "loss_task": losses["task"],
-            "loss_recover": losses["recover"],
-        }
-        return {
-            "test_loss": losses["total"],
-            "progress_bar": tqdm_dict,
-            "log": tqdm_dict,
-        }
+    #     # logging
+    #     tqdm_dict = {
+    #         "test_loss": losses["total"],
+    #         "loss_task": losses["task"],
+    #         "loss_recover": losses["recover"],
+    #     }
+    #     return {
+    #         "test_loss": losses["total"],
+    #         "progress_bar": tqdm_dict,
+    #         "log": tqdm_dict,
+    #     }
 
-    def test_epoch_end(self, outputs):
-        avg_test_loss = torch.stack([out["test_loss"] for out in outputs]).mean()
+    # def test_epoch_end(self, outputs):
+    #     avg_test_loss = torch.stack([out["test_loss"] for out in outputs]).mean()
 
-        tqdm_dict = {"test_loss": avg_test_loss}
+    #     tqdm_dict = {"test_loss": avg_test_loss}
 
-        results = {
-            "test_loss": avg_test_loss,
-            "progress_bar": tqdm_dict,
-            "log": tqdm_dict,
-        }
+    #     results = {
+    #         "test_loss": avg_test_loss,
+    #         "progress_bar": tqdm_dict,
+    #         "log": tqdm_dict,
+    #     }
 
-        return results
+    #     return results
 
     # sparsity boosting weight adjustment, etc.
     def on_epoch_end(self):
@@ -279,15 +279,15 @@ class Distiller(pl.LightningModule):
             data_path, emb_path, noise=noise, noise_ratio=noise_ratio
         )
         self._val_dataset = TripleEmbeddingDataset(
-            data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
+            data_path, emb_path, noise=noise, noise_ratio=noise_ratio, is_val=True
         )
-        self._test_dataset = TripleEmbeddingDataset(
-            data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
-        )
+        # self._test_dataset = TripleEmbeddingDataset(
+        #     data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
+        # )
 
     def _get_dataloader(self, dataset, shuffle=False):
         batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
-        num_workers = 2
+        num_workers = 4
         return DataLoader(
             dataset,
             batch_size=batch_size,
@@ -302,5 +302,5 @@ class Distiller(pl.LightningModule):
     def val_dataloader(self):
         return self._get_dataloader(self._val_dataset)
 
-    def test_dataloader(self):
-        return self._get_dataloader(self._test_dataset)
+    # def test_dataloader(self):
+    #     return self._get_dataloader(self._test_dataset)
