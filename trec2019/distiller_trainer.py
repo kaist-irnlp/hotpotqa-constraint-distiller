@@ -94,7 +94,7 @@ def get_task_cls(tp):
         raise ValueError("Unknown task")
 
 
-@hydra.main(config_path="conf/config.yaml")
+@hydra.main(config_path="conf", config_name="config")
 def main_hydra(cfg: DictConfig) -> None:
     print(cfg)
     hparams = cfg
