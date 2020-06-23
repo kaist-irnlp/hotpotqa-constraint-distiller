@@ -34,7 +34,7 @@ from trec2019.task import ClassificationTask, RankingTask
 
 root_dir = Path(__file__).parent.absolute()
 
-seed_everything(2020)
+# seed_everything(2020)
 
 
 class UploadFinalCheckpointCallback(pl.Callback):
