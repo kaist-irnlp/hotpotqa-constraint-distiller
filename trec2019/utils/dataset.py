@@ -76,9 +76,9 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
     def _build_indexer(self):
         """  """
         self.idx_queries = {
-            u_id: seq_id for (seq_id, u_id) in enumerate(self.queries.id[:])
+            u_id: seq_id for (seq_id, u_id) in enumerate(self.queries.id)
         }
-        self.idx_docs = {u_id: seq_id for (seq_id, u_id) in enumerate(self.docs.id[:])}
+        self.idx_docs = {u_id: seq_id for (seq_id, u_id) in enumerate(self.docs.id)}
 
     def _load_data(self):
         self.triples = zarr.open(str(self.data_dir / "triples.zarr"), "r")
