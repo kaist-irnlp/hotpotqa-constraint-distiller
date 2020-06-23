@@ -276,7 +276,7 @@ class Distiller(pl.LightningModule):
         noise_ratio = self.hparams.noise.ratio
 
         self._train_dataset = TripleEmbeddingDataset(
-            data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
+            data_path, emb_path, noise=noise, noise_ratio=noise_ratio
         )
         self._val_dataset = TripleEmbeddingDataset(
             data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
@@ -287,7 +287,7 @@ class Distiller(pl.LightningModule):
 
     def _get_dataloader(self, dataset, shuffle=False):
         batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
-        num_workers = int(cpu_count() / 4) or 1
+        num_workers = 2
         return DataLoader(
             dataset,
             batch_size=batch_size,

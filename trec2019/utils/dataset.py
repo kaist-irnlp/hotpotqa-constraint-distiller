@@ -104,6 +104,14 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
             pos = self._add_noise(pos)
             neg = self._add_noise(neg)
 
+        # Float
+        q = q.astype("f4")
+        pos = pos.astype("f4")
+        neg = neg.astype("f4")
+        orig_q = orig_q.astype("f4")
+        orig_pos = orig_pos.astype("f4")
+        orig_neg = orig_neg.astype("f4")
+
         # return
         return {
             "index": index,
