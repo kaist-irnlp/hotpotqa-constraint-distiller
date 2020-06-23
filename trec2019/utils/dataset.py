@@ -66,33 +66,62 @@ class AbstractNoisyDataset(Dataset):
 
 
 class TripleEmbeddingDataset(AbstractNoisyDataset):
-    def __init__(self, data_dir, emb_path, noise=None, noise_ratio=0.0):
+    def __init__(self, data_dir, emb_path, noise=None, noise_ratio=0.0, is_val=False):
         super().__init__(noise=noise, noise_ratio=noise_ratio)
         self.data_dir = Path(data_dir)
         self.emb_path = str(emb_path)
+        self.is_val = is_val
         self._load_data()
+        self._build_indexer()
+
+    def _build_indexer(self):
+        """"""
+        target_query_ids = set(self.triples[:, 0].tolist())
+        target_doc_ids = set(self.triples[:, 1].tolist() + self.triples[:, 2].tolist())
+
+        self.idx_queries = {
+            u_id: seq_id
+            for (seq_id, u_id) in enumerate(self.queries.id)
+            if u_id in target_query_ids
+        }
+        self.idx_docs = {
+            u_id: seq_id
+            for (seq_id, u_id) in enumerate(self.docs.id)
+            if u_id in target_doc_ids
+        }
 
     def _load_data(self):
-        self.triples = zarr.open(str(self.data_dir / "triples.zarr"), "r")
-        self.queries = zarr.open(str(self.data_dir / "queries.zarr"), "r")[
+        tr_type = "train" if (not self.is_val) else "val"
+        self.triples = zarr.open(str(self.data_dir / f"triples.{tr_type}.zarr"), "r")
+        self.queries = zarr.open(str(self.data_dir / "queries.zarr"), "r")
+        self.queries_emb = zarr.open(str(self.data_dir / "queries.zarr"), "r")[
             self.emb_path
         ]
-        self.docs = zarr.open(str(self.data_dir / "docs.zarr"), "r")[self.emb_path]
+        self.docs = zarr.open(str(self.data_dir / "docs.zarr"), "r")
+        self.docs_emb = zarr.open(str(self.data_dir / "docs.zarr"), "r")[self.emb_path]
 
     def __len__(self):
         return len(self.triples)
 
     def __getitem__(self, index):
         q_id, pos_id, neg_id = self.triples[index]
-        q = orig_q = self.queries[q_id]
-        pos = orig_pos = self.docs[pos_id]
-        neg = orig_neg = self.docs[neg_id]
+        q = orig_q = self.queries_emb[self.idx_queries[q_id]]
+        pos = orig_pos = self.docs_emb[self.idx_docs[pos_id]]
+        neg = orig_neg = self.docs_emb[self.idx_docs[neg_id]]
 
         # add noise
         if self._add_noise:
             q = self._add_noise(q)
             pos = self._add_noise(pos)
             neg = self._add_noise(neg)
+
+        # Float
+        q = q.astype("f4")
+        pos = pos.astype("f4")
+        neg = neg.astype("f4")
+        orig_q = orig_q.astype("f4")
+        orig_pos = orig_pos.astype("f4")
+        orig_neg = orig_neg.astype("f4")
 
         # return
         return {
