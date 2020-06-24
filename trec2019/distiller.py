@@ -117,12 +117,12 @@ class Distiller(pl.LightningModule):
             self.recover = None
 
     # TODO: 구현 필요
-    def loss_task(self, outputs, margin=0.0, weight=1.0):
+    def loss_task(self, outputs, margin=0.0):
         q, pos, neg = outputs["task_q"], outputs["task_pos"], outputs["task_neg"]
         sim_p = torch.sum(q * pos, axis=1)
         sim_n = torch.sum(q * neg, axis=1)
         delta = sim_n - sim_p
-        return torch.sum(F.relu(margin + delta)) * weight
+        return torch.mean(F.relu(margin + delta))
 
     def loss_recover(self, outputs):
         loss = 0.0
