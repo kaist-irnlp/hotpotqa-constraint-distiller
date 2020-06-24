@@ -170,6 +170,13 @@ def main(hparams):
         callbacks=callbacks,
         # deterministic=True,
     )
+
+    # save hparams
+    hparams_path = Path(trainer.ckpt_path) / "hparams.yaml"
+    with hparams_path.open("w", encoding="utf-8") as f:
+        f.write(model.hparams.pretty())
+
+    # train
     trainer.fit(model)
 
     # upload the best model and configs
