@@ -1,3 +1,4 @@
+# @package _global_
 dataset:
   name: news20
   type: emb-lbl
