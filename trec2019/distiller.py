@@ -184,8 +184,6 @@ class Distiller(pl.LightningModule):
 
     def training_step_end(self, outputs):
         # loss
-        losses = self.loss(outputs)
-
         # logging
         tqdm_dict = {
             "train_loss": losses["total"],
