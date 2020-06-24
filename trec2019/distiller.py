@@ -184,8 +184,6 @@ class Distiller(pl.LightningModule):
 
     def training_step_end(self, outputs):
         # loss
-        losses = self.loss(outputs)
-
         # logging
         tqdm_dict = {
             "train_loss": losses["total"],
@@ -317,7 +315,7 @@ class Distiller(pl.LightningModule):
 
     def _get_dataloader(self, dataset, shuffle=False):
         batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
-        num_workers = int(cpu_count() / 4)
+        num_workers = 2
         return DataLoader(
             dataset,
             batch_size=batch_size,
