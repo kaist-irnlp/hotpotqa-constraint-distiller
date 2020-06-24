@@ -122,7 +122,7 @@ class Distiller(pl.LightningModule):
         sim_p = torch.sum(q * pos, axis=1)
         sim_n = torch.sum(q * neg, axis=1)
         delta = sim_n - sim_p
-        return torch.mean(F.relu(margin + delta))
+        return torch.sum(F.relu(margin + delta))
 
     def loss_recover(self, outputs):
         loss = 0.0
@@ -196,6 +196,23 @@ class Distiller(pl.LightningModule):
             "train_losses": tqdm_dict,
         }
         return {"loss": losses["total"], "progress_bar": tqdm_dict, "log": tqdm_dict}
+
+    def training_epoch_end(self, outputs):
+        avg_train_loss = torch.stack([out["train_loss"] for out in outputs]).mean()
+
+        # val_loss_mean = 0
+        # for output in outputs:
+        #     val_loss_mean += output["val_loss"]
+        # val_loss_mean /= len(outputs)
+        tqdm_dict = {"train_loss": avg_train_loss}
+
+        results = {
+            "train_loss": avg_train_loss,
+            "progress_bar": tqdm_dict,
+            "log": tqdm_dict,
+        }
+
+        return results
 
     def validation_step(self, batch, batch_idx):
         return self.forward(batch)
