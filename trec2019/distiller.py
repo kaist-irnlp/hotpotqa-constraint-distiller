@@ -65,12 +65,12 @@ _root_dir = str(Path(__file__).parent.absolute())
 
 
 class Distiller(pl.LightningModule):
-    def __init__(self, hparams, data_path=None):
+    def __init__(self, hparams):
         super().__init__()
         self.hparams = hparams
 
         # dataset
-        self._init_dataset(data_path or self.hparams.dataset.path)
+        self._init_dataset()
 
         # layers
         self._init_layers()
@@ -282,16 +282,22 @@ class Distiller(pl.LightningModule):
         return [optimizer], [scheduler]
 
     # dataset
-    def _init_dataset(self, data_path):
+    def _init_dataset(self):
+        data_path = self.hparams.dataset.path
         emb_path = self.hparams.dataset.emb_path
         noise = self.hparams.noise.type
         noise_ratio = self.hparams.noise.ratio
 
         self._train_dataset = TripleEmbeddingDataset(
-            data_path, emb_path, noise=noise, noise_ratio=noise_ratio
+            data_path, emb_path, "train", noise=noise, noise_ratio=noise_ratio
         )
         self._val_dataset = TripleEmbeddingDataset(
-            data_path, emb_path, noise=noise, noise_ratio=noise_ratio, is_val=True
+            data_path,
+            emb_path,
+            "val",
+            noise=noise,
+            noise_ratio=noise_ratio,
+            is_val=True,
         )
         # self._test_dataset = TripleEmbeddingDataset(
         #     data_path, emb_path, noise=noise, noise_ratio=noise_ratio,

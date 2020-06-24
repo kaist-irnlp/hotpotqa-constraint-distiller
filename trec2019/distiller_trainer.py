@@ -96,7 +96,7 @@ def get_task_cls(tp):
 
 @hydra.main(config_path="conf", config_name="config")
 def main_hydra(cfg: DictConfig) -> None:
-    print(cfg)
+    print(cfg.pretty())
     hparams = cfg
     if hparams.train.gpus is not None:
         hparams.train.gpus = str(hparams.train.gpus)

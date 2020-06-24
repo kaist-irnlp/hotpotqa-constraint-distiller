@@ -66,11 +66,11 @@ class AbstractNoisyDataset(Dataset):
 
 
 class TripleEmbeddingDataset(AbstractNoisyDataset):
-    def __init__(self, data_dir, emb_path, noise=None, noise_ratio=0.0, is_val=False):
+    def __init__(self, data_dir, emb_path, dset_type, noise=None, noise_ratio=0.0):
         super().__init__(noise=noise, noise_ratio=noise_ratio)
         self.data_dir = Path(data_dir)
         self.emb_path = str(emb_path)
-        self.is_val = is_val
+        self.dset_type = dset_type
         self._load_data()
         self._build_indexer()
 
@@ -91,8 +91,9 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
         }
 
     def _load_data(self):
-        tr_type = "train" if (not self.is_val) else "val"
-        self.triples = zarr.open(str(self.data_dir / f"triples.{tr_type}.zarr"), "r")
+        self.triples = zarr.open(
+            str(self.data_dir / f"triples.{self.dset_type}.zarr"), "r"
+        )
         self.queries = zarr.open(str(self.data_dir / "queries.zarr"), "r")
         self.queries_emb = zarr.open(str(self.data_dir / "queries.zarr"), "r")[
             self.emb_path
