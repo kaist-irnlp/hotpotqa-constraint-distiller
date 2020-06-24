@@ -1,0 +1,50 @@
+project: kjang0517/msmarco
+experiment:
+  name: msmarco-passages
+model:
+  name: wta
+  tags:
+  - wta
+  use_sparse_weights: true
+  input_size: 300
+  n:
+  - 2048
+  k:
+  - 0.02
+dataset:
+  name: msmarco-passages
+  type: tr
+  path: E:/Data/msmarco-passages
+  emb_path: dense/fse
+  tags:
+  - msmarco
+  - passages
+  - fse
+task:
+  type: ranking
+noise:
+  type: gaussian
+  ratio: 0.02
+  tags:
+  - noise-gaussian
+train:
+  batch_size: 8192
+  max_epochs: 50
+  learning_rate: 0.0001
+  gpus: '1'
+  distributed_backend: null
+  precision: 32
+  amp_level: O0
+  profile: false
+  fast_dev_run: false
+  val_percent_check: 1.0
+  train_percent_check: 1.0
+  use_early_stop: false
+  upload_checkpoints: false
+loss:
+  use_task_loss: true
+  use_recovery_loss: true
+  recovery_loss_ratio: 1.0
+  tags:
+  - task
+  - recovery
