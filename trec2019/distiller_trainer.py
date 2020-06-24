@@ -133,7 +133,7 @@ def main(hparams):
     )
 
     # log hparams
-    with TemporaryFile() as f:
+    with TemporaryFile(mode="w", encoding="utf-8") as f:
         f.write(hparams.pretty())
         neptune_logger.log_artifact(f)
 
