@@ -37,13 +37,17 @@ root_dir = Path(__file__).parent.absolute()
 # seed_everything(2020)
 
 
+class SaveHparamsCallback(pl.Callback):
+    def on_sanity_check_start(self, trainer, pl_module):
+        # save hparams
+        hparams_str = trainer.model.hparams.pretty()
+        hparams_path = Path(trainer.ckpt_path) / "hparams.yaml"
+        with hparams_path.open("w", encoding="utf-8") as f:
+            f.write(hparams_str)
+        trainer.logger.experiment.log_artifact(str(hparams_path))
+
+
 class UploadFinalCheckpointCallback(pl.Callback):
-    def on_init_start(self, trainer):
-        pass
-
-    def on_init_end(self, trainer):
-        pass
-
     def on_train_end(self, trainer, pl_module):
         # save the last checkpoint
         trainer.save_checkpoint(
@@ -138,14 +142,17 @@ def main(hparams):
     )
     # logger_list = [neptune_logger, tb_logger]
 
+    # Callbacks
+    callbacks = []
+    callbacks.append(SaveHparamsCallback())
+
     # Early stop
     if hparams.train.use_early_stop:
-        callbacks = []  # no point to save the last checkpoint
         early_stop_callback = EarlyStopping(
             monitor="val_loss", patience=50, verbose=True, mode="min"
         )
     else:
-        callbacks = [UploadFinalCheckpointCallback()]
+        callbacks.append(UploadFinalCheckpointCallback())
         early_stop_callback = None
 
     # use profiler
@@ -170,11 +177,6 @@ def main(hparams):
         callbacks=callbacks,
         # deterministic=True,
     )
-
-    # save hparams
-    hparams_path = Path(trainer.ckpt_path) / "hparams.yaml"
-    with hparams_path.open("w", encoding="utf-8") as f:
-        f.write(model.hparams.pretty())
 
     # train
     trainer.fit(model)
