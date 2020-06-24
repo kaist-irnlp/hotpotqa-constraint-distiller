@@ -150,6 +150,12 @@ class Distiller(pl.LightningModule):
             "recover": loss_recover,
         }
 
+    def forward_sparse(self, x):
+        return F.normalize(self.sparse(x), dim=1)
+
+    def forward_task(self, x):
+        return F.normalize(self.task(x), dim=1)
+
     def forward(self, batch):
         # elements to train
         trainable = ["q", "pos", "neg"]
@@ -157,21 +163,19 @@ class Distiller(pl.LightningModule):
         # output features (start with orig_* data)
         features = {k: v for (k, v) in batch.items() if "orig_" in k}
 
-        # sparse
+        # forward sparse
         for e in trainable:
-            features[f"sparse_{e}"] = F.normalize(self.sparse(batch[e]), dim=1)
+            features[f"sparse_{e}"] = self.forward_sparse(batch[e])
 
-        # 1. recover
+        # forward task
+        if self.task is not None:
+            for e in trainable:
+                features[f"task_{e}"] = self.forward_task(features[f"sparse_{e}"])
+
+        # forward recover
         if self.recover is not None:
             for e in trainable:
                 features[f"recover_{e}"] = self.recover(features[f"sparse_{e}"])
-
-        # 2. task
-        if self.task is not None:
-            for e in trainable:
-                features[f"task_{e}"] = F.normalize(
-                    self.task(features[f"sparse_{e}"]), dim=1
-                )
 
         return features
 
