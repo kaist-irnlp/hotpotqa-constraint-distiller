@@ -292,12 +292,7 @@ class Distiller(pl.LightningModule):
             data_path, emb_path, "train", noise=noise, noise_ratio=noise_ratio
         )
         self._val_dataset = TripleEmbeddingDataset(
-            data_path,
-            emb_path,
-            "val",
-            noise=noise,
-            noise_ratio=noise_ratio,
-            is_val=True,
+            data_path, emb_path, "val", noise=noise, noise_ratio=noise_ratio,
         )
         # self._test_dataset = TripleEmbeddingDataset(
         #     data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
