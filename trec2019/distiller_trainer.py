@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from collections import Counter
 from pprint import pprint
-from tempfile import TemporaryFile
+from StringIO import StringIO
 
 import torch
 from torch.backends import cudnn
@@ -133,9 +133,8 @@ def main(hparams):
     )
 
     # log hparams
-    with TemporaryFile(mode="w", encoding="utf-8") as f:
-        f.write(hparams.pretty())
-        neptune_logger.log_artifact(f.name)
+    hparams_io = StringIO(hparams.pretty())
+    neptune_logger.log_artifact(hparams_io)
 
     # class SaveHparamsCallback(pl.Callback):
     #     def on_sanity_check_start(self, trainer, pl_module):
