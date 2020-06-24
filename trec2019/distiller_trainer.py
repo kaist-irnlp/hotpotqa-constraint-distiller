@@ -7,6 +7,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from collections import Counter
 from pprint import pprint
+from tempfile import TemporaryFile
 
 import torch
 from torch.backends import cudnn
@@ -35,16 +36,6 @@ from trec2019.task import ClassificationTask, RankingTask
 root_dir = Path(__file__).parent.absolute()
 
 # seed_everything(2020)
-
-
-class SaveHparamsCallback(pl.Callback):
-    def on_sanity_check_start(self, trainer, pl_module):
-        # save hparams
-        hparams_str = trainer.model.hparams.pretty()
-        hparams_path = Path(trainer.ckpt_path) / "hparams.yaml"
-        with hparams_path.open("w", encoding="utf-8") as f:
-            f.write(hparams_str)
-        trainer.logger.experiment.log_artifact(str(hparams_path))
 
 
 class UploadFinalCheckpointCallback(pl.Callback):
@@ -140,13 +131,27 @@ def main(hparams):
         close_after_fit=close_after_fit,
         upload_source_files=[source_files_path],
     )
-    # logger_list = [neptune_logger, tb_logger]
+
+    # log hparams
+    with TemporaryFile() as f:
+        hparams_str = hparams.pretty()
+        with f.open("w", encoding="utf-8") as f:
+            f.write(hparams_str)
+            neptune_logger.log_artifact(f)
+
+    # class SaveHparamsCallback(pl.Callback):
+    #     def on_sanity_check_start(self, trainer, pl_module):
+    #         # save hparams
+    #         hparams_str = trainer.model.hparams.pretty()
+    #         hparams_path = Path(trainer.ckpt_path) / "hparams.yaml"
+    #         with hparams_path.open("w", encoding="utf-8") as f:
+    #             f.write(hparams_str)
+    #         trainer.logger.experiment.log_artifact(str(hparams_path))
 
     # Callbacks
     callbacks = []
-    callbacks.append(SaveHparamsCallback())
 
-    # Early stop
+    # Callbacks: Early stop
     if hparams.train.use_early_stop:
         early_stop_callback = EarlyStopping(
             monitor="val_loss", patience=50, verbose=True, mode="min"
