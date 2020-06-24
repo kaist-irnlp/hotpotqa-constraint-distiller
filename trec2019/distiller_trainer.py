@@ -161,7 +161,7 @@ def main(hparams):
     # train
     # trainer = Trainer.from_argparse_args(hparams)
     trainer = Trainer(
-        default_root_dir=root_dir,
+        # default_root_dir=root_dir,
         max_epochs=hparams.train.max_epochs,
         gpus=hparams.train.gpus,
         distributed_backend=hparams.train.distributed_backend,
