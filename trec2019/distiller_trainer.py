@@ -134,10 +134,8 @@ def main(hparams):
 
     # log hparams
     with TemporaryFile() as f:
-        hparams_str = hparams.pretty()
-        with f.open("w", encoding="utf-8") as f:
-            f.write(hparams_str)
-            neptune_logger.log_artifact(f)
+        f.write(hparams.pretty())
+        neptune_logger.log_artifact(f)
 
     # class SaveHparamsCallback(pl.Callback):
     #     def on_sanity_check_start(self, trainer, pl_module):
