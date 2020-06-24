@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from collections import Counter
 from pprint import pprint
-from StringIO import StringIO
+from io import StringIO
 
 import torch
 from torch.backends import cudnn
