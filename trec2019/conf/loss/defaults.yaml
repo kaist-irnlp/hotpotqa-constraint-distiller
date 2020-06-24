@@ -1,3 +1,4 @@
+# @package _global_
 loss:
   use_task_loss: false
   use_recovery_loss: true
