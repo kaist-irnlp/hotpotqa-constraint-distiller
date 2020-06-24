@@ -134,7 +134,7 @@ def main(hparams):
 
     # log hparams
     hparams_io = StringIO(hparams.pretty())
-    neptune_logger.log_artifact(hparams_io)
+    neptune_logger.log_artifact(hparams_io, destination='hparams.yaml')
 
     # class SaveHparamsCallback(pl.Callback):
     #     def on_sanity_check_start(self, trainer, pl_module):
