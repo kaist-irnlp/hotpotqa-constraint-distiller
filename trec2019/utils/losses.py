@@ -6,7 +6,20 @@ from __future__ import print_function
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
+class TripletLoss(nn.Module):
+    """
+    """
+    def __init__(self, margin=0.0):
+        super().__init__()
+        self.margin = margin
+
+    def forward(self, anchor, positive, negative, size_average=True):
+        d_pos = (anchor - positive).pow(2).sum(1)
+        d_neg = (anchor - negative).pow(2).sum(1)
+        losses = F.relu(d_pos - d_neg + self.margin)
+        return losses.mean() if size_average else losses.sum()
 
 class SupConLoss(nn.Module):
     """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.

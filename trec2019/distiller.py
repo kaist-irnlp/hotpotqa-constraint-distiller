@@ -31,7 +31,7 @@ from trec2019.utils.dataset import *
 from trec2019.utils.noise import *
 from trec2019.model import SparseNetModel, WTAModel
 from trec2019.task import ClassificationTask, RankingTask
-from trec2019.utils.losses import SupConLoss
+from trec2019.utils.losses import SupConLoss, TripletLoss
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -100,7 +100,7 @@ class Distiller(pl.LightningModule):
                 nn.ReLU(inplace=True),
                 nn.Linear(dim_in, feat_dim),
             )
-            self._loss_task = SupConLoss()
+            self._loss_task = TripletLoss()
         else:
             self.task = None
 
@@ -119,10 +119,11 @@ class Distiller(pl.LightningModule):
     # TODO: 구현 필요
     def loss_task(self, outputs, margin=0.0):
         q, pos, neg = outputs["task_q"], outputs["task_pos"], outputs["task_neg"]
-        sim_p = torch.sum(q * pos, axis=1)
-        sim_n = torch.sum(q * neg, axis=1)
-        delta = sim_n - sim_p
-        return torch.sum(F.relu(margin + delta))
+        return self._loss_task(q, pos, neg)
+        # sim_p = torch.sum(q * pos, axis=1)
+        # sim_n = torch.sum(q * neg, axis=1)
+        # delta = sim_n - sim_p
+        # return torch.sum(F.relu(margin + delta))
 
     def loss_recover(self, outputs):
         loss = 0.0
