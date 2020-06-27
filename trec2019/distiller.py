@@ -1,5 +1,5 @@
 """
-This file defines the core research contribution   
+This file defines the core research contribution
 """
 import os
 import sys
@@ -70,7 +70,7 @@ class Distiller(pl.LightningModule):
         self.hparams = hparams
 
         # dataset
-        self._init_dataset()
+        self._init_datasets()
 
         # layers
         self._init_layers()
@@ -270,21 +270,29 @@ class Distiller(pl.LightningModule):
         return [optimizer], [scheduler]
 
     # dataset
-    def _init_dataset(self):
+    def _init_dataset(self, dset_type):
         data_path = self.hparams.dataset.path
+        data_cls = self.hparams.dataset.cls
         emb_path = self.hparams.dataset.emb_path
         noise = self.hparams.noise.type
         noise_ratio = self.hparams.noise.ratio
 
-        self._train_dataset = TripleEmbeddingDataset(
-            data_path, emb_path, "train", noise=noise, noise_ratio=noise_ratio
-        )
-        self._val_dataset = TripleEmbeddingDataset(
-            data_path, emb_path, "val", noise=noise, noise_ratio=noise_ratio,
-        )
-        # self._test_dataset = TripleEmbeddingDataset(
-        #     data_path, emb_path, noise=noise, noise_ratio=noise_ratio,
-        # )
+        data_cls = {
+            "tr": TripleEmbeddingDataset,
+            "emb": EmbeddingDataset,
+            "emb-lbl": EmbeddingLabelDataset
+        }[data_cls]
+        return data_cls(data_path, emb_path, dset_type, noise=noise, noise_ratio=noise_ratio)
+
+    def _init_datasets(self):
+        data_path = self.hparams.dataset.path
+        data_cls = self.hparams.dataset.cls
+        emb_path = self.hparams.dataset.emb_path
+        noise = self.hparams.noise.type
+        noise_ratio = self.hparams.noise.ratio
+
+        self._train_dataset = self._init_dataset("train")
+        self._val_dataset = self._init_dataset("val")
 
     def _get_dataloader(self, dataset, shuffle=False):
         batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
