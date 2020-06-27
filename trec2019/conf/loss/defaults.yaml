@@ -1,6 +1,5 @@
 # @package _global_
 loss:
-  use_task_loss: false
+  use_task_loss: true
   use_recovery_loss: true
-  # use_cosine_loss: true
   recovery_loss_ratio: 1.0

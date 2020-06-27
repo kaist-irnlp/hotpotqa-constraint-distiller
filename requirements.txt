@@ -1,4 +1,4 @@
-pytorch-lightning>=0.7.1
+pytorch-lightning
 torch
 transformers
 h5py
