@@ -48,8 +48,12 @@ class PostTrainCallback(pl.Callback):
         )
         # save hparams
         hparams_str = pl_module.hparams.pretty()
-        with (ckpt_path / 'hparams.yaml').open('w', encoding='utf-8') as f:
+        hparams_path = (ckpt_path / 'hparams.yaml')
+        with hparams_path.open('w', encoding='utf-8') as f:
             f.write(hparams_str)
+        
+        # upload hparams
+        neptune_logger.log_artifact(str(hparams_path))
 
 
 def gather_tags(hparams):
@@ -138,9 +142,6 @@ def main(hparams):
         upload_source_files=[source_files_path],
     )
 
-    # log hparams
-    hparams_io = StringIO(hparams.pretty())
-    neptune_logger.log_artifact(hparams_io, destination='hparams.yaml')
 
     # class SaveHparamsCallback(pl.Callback):
     #     def on_sanity_check_start(self, trainer, pl_module):
