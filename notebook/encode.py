@@ -93,7 +93,7 @@ class TextDataset(Dataset):
 # load data
 fpath = Path(args.fpath)
 dset = TextDataset(fpath)
-loader = DataLoader(dset, batch_size=args.batch_size, num_workers=0)
+loader = DataLoader(dset, batch_size=args.batch_size, num_workers=0, pin_memory=True)
 
 # save to
 emb_path = "dense/bert"
