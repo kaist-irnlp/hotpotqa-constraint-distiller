@@ -38,12 +38,18 @@ root_dir = Path(__file__).parent.absolute()
 # seed_everything(2020)
 
 
-class UploadFinalCheckpointCallback(pl.Callback):
+class PostTrainCallback(pl.Callback):
     def on_train_end(self, trainer, pl_module):
+        ckpt_path = Path(trainer.ckpt_path)
         # save the last checkpoint
         trainer.save_checkpoint(
-            Path(trainer.ckpt_path) / f"last_epoch={trainer.current_epoch}.ckpt"
+            ckpt_path /
+            f"last_epoch={trainer.current_epoch}.ckpt"
         )
+        # save hparams
+        hparams_str = pl_module.hparams.pretty()
+        with (ckpt_path / 'hparams.yaml').open('w', encoding='utf-8') as f:
+            f.write(hparams_str)
 
 
 def gather_tags(hparams):
@@ -108,7 +114,7 @@ def main(hparams):
     # sparse_cls = get_sparse_cls(hparams.model.name)
     # ## task model
     # task_cls = get_task_cls(hparams.task.type)
-    ## init Distiller
+    # init Distiller
     model = Distiller(hparams)
 
     # early stop
@@ -146,16 +152,14 @@ def main(hparams):
     #         trainer.logger.experiment.log_artifact(str(hparams_path))
 
     # Callbacks
-    callbacks = []
+    callbacks = [PostTrainCallback()]
 
     # Callbacks: Early stop
+    early_stop_callback = None
     if hparams.train.use_early_stop:
         early_stop_callback = EarlyStopping(
             monitor="val_loss", patience=50, verbose=True, mode="min"
         )
-    else:
-        callbacks.append(UploadFinalCheckpointCallback())
-        early_stop_callback = None
 
     # use profiler
     profiler = AdvancedProfiler() if hparams.train.profile else None

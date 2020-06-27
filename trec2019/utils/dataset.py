@@ -13,8 +13,8 @@ from torchtext.vocab import Vocab
 import torchtext
 from collections import Counter
 import json
-from textblob import TextBlob
-from gensim.corpora import Dictionary
+# from textblob import TextBlob
+# from gensim.corpora import Dictionary
 
 # from transformers import BertTokenizer
 # from transformers.tokenization_auto import AutoTokenizer
@@ -77,7 +77,8 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
     def _build_indexer(self):
         """"""
         target_query_ids = set(self.triples[:, 0].tolist())
-        target_doc_ids = set(self.triples[:, 1].tolist() + self.triples[:, 2].tolist())
+        target_doc_ids = set(
+            self.triples[:, 1].tolist() + self.triples[:, 2].tolist())
 
         self.idx_queries = {
             u_id: seq_id
@@ -94,12 +95,14 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
         self.triples = zarr.open(
             str(self.data_dir / f"triples.{self.dset_type}.zarr"), "r"
         )
-        self.queries = zarr.open(str(self.data_dir / "queries.zarr"), "r")
-        self.queries_emb = zarr.open(str(self.data_dir / "queries.zarr"), "r")[
+        self.queries = zarr.open(
+            str(self.data_dir / f"queries.{self.dset_type}.zarr"), "r")
+        self.queries_emb = self.queries[
             self.emb_path
         ]
-        self.docs = zarr.open(str(self.data_dir / "docs.zarr"), "r")
-        self.docs_emb = zarr.open(str(self.data_dir / "docs.zarr"), "r")[self.emb_path]
+        self.docs = zarr.open(
+            str(self.data_dir / f"docs.{self.dset_type}.zarr"), "r")
+        self.docs_emb = self.docs[self.emb_path]
 
     def __len__(self):
         return len(self.triples)

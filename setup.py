@@ -30,6 +30,7 @@ setup(
         "torch_optimizer",
         "neptune-client",
         "neptune-contrib",
+        "scipy"
     ],
     packages=find_packages(),
 )

@@ -116,7 +116,6 @@ class Distiller(pl.LightningModule):
         else:
             self.recover = None
 
-    # TODO: 구현 필요
     def loss_task(self, outputs, margin=0.0):
         q, pos, neg = outputs["task_q"], outputs["task_pos"], outputs["task_neg"]
         return self._loss_task(q, pos, neg)
@@ -126,11 +125,12 @@ class Distiller(pl.LightningModule):
         # return torch.sum(F.relu(margin + delta))
 
     def loss_recover(self, outputs):
-        loss = 0.0
+        losses = []
         ratio = self.hparams.loss.recovery_loss_ratio
         for e in ["q", "pos", "neg"]:
-            loss += F.mse_loss(outputs[f"orig_{e}"], outputs[f"recover_{e}"])
-        return loss * ratio
+            losses.append(F.mse_loss(
+                outputs[f"orig_{e}"], outputs[f"recover_{e}"]))
+        return torch.tensor(losses, dtype=torch.float).mean() * ratio
 
     def loss(self, outputs):
         # recover loss
@@ -171,12 +171,14 @@ class Distiller(pl.LightningModule):
         # forward task
         if self.task is not None:
             for e in trainable:
-                features[f"task_{e}"] = self.forward_task(features[f"sparse_{e}"])
+                features[f"task_{e}"] = self.forward_task(
+                    features[f"sparse_{e}"])
 
         # forward recover
         if self.recover is not None:
             for e in trainable:
-                features[f"recover_{e}"] = self.recover(features[f"sparse_{e}"])
+                features[f"recover_{e}"] = self.recover(
+                    features[f"sparse_{e}"])
 
         return features
 
@@ -199,7 +201,8 @@ class Distiller(pl.LightningModule):
         return {"loss": losses["total"], "progress_bar": tqdm_dict, "log": tqdm_dict}
 
     def training_epoch_end(self, outputs):
-        avg_train_loss = torch.stack([out["train_loss"] for out in outputs]).mean()
+        avg_train_loss = torch.stack(
+            [out["train_loss"] for out in outputs]).mean()
 
         # val_loss_mean = 0
         # for output in outputs:
@@ -253,39 +256,6 @@ class Distiller(pl.LightningModule):
         }
 
         return results
-
-    ###
-    # def test_step(self, batch, batch_idx):
-    #     return self.forward(batch)
-
-    # def test_step_end(self, outputs):
-    #     # loss
-    #     losses = self.loss(outputs)
-
-    #     # logging
-    #     tqdm_dict = {
-    #         "test_loss": losses["total"],
-    #         "loss_task": losses["task"],
-    #         "loss_recover": losses["recover"],
-    #     }
-    #     return {
-    #         "test_loss": losses["total"],
-    #         "progress_bar": tqdm_dict,
-    #         "log": tqdm_dict,
-    #     }
-
-    # def test_epoch_end(self, outputs):
-    #     avg_test_loss = torch.stack([out["test_loss"] for out in outputs]).mean()
-
-    #     tqdm_dict = {"test_loss": avg_test_loss}
-
-    #     results = {
-    #         "test_loss": avg_test_loss,
-    #         "progress_bar": tqdm_dict,
-    #         "log": tqdm_dict,
-    #     }
-
-    #     return results
 
     # sparsity boosting weight adjustment, etc.
     def on_epoch_end(self):
