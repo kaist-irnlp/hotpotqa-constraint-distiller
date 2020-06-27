@@ -26,13 +26,14 @@ blosc.use_threads = False
 
 
 class AbstractNoisyDataset(Dataset):
-    def __init__(self, noise=None, noise_ratio=0.0):
+    def __init__(self, noise=None, noise_ratio=0.0, on_memory=False):
         self._add_noise = {
             "gaussian": self.add_gaussian_noise,
             "masking": self.add_masking_noise,
             "salt": self.add_salt_pepper_noise,
         }.get(noise, None)
         self._noise_ratio = noise_ratio
+        self.on_memory = on_memory
 
     def add_gaussian_noise(self, X, range_=[0, 1]):
         X_noisy = X + self._noise_ratio * np.random.normal(
@@ -67,8 +68,8 @@ class AbstractNoisyDataset(Dataset):
 
 
 class TripleEmbeddingDataset(AbstractNoisyDataset):
-    def __init__(self, data_dir, emb_path, dset_type, noise=None, noise_ratio=0.0):
-        super().__init__(noise=noise, noise_ratio=noise_ratio)
+    def __init__(self, data_dir, emb_path, dset_type, noise=None, noise_ratio=0.0, on_memory=False):
+        super().__init__(noise=noise, noise_ratio=noise_ratio, on_memory=on_memory)
         self.data_dir = Path(data_dir)
         self.emb_path = str(emb_path)
         self.dset_type = dset_type
@@ -98,9 +99,14 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
         self.queries = zarr.open(
             str(self.data_dir / f"queries.{self.dset_type}.zarr"), "r"
         )
-        self.queries_emb = self.queries[self.emb_path]
         self.docs = zarr.open(str(self.data_dir / f"docs.{self.dset_type}.zarr"), "r")
+        self.queries_emb = self.queries[self.emb_path]
         self.docs_emb = self.docs[self.emb_path]
+
+        if self.on_memory:
+            self.triples = self.triples[:]
+            self.queries_emb = self.queries_emb[:]
+            self.docs_emb = self.docs_emb[:]
 
     def __len__(self):
         return len(self.triples)
@@ -138,8 +144,8 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
 
 
 class EmbeddingDataset(AbstractNoisyDataset):
-    def __init__(self, data_path, emb_path, noise=None, noise_ratio=0.0):
-        super().__init__(noise=noise, noise_ratio=noise_ratio)
+    def __init__(self, data_path, emb_path, noise=None, noise_ratio=0.0, on_memory=False):
+        super().__init__(noise=noise, noise_ratio=noise_ratio, on_memory=on_memory)
         self.data_path = data_path
         self.emb_path = emb_path
         self._load_data()
@@ -147,6 +153,8 @@ class EmbeddingDataset(AbstractNoisyDataset):
     def _load_data(self):
         data = zarr.open(str(self.data_path), "r")
         self.embedding = data[self.emb_path]
+        if self.on_memory:
+            self.embedding = self.embedding[:]
 
     def __len__(self):
         return len(self.embedding)
