@@ -18,6 +18,7 @@ from torch import tensor
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
+from pytorch_lightning.core.decorators import auto_move_data
 from test_tube import HyperOptArgumentParser
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
@@ -157,6 +158,7 @@ class Distiller(pl.LightningModule):
     def forward_task(self, x):
         return F.normalize(self.task(x), dim=1)
 
+    @auto_move_data
     def forward(self, batch):
         # elements to train
         trainable = ["q", "pos", "neg"]

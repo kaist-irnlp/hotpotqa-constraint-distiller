@@ -13,6 +13,7 @@ from torchtext.vocab import Vocab
 import torchtext
 from collections import Counter
 import json
+
 # from textblob import TextBlob
 # from gensim.corpora import Dictionary
 
@@ -77,8 +78,7 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
     def _build_indexer(self):
         """"""
         target_query_ids = set(self.triples[:, 0].tolist())
-        target_doc_ids = set(
-            self.triples[:, 1].tolist() + self.triples[:, 2].tolist())
+        target_doc_ids = set(self.triples[:, 1].tolist() + self.triples[:, 2].tolist())
 
         self.idx_queries = {
             u_id: seq_id
@@ -96,12 +96,10 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
             str(self.data_dir / f"triples.{self.dset_type}.zarr"), "r"
         )
         self.queries = zarr.open(
-            str(self.data_dir / f"queries.{self.dset_type}.zarr"), "r")
-        self.queries_emb = self.queries[
-            self.emb_path
-        ]
-        self.docs = zarr.open(
-            str(self.data_dir / f"docs.{self.dset_type}.zarr"), "r")
+            str(self.data_dir / f"queries.{self.dset_type}.zarr"), "r"
+        )
+        self.queries_emb = self.queries[self.emb_path]
+        self.docs = zarr.open(str(self.data_dir / f"docs.{self.dset_type}.zarr"), "r")
         self.docs_emb = self.docs[self.emb_path]
 
     def __len__(self):
@@ -140,35 +138,35 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
 
 
 class EmbeddingDataset(AbstractNoisyDataset):
-    def __init__(self, data_path, arr_path, noise=None, noise_ratio=0.0):
+    def __init__(self, data_path, emb_path, noise=None, noise_ratio=0.0):
         super().__init__(noise=noise, noise_ratio=noise_ratio)
         self.data_path = data_path
-        self.arr_path = arr_path
+        self.emb_path = emb_path
         self._load_data()
 
     def _load_data(self):
         data = zarr.open(str(self.data_path), "r")
-        self.embedding = data[self.arr_path][:]
+        self.embedding = data[self.emb_path]
 
     def __len__(self):
         return len(self.embedding)
 
     def __getitem__(self, index):
-        data = self.embedding[index]
+        data = self.embedding[index].astype("f4")
         orig_data = np.copy(data)
         # add noise
         if self._add_noise:
             data = self._add_noise(data)
         return {
             "index": index,
-            "data": data.astype("f4"),
-            "orig_data": orig_data.astype("f4"),
+            "data": data,
+            "orig_data": orig_data,
         }
 
 
 class EmbeddingLabelDataset(EmbeddingDataset):
-    def __init__(self, data_path, arr_path, noise=None, noise_ratio=0.0):
-        super().__init__(data_path, arr_path, noise=noise, noise_ratio=noise_ratio)
+    def __init__(self, data_path, emb_path, noise=None, noise_ratio=0.0):
+        super().__init__(data_path, emb_path, noise=noise, noise_ratio=noise_ratio)
 
     def _load_data(self):
         super()._load_data()
