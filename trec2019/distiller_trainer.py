@@ -42,18 +42,15 @@ class PostTrainCallback(pl.Callback):
     def on_train_end(self, trainer, pl_module):
         ckpt_path = Path(trainer.ckpt_path)
         # save the last checkpoint
-        trainer.save_checkpoint(
-            ckpt_path /
-            f"last_epoch={trainer.current_epoch}.ckpt"
-        )
+        trainer.save_checkpoint(ckpt_path / f"last_epoch={trainer.current_epoch}.ckpt")
         # save hparams
         hparams_str = pl_module.hparams.pretty()
-        hparams_path = (ckpt_path / 'hparams.yaml')
-        with hparams_path.open('w', encoding='utf-8') as f:
+        hparams_path = ckpt_path / "hparams.yaml"
+        with hparams_path.open("w", encoding="utf-8") as f:
             f.write(hparams_str)
-        
+
         # upload hparams
-        neptune_logger.log_artifact(str(hparams_path))
+        pl_module.logger.log_artifact(str(hparams_path))
 
 
 def gather_tags(hparams):
@@ -141,7 +138,6 @@ def main(hparams):
         close_after_fit=close_after_fit,
         upload_source_files=[source_files_path],
     )
-
 
     # class SaveHparamsCallback(pl.Callback):
     #     def on_sanity_check_start(self, trainer, pl_module):
