@@ -119,19 +119,20 @@ class Distiller(pl.LightningModule):
 
     def loss_task(self, outputs, margin=0.0):
         q, pos, neg = outputs["task_q"], outputs["task_pos"], outputs["task_neg"]
-        return self._loss_task(q, pos, neg)
+        return self._loss_task(q, pos, neg, size_average=False)
         # sim_p = torch.sum(q * pos, axis=1)
         # sim_n = torch.sum(q * neg, axis=1)
         # delta = sim_n - sim_p
         # return torch.sum(F.relu(margin + delta))
 
     def loss_recover(self, outputs):
-        losses = []
+        loss = 0.0
         ratio = self.hparams.loss.recovery_loss_ratio
-        for e in ["q", "pos", "neg"]:
-            losses.append(F.mse_loss(
-                outputs[f"orig_{e}"], outputs[f"recover_{e}"]))
-        return torch.tensor(losses, dtype=torch.float).mean() * ratio
+        fields = ["q", "pos", "neg"]
+        for e in fields:
+            loss += F.mse_loss(
+                outputs[f"orig_{e}"], outputs[f"recover_{e}"])
+        return (loss / len(fields)) * ratio
 
     def loss(self, outputs):
         # recover loss
@@ -276,15 +277,17 @@ class Distiller(pl.LightningModule):
         data_path = self.hparams.dataset.path
         data_cls = self.hparams.dataset.cls
         emb_path = self.hparams.dataset.emb_path
+        on_memory = self.hparams.dataset.on_memory
         noise = self.hparams.noise.type
         noise_ratio = self.hparams.noise.ratio
+
 
         data_cls = {
             "tr": TripleEmbeddingDataset,
             "emb": EmbeddingDataset,
             "emb-lbl": EmbeddingLabelDataset
         }[data_cls]
-        return data_cls(data_path, emb_path, dset_type, noise=noise, noise_ratio=noise_ratio)
+        return data_cls(data_path, emb_path, dset_type, noise=noise, noise_ratio=noise_ratio, on_memory=on_memory)
 
     def _init_datasets(self):
         data_path = self.hparams.dataset.path
