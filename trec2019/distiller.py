@@ -130,8 +130,7 @@ class Distiller(pl.LightningModule):
         ratio = self.hparams.loss.recovery_loss_ratio
         fields = ["q", "pos", "neg"]
         for e in fields:
-            loss += F.mse_loss(
-                outputs[f"orig_{e}"], outputs[f"recover_{e}"])
+            loss += F.mse_loss(outputs[f"orig_{e}"], outputs[f"recover_{e}"])
         return (loss / len(fields)) * ratio
 
     def loss(self, outputs):
@@ -174,14 +173,12 @@ class Distiller(pl.LightningModule):
         # forward task
         if self.task is not None:
             for e in trainable:
-                features[f"task_{e}"] = self.forward_task(
-                    features[f"sparse_{e}"])
+                features[f"task_{e}"] = self.forward_task(features[f"sparse_{e}"])
 
         # forward recover
         if self.recover is not None:
             for e in trainable:
-                features[f"recover_{e}"] = self.recover(
-                    features[f"sparse_{e}"])
+                features[f"recover_{e}"] = self.recover(features[f"sparse_{e}"])
 
         return features
 
@@ -204,8 +201,7 @@ class Distiller(pl.LightningModule):
         return {"loss": losses["total"], "progress_bar": tqdm_dict, "log": tqdm_dict}
 
     def training_epoch_end(self, outputs):
-        avg_train_loss = torch.stack(
-            [out["train_loss"] for out in outputs]).mean()
+        avg_train_loss = torch.stack([out["train_loss"] for out in outputs]).mean()
 
         # val_loss_mean = 0
         # for output in outputs:
@@ -231,8 +227,8 @@ class Distiller(pl.LightningModule):
         # logging
         tqdm_dict = {
             "val_loss": losses["total"],
-            "loss_task": losses["task"],
-            "loss_recover": losses["recover"],
+            "val_loss_task": losses["task"],
+            "val_loss_recover": losses["recover"],
         }
         log_dict = {
             "val_losses": tqdm_dict,
@@ -281,13 +277,19 @@ class Distiller(pl.LightningModule):
         noise = self.hparams.noise.type
         noise_ratio = self.hparams.noise.ratio
 
-
         data_cls = {
             "tr": TripleEmbeddingDataset,
             "emb": EmbeddingDataset,
-            "emb-lbl": EmbeddingLabelDataset
+            "emb-lbl": EmbeddingLabelDataset,
         }[data_cls]
-        return data_cls(data_path, emb_path, dset_type, noise=noise, noise_ratio=noise_ratio, on_memory=on_memory)
+        return data_cls(
+            data_path,
+            emb_path,
+            dset_type,
+            noise=noise,
+            noise_ratio=noise_ratio,
+            on_memory=on_memory,
+        )
 
     def _init_datasets(self):
         data_path = self.hparams.dataset.path

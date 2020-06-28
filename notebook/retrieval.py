@@ -7,9 +7,10 @@
 import pandas as pd
 import zarr
 from pathlib import Path
+
 try:
     import cupy as np
-except:    
+except:
     import numpy as np
 
 
@@ -56,7 +57,7 @@ q_embs = z[emb_path][:]
 # In[17]:
 
 
-z = zarr.open(str(data_dir / "passages.eval.zarr"))
+z = zarr.open(str(data_dir / "docs.eval.zarr"))
 p_embs = z[emb_path][:]
 p_ids = z.id[:]
 
@@ -87,7 +88,4 @@ with open("./runs/run.msmarco-passage.dev.small.bert.tsv", "w", encoding="utf-8"
 
 
 # In[ ]:
-
-
-
 
