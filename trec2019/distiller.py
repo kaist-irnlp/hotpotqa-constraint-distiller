@@ -186,31 +186,37 @@ class Distiller(pl.LightningModule):
         return self.forward(batch)
 
     def training_step_end(self, outputs):
+        # aggregate
+        # outputs = {}
+        # for k in batch_parts_outputs[0].keys():
+        #     outputs[k] = torch.cat([part[k] for part in batch_parts_outputs], dim=1)
+
         # loss
         losses = self.loss(outputs)
 
         # logging
         tqdm_dict = {
             "train_loss": losses["total"],
-            "loss_task": losses["task"],
-            "loss_recover": losses["recover"],
+            "train_loss_task": losses["task"],
+            "train_loss_recover": losses["recover"],
         }
-        log_dict = {
-            "train_losses": tqdm_dict,
+        return {
+            "loss": tqdm_dict["train_loss"],
+            "progress_bar": tqdm_dict,
+            "log": tqdm_dict,
         }
-        return {"loss": losses["total"], "progress_bar": tqdm_dict, "log": tqdm_dict}
 
     def training_epoch_end(self, outputs):
-        avg_train_loss = torch.stack([out["train_loss"] for out in outputs]).mean()
+        avg_train_loss = torch.stack([out["loss"] for out in outputs]).mean()
 
         # val_loss_mean = 0
         # for output in outputs:
         #     val_loss_mean += output["val_loss"]
         # val_loss_mean /= len(outputs)
-        tqdm_dict = {"train_loss": avg_train_loss}
+        tqdm_dict = {"avg_train_loss": avg_train_loss}
 
         results = {
-            "train_loss": avg_train_loss,
+            "avg_train_loss": avg_train_loss,
             "progress_bar": tqdm_dict,
             "log": tqdm_dict,
         }
@@ -221,6 +227,11 @@ class Distiller(pl.LightningModule):
         return self.forward(batch)
 
     def validation_step_end(self, outputs):
+        # aggregate
+        # outputs = {}
+        # for k in batch_parts_outputs[0].keys():
+        #     outputs[k] = torch.cat([part[k] for part in batch_parts_outputs], dim=1)
+
         # loss
         losses = self.loss(outputs)
 
@@ -230,11 +241,8 @@ class Distiller(pl.LightningModule):
             "val_loss_task": losses["task"],
             "val_loss_recover": losses["recover"],
         }
-        log_dict = {
-            "val_losses": tqdm_dict,
-        }
         return {
-            "val_loss": losses["total"],
+            "val_loss": tqdm_dict["val_loss"],
             "progress_bar": tqdm_dict,
             "log": tqdm_dict,
         }
