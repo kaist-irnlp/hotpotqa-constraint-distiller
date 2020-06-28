@@ -53,6 +53,11 @@ class PostTrainCallback(pl.Callback):
         ckpt_path = Path(trainer.ckpt_path)
         # save the last checkpoint
         trainer.save_checkpoint(ckpt_path / f"last_epoch={trainer.current_epoch}.ckpt")
+        # upload checkpoints
+        try:
+            pl_module.logger.log_artifact(str(ckpt_path))
+        except:
+            pl_module.logger.log_text("error", "Error uploading checkpoints.")
 
 
 def gather_tags(hparams):
