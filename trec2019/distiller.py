@@ -126,12 +126,12 @@ class Distiller(pl.LightningModule):
         # return torch.sum(F.relu(margin + delta))
 
     def loss_recover(self, outputs):
-        loss = 0.0
-        ratio = self.hparams.loss.recovery_loss_ratio
+        losses = {}
         fields = ["q", "pos", "neg"]
         for e in fields:
-            loss += F.mse_loss(outputs[f"orig_{e}"], outputs[f"recover_{e}"])
-        return (loss / len(fields)) * ratio
+            losses[e] = F.mse_loss(outputs[f"orig_{e}"], outputs[f"recover_{e}"])
+        ratio = self.hparams.loss.recovery_loss_ratio
+        return (losses["q"] + losses["pos"] + losses["neg"]) / 3 * ratio
 
     def loss(self, outputs):
         # recover loss
