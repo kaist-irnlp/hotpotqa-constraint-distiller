@@ -242,7 +242,7 @@ class Distiller(pl.LightningModule):
             "val_loss_recover": losses["recover"],
         }
         return {
-            "val_loss": tqdm_dict["val_loss"],
+            **tqdm_dict,
             "progress_bar": tqdm_dict,
             "log": tqdm_dict,
         }
@@ -267,7 +267,7 @@ class Distiller(pl.LightningModule):
         }
 
         results = {
-            "avg_val_loss": avg_val_loss,
+            **tqdm_dict,
             "progress_bar": tqdm_dict,
             "log": tqdm_dict,
         }
