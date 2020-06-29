@@ -207,7 +207,7 @@ class Distiller(pl.LightningModule):
         }
 
     def training_epoch_end(self, outputs):
-        avg_train_loss = torch.stack([out["loss"] for out in outputs]).mean()
+        avg_train_loss = torch.stack([out["train_loss"] for out in outputs]).mean()
 
         # val_loss_mean = 0
         # for output in outputs:
