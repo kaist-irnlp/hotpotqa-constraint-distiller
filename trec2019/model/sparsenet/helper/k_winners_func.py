@@ -121,9 +121,9 @@ class k_winners(torch.autograd.Function):
 
         # Probably a better way to do it, but this is not terrible as it only loops
         # over the batch size.
-        grad_x = grad_x.scatter(1, indices, grad_output)
-        # for i in range(grad_output.size(0)):
-        #     grad_x[i, indices[i]] = grad_output[i, indices[i]]
+        # grad_x = grad_x.scatter(1, indices, grad_output)
+        for i in range(grad_output.size(0)):
+            grad_x[i, indices[i]] = grad_output[i, indices[i]]
 
         return grad_x, None, None, None
 
