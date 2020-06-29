@@ -39,7 +39,7 @@ root_dir = Path(__file__).parent.absolute()
 
 
 class PostTrainCallback(pl.Callback):
-    def on_train_start(self, trainer, pl_module):
+    def on_sanity_check_end(self, trainer, pl_module):
         ckpt_path = Path(trainer.ckpt_path)
         # save hparams
         hparams_str = pl_module.hparams.pretty()
