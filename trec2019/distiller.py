@@ -261,9 +261,9 @@ class Distiller(pl.LightningModule):
         #     val_loss_mean += output["val_loss"]
         # val_loss_mean /= len(outputs)
         tqdm_dict = {
-            "avg_val_loss": avg_val_loss,
-            "avg_val_loss_task": avg_val_loss_task,
-            "avg_val_loss_recover": avg_val_loss_recover,
+            "val_loss": avg_val_loss,
+            "val_loss_task": avg_val_loss_task,
+            "val_loss_recover": avg_val_loss_recover,
         }
 
         results = {
