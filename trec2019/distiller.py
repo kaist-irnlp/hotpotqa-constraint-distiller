@@ -267,7 +267,7 @@ class Distiller(pl.LightningModule):
         }
 
         results = {
-            "avg_val_loss": avg_val_loss,
+            "val_loss": avg_val_loss,
             "progress_bar": tqdm_dict,
             "log": tqdm_dict,
         }
