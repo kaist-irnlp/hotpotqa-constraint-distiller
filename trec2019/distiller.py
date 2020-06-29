@@ -249,32 +249,32 @@ class Distiller(pl.LightningModule):
             "log": tqdm_dict,
         }
 
-    # def validation_epoch_end(self, outputs):
-    #     avg_val_loss = torch.stack([out["val_loss"] for out in outputs]).mean()
-    #     avg_val_loss_task = torch.stack(
-    #         [out["log"]["val_loss_task"] for out in outputs]
-    #     ).mean()
-    #     avg_val_loss_recover = torch.stack(
-    #         [out["log"]["val_loss_recover"] for out in outputs]
-    #     ).mean()
+    def validation_epoch_end(self, outputs):
+        avg_val_loss = torch.stack([out["val_loss"] for out in outputs]).mean()
+        avg_val_loss_task = torch.stack(
+            [out["log"]["val_loss_task"] for out in outputs]
+        ).mean()
+        avg_val_loss_recover = torch.stack(
+            [out["log"]["val_loss_recover"] for out in outputs]
+        ).mean()
 
-    #     # val_loss_mean = 0
-    #     # for output in outputs:
-    #     #     val_loss_mean += output["val_loss"]
-    #     # val_loss_mean /= len(outputs)
-    #     tqdm_dict = {
-    #         "val_loss": avg_val_loss,
-    #         "val_loss_task": avg_val_loss_task,
-    #         "val_loss_recover": avg_val_loss_recover,
-    #     }
+        # val_loss_mean = 0
+        # for output in outputs:
+        #     val_loss_mean += output["val_loss"]
+        # val_loss_mean /= len(outputs)
+        tqdm_dict = {
+            "val_loss": avg_val_loss,
+            "val_loss_task": avg_val_loss_task,
+            "val_loss_recover": avg_val_loss_recover,
+        }
 
-    #     results = {
-    #         "val_loss": avg_val_loss,
-    #         "progress_bar": tqdm_dict,
-    #         "log": tqdm_dict,
-    #     }
+        results = {
+            "val_loss": avg_val_loss,
+            "progress_bar": tqdm_dict,
+            "log": tqdm_dict,
+        }
 
-    #     return results
+        return results
 
     # sparsity boosting weight adjustment, etc.
     def on_epoch_end(self):
