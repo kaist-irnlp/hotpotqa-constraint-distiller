@@ -201,7 +201,7 @@ class Distiller(pl.LightningModule):
             "train_loss_recover": losses["recover"],
         }
         return {
-            "train_loss": tqdm_dict["train_loss"],
+            "loss": tqdm_dict["train_loss"],
             "progress_bar": tqdm_dict,
             "log": tqdm_dict,
         }
