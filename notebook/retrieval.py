@@ -18,13 +18,13 @@ except:
 # In[22]:
 
 parser = ArgumentParser()
-parser.add("--data_dir", default="../msmarco-passages")
-parser.add("--emb_path", default="dense/bert")
+parser.add_argument("--data_dir", default="d:/Data/msmarco-passages")
+parser.add_argument("--emb_path", default="dense/fse")
 args = parser.parse_args()
 
 
-emb_path = "dense/bert"
 data_dir = Path(args.data_dir)
+emb_path = args.emb_path
 
 
 # # Query
