@@ -250,10 +250,10 @@ class Distiller(pl.LightningModule):
     def validation_epoch_end(self, outputs):
         avg_val_loss = torch.stack([out["val_loss"] for out in outputs]).mean()
         avg_val_loss_task = torch.stack(
-            [out["val_loss_task"] for out in outputs]
+            [out["log"]["val_loss_task"] for out in outputs]
         ).mean()
         avg_val_loss_recover = torch.stack(
-            [out["val_loss_recover"] for out in outputs]
+            [out["log"]["val_loss_recover"] for out in outputs]
         ).mean()
 
         # val_loss_mean = 0
