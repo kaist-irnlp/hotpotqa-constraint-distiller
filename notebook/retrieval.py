@@ -7,15 +7,21 @@
 import pandas as pd
 import zarr
 from pathlib import Path
+from argparse import ArgumentParser
 
 import numpy as np
 
 
 # In[22]:
 
+parser = ArgumentParser()
+parser.add_argument("--data_dir", default="d:/Data/msmarco-passages")
+parser.add_argument("--emb_path", default="dense/fse")
+args = parser.parse_args()
 
-emb_path = "dense/fse"
-data_dir = Path("/home/kyoungrok/Data/msmarco-passages")
+
+data_dir = Path(args.data_dir)
+emb_path = args.emb_path
 
 
 # # Query
@@ -76,8 +82,14 @@ def search(q_emb, p_embs, p_ids, topk=1000):
 
 # In[20]:
 
+out_dir = Path("runs")
+if not out_dir.exists():
+    out_dir.mkdir(parents=True)
 
-with open("./runs/run.msmarco-passage.dev.small.fse.tsv", "w", encoding="utf-8") as f:
+emb_name = args.emb_path.split("/")[-1]
+with open(
+    out_dir / f"run.msmarco-passage.dev.small.{emb_name}.tsv", "w", encoding="utf-8"
+) as f:
     for q_id, q_emb in tqdm(zip(q_ids, q_embs)):
         topk = search(q_emb, p_embs, p_ids)
         for i, tk in enumerate(topk):
