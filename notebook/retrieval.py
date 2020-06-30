@@ -8,17 +8,14 @@ import pandas as pd
 import zarr
 from pathlib import Path
 
-try:
-    import cupy as np
-except:
-    import numpy as np
+import numpy as np
 
 
 # In[22]:
 
 
-emb_path = "dense/bert"
-data_dir = Path("../msmarco-passages/")
+emb_path = "dense/fse"
+data_dir = Path("/home/kyoungrok/Data/msmarco-passages")
 
 
 # # Query
@@ -80,7 +77,7 @@ def search(q_emb, p_embs, p_ids, topk=1000):
 # In[20]:
 
 
-with open("./runs/run.msmarco-passage.dev.small.bert.tsv", "w", encoding="utf-8") as f:
+with open("./runs/run.msmarco-passage.dev.small.fse.tsv", "w", encoding="utf-8") as f:
     for q_id, q_emb in tqdm(zip(q_ids, q_embs)):
         topk = search(q_emb, p_embs, p_ids)
         for i, tk in enumerate(topk):
