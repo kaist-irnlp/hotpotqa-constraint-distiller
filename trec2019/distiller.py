@@ -135,23 +135,20 @@ class Distiller(pl.LightningModule):
         return (loss / len(fields)) * ratio
 
     def loss(self, outputs):
+        losses = {}
+        losses["total"] = 0.0
+
         # recover loss
         if self.recover is not None:
-            loss_recover = self.loss_recover(outputs)
-        else:
-            loss_recover = 0.0
+            losses["recover"] = self.loss_recover(outputs)
+            losses["total"] += losses["recover"]
 
         # task loss
         if self.task is not None:
-            loss_task = self.loss_task(outputs)
-        else:
-            loss_task = 0.0
+            losses["task"] = self.loss_task(outputs)
+            losses["total"] += losses["task"]
 
-        return {
-            "total": loss_task + loss_recover,
-            "task": loss_task,
-            "recover": loss_recover,
-        }
+        return losses
 
     def forward_sparse(self, x):
         return F.normalize(self.sparse(x), dim=1)
@@ -196,11 +193,18 @@ class Distiller(pl.LightningModule):
         losses = self.loss(outputs)
 
         # logging
+        # tqdm_dict = {
+        #     "train_loss": losses["total"],
+        #     "train_loss_task": losses["task"],
+        #     "train_loss_recover": losses["recover"],
+        # }
         tqdm_dict = {
             "train_loss": losses["total"],
-            "train_loss_task": losses["task"],
-            "train_loss_recover": losses["recover"],
         }
+        for aux_loss in ["task", "recover"]:
+            if aux_loss in losses:
+                tqdm_dict[f"train_loss_{aux_loss}"] = losses[aux_loss]
+
         return {
             "loss": tqdm_dict["train_loss"],
             "progress_bar": tqdm_dict,
@@ -238,11 +242,17 @@ class Distiller(pl.LightningModule):
         losses = self.loss(outputs)
 
         # logging
+        # tqdm_dict = {
+        #     "val_loss": losses["total"],
+        #     "val_loss_task": losses["task"],
+        #     "val_loss_recover": losses["recover"],
+        # }
         tqdm_dict = {
             "val_loss": losses["total"],
-            "val_loss_task": losses["task"],
-            "val_loss_recover": losses["recover"],
         }
+        for aux_loss in ["task", "recover"]:
+            if aux_loss in losses:
+                tqdm_dict[f"val_loss_{aux_loss}"] = losses[aux_loss]
         return {
             "val_loss": tqdm_dict["val_loss"],
             "val_loss_task": tqdm_dict["val_loss_task"],
@@ -252,26 +262,22 @@ class Distiller(pl.LightningModule):
         }
 
     def validation_epoch_end(self, outputs):
-        avg_val_loss = torch.stack([out["val_loss"] for out in outputs]).mean()
-        avg_val_loss_task = torch.stack(
-            [torch.tensor(out["val_loss_task"]).detach() for out in outputs]
-        ).mean()
-        avg_val_loss_recover = torch.stack(
-            [torch.tensor(out["val_loss_recover"]).detach() for out in outputs]
-        ).mean()
+        tqdm_dict = {}
+        for ls in ["val_loss", "val_loss_task", "val_loss_recover"]:
+            if ls in outputs[0]:
+                tqdm_dict[f"avg_{ls}"] = torch.stack(
+                    [out[ls] for out in outputs]
+                ).mean()
 
-        # val_loss_mean = 0
-        # for output in outputs:
-        #     val_loss_mean += output["val_loss"]
-        # val_loss_mean /= len(outputs)
-        tqdm_dict = {
-            "val_loss": avg_val_loss,
-            "val_loss_task": avg_val_loss_task,
-            "val_loss_recover": avg_val_loss_recover,
-        }
+        # avg_val_loss_task = torch.stack(
+        #     [torch.tensor(out["val_loss_task"]).detach() for out in outputs]
+        # ).mean()
+        # avg_val_loss_recover = torch.stack(
+        #     [torch.tensor(out["val_loss_recover"]).detach() for out in outputs]
+        # ).mean()
 
         results = {
-            "val_loss": avg_val_loss,
+            "val_loss": tqdm_dict["avg_val_loss"],
             "progress_bar": tqdm_dict,
             "log": tqdm_dict,
         }
