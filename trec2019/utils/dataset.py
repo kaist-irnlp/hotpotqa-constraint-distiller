@@ -68,7 +68,15 @@ class AbstractNoisyDataset(Dataset):
 
 
 class TripleEmbeddingDataset(AbstractNoisyDataset):
-    def __init__(self, data_dir, emb_path, dset_type, noise=None, noise_ratio=0.0, on_memory=False):
+    def __init__(
+        self,
+        data_dir,
+        emb_path,
+        dset_type,
+        noise=None,
+        noise_ratio=0.0,
+        on_memory=False,
+    ):
         super().__init__(noise=noise, noise_ratio=noise_ratio, on_memory=on_memory)
         self.data_dir = Path(data_dir)
         self.emb_path = str(emb_path)
@@ -79,7 +87,7 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
     def _build_indexer(self):
         """"""
         target_query_ids = set(self.triples[:, 0].tolist())
-        target_doc_ids = set(self.triples[:, 1].tolist() + self.triples[:, 2].tolist())
+        target_doc_ids = set(self.triples[:, 1:].flatten().tolist())
 
         self.idx_queries = {
             u_id: seq_id
@@ -95,7 +103,7 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
     def _load_data(self):
         self.triples = zarr.open(
             str(self.data_dir / f"triples.{self.dset_type}.zarr"), "r"
-        )
+        )[:]
         self.queries = zarr.open(
             str(self.data_dir / f"queries.{self.dset_type}.zarr"), "r"
         )
@@ -104,7 +112,7 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
         self.docs_emb = self.docs[self.emb_path]
 
         if self.on_memory:
-            self.triples = self.triples[:]
+            # self.triples = self.triples[:] # triples are always on memory
             self.queries_emb = self.queries_emb[:]
             self.docs_emb = self.docs_emb[:]
 
@@ -144,7 +152,9 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
 
 
 class EmbeddingDataset(AbstractNoisyDataset):
-    def __init__(self, data_path, emb_path, noise=None, noise_ratio=0.0, on_memory=False):
+    def __init__(
+        self, data_path, emb_path, noise=None, noise_ratio=0.0, on_memory=False
+    ):
         super().__init__(noise=noise, noise_ratio=noise_ratio, on_memory=on_memory)
         self.data_path = data_path
         self.emb_path = emb_path

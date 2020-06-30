@@ -331,7 +331,7 @@ class Distiller(pl.LightningModule):
 
     def _get_dataloader(self, dataset, shuffle=False):
         batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
-        num_workers = 3
+        num_workers = 4
         return DataLoader(
             dataset,
             batch_size=batch_size,
