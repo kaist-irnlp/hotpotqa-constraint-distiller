@@ -1,3 +1,4 @@
+# @package _global_
 model:
   n: 
     - 5000

@@ -245,6 +245,8 @@ class Distiller(pl.LightningModule):
         }
         return {
             "val_loss": tqdm_dict["val_loss"],
+            "val_loss_task": tqdm_dict["val_loss_task"],
+            "val_loss_recover": tqdm_dict["val_loss_recover"],
             "progress_bar": tqdm_dict,
             "log": tqdm_dict,
         }
@@ -252,10 +254,10 @@ class Distiller(pl.LightningModule):
     def validation_epoch_end(self, outputs):
         avg_val_loss = torch.stack([out["val_loss"] for out in outputs]).mean()
         avg_val_loss_task = torch.stack(
-            [out["log"]["val_loss_task"] for out in outputs]
+            [torch.tensor(out["val_loss_task"]) for out in outputs]
         ).mean()
         avg_val_loss_recover = torch.stack(
-            [out["log"]["val_loss_recover"] for out in outputs]
+            [torch.tensor(out["val_loss_recover"]) for out in outputs]
         ).mean()
 
         # val_loss_mean = 0
