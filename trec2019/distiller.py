@@ -139,13 +139,13 @@ class Distiller(pl.LightningModule):
         if self.recover is not None:
             loss_recover = self.loss_recover(outputs)
         else:
-            loss_recover = 0.0
+            loss_recover = torch.zeros(1)
 
         # task loss
         if self.task is not None:
             loss_task = self.loss_task(outputs)
         else:
-            loss_task = 0.0
+            loss_task = torch.zeros(1)
 
         return {
             "total": loss_task + loss_recover,
@@ -254,10 +254,10 @@ class Distiller(pl.LightningModule):
     def validation_epoch_end(self, outputs):
         avg_val_loss = torch.stack([out["val_loss"] for out in outputs]).mean()
         avg_val_loss_task = torch.stack(
-            [torch.tensor(out["val_loss_task"]) for out in outputs]
+            [out["val_loss_task"] for out in outputs]
         ).mean()
         avg_val_loss_recover = torch.stack(
-            [torch.tensor(out["val_loss_recover"]) for out in outputs]
+            [out["val_loss_recover"] for out in outputs]
         ).mean()
 
         # val_loss_mean = 0
@@ -325,7 +325,7 @@ class Distiller(pl.LightningModule):
 
     def _get_dataloader(self, dataset, shuffle=False):
         batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
-        num_workers = 4
+        num_workers = 2
         return DataLoader(
             dataset,
             batch_size=batch_size,
