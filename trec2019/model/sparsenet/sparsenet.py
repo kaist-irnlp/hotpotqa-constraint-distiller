@@ -133,7 +133,7 @@ class SparseNetModel(nn.Module):
             hparams.model.n = [int(n) for n in hparams.model.n]
         if not type(hparams.model.k) in (list, ListConfig):
             hparams.model.k = [hparams.model.k] * len(hparams.model.n)
-            hparams.model.k = [int(k) for k in hparams.model.k]
+            hparams.model.k = [float(k) for k in hparams.model.k]
         assert len(hparams.model.n) == len(hparams.model.k)
         for i in range(len(hparams.model.n)):
             assert hparams.model.k[i] <= hparams.model.n[i]
@@ -154,6 +154,8 @@ class SparseNetModel(nn.Module):
 
         # DEBUG
         print(vars(hparams))
+
+        sys.exit(0)
 
         # save cleaned values
         self.hparams = hparams
