@@ -60,7 +60,10 @@ class PostTrainCallback(pl.Callback):
         pl_module.logger.log_artifact(str(hparams_path))
 
         # save the last checkpoint
-        trainer.save_checkpoint(ckpt_path / f"last_epoch={trainer.current_epoch}.ckpt")
+        if pl_module.hparams.train.save_last_checkpoint:
+            trainer.save_checkpoint(
+                ckpt_path / f"last_epoch={trainer.current_epoch}.ckpt"
+            )
         # upload checkpoints
         try:
             pl_module.logger.log_artifact(str(ckpt_path))

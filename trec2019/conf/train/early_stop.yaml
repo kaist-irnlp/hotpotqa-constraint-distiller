@@ -17,3 +17,4 @@ train:
   # early stop & logging
   use_early_stop: true
   upload_checkpoints: false
+  save_last_checkpoint: false
