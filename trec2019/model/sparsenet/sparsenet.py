@@ -150,12 +150,10 @@ class SparseNetModel(nn.Module):
 
         # convert k_ratio to k
         for i, k in enumerate(hparams.model.k):
-            hparams.model.k[i] = math.ceil(k * hparams.model.n[i])
+            hparams.model.k[i] = math.floor(k * hparams.model.n[i])
 
         # DEBUG
         print(vars(hparams))
-
-        sys.exit(0)
 
         # save cleaned values
         self.hparams = hparams
