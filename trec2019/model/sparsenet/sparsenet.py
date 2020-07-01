@@ -155,8 +155,6 @@ class SparseNetModel(nn.Module):
         # DEBUG
         print(vars(hparams))
 
-        sys.exit(0)
-
         # save cleaned values
         self.hparams = hparams
 
