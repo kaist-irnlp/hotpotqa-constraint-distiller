@@ -310,6 +310,7 @@ class Distiller(pl.LightningModule):
             "emb": EmbeddingDataset,
             "emb-lbl": EmbeddingLabelDataset,
         }[data_cls]
+
         return data_cls(
             data_path,
             emb_path,
