@@ -15,7 +15,7 @@ parser.add_argument("ckpt_dir", type=str)
 parser.add_argument("dataset_path", type=str)
 parser.add_argument("--gpu", type=int, default=0)
 parser.add_argument("--use_last", action="store_true")
-parser.add_argument("--batch_size", type=int, default=64)
+parser.add_argument("--batch_size", type=int, default=8192)
 parser.add_argument("--num_workers", type=int, default=4)
 args = parser.parse_args()
 
@@ -29,11 +29,12 @@ def get_model_path(ckpt_dir, use_last):
     return str(f)
 
 
-def modify_dataset_path(hparams_path, dataset_path):
+def modify_hparams(hparams_path, dataset_path):
     with open(hparams_path, encoding="utf-8") as fp:
         y = yaml.load(fp, Loader=yaml.SafeLoader)
     # modify and save
     y["dataset"]["path"] = dataset_path
+    y["dataset"]["on_memory"] = False
     with open(hparams_path, "w", encoding="utf-8") as fp:
         yaml.dump(y, fp)
 
@@ -72,7 +73,7 @@ def get_model_properties(hparams):
 
 
 def encode_dset(dset_path, emb_path):
-    dataset = EmbeddingDataset(dset_path, emb_path)
+    dataset = EmbeddingDataset(dset_path, emb_path, on_memory=True)
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -83,7 +84,10 @@ def encode_dset(dset_path, emb_path):
     z = zarr.open(str(dset_path))
     out_shape = (len(z.id), int(hparams["model"]["n"][-1]))
     z_out = z.zeros(
-        f"result/{model_props}", shape=out_shape, chunks=(64, None), overwrite=True,
+        f"result/{model_props}",
+        shape=out_shape,
+        chunks=(args.batch_size, None),
+        overwrite=True,
     )
     for i, data in enumerate(tqdm(loader)):
         out = model.forward_sparse(data["orig_data"]).cpu().numpy()
@@ -97,7 +101,7 @@ if __name__ == "__main__":
     ckpt_dir = Path(args.ckpt_dir)
     model_path = get_model_path(ckpt_dir, args.use_last)
     hparams_path = str(ckpt_dir / "hparams.yaml")
-    modify_dataset_path(hparams_path, args.dataset_path)
+    modify_hparams(hparams_path, args.dataset_path)
     # hparam_overrides = {"dataset": {"path": args.dataset_path}}
 
     # load model
@@ -114,7 +118,7 @@ if __name__ == "__main__":
     # load hparams & parse model properties
     hparams = load_hparams(hparams_path)
     model_props = get_model_properties(hparams)
-    emb_path = hparams["dataset"]["emb_path"].split("/")[1]
+    emb_path = hparams["dataset"]["emb_path"]
     print(model_props)
 
     # encode: queries
