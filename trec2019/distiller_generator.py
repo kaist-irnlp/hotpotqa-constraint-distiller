@@ -16,7 +16,7 @@ parser.add_argument("dataset_path", type=str)
 parser.add_argument("--use_last", action="store_true")
 parser.add_argument("--emb_path", type=str, default="dense/bert")
 parser.add_argument("--batch_size", type=int, default=64)
-parser.add_argument("--num_workers", type=int, default=8)
+parser.add_argument("--num_workers", type=int, default=4)
 args = parser.parse_args()
 
 
