@@ -63,6 +63,7 @@ class BatchTopK(nn.Module):
     # TODO: https://discuss.pytorch.org/t/implementing-k-sparse-autoencoder-on-fasttext-embedding-the-output-is-strange/39245/2
     def forward(self, x):
         batch_size = x.shape[0]
+        # TODO: k * 1.5 (inference)?
         k = math.ceil(self._k * batch_size)
         _, self.indices = self._topk(x, k, dim=self.DIM_BATCH)
         mask = torch.zeros(x.size()).type_as(x)
