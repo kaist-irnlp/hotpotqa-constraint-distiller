@@ -16,7 +16,7 @@ parser.add_argument("dataset_path", type=str)
 parser.add_argument("--use_last", action="store_true")
 parser.add_argument("--emb_path", type=str, default="dense/bert")
 parser.add_argument("--batch_size", type=int, default=64)
-parser.add_argument("--num_workers", type=int, default=0)
+parser.add_argument("--num_workers", type=int, default=8)
 args = parser.parse_args()
 
 
@@ -45,7 +45,6 @@ def load_hparams(hparams_path):
 
 
 def get_model_properties(hparams):
-
     # properties
     properties = []
     ## base_emb
@@ -59,10 +58,12 @@ def get_model_properties(hparams):
         f"{'_'.join([str(v) for v in hparams['model']['n']])}_{'_'.join((str(v) for v in hparams['model']['k']))}"
     )
     ## losses
+    losses = []
     if hparams["loss"]["use_recovery_loss"]:
-        properties.append("recover")
+        losses.append("recover")
     if hparams["loss"]["use_task_loss"]:
-        properties.append("task")
+        losses.append("task")
+    properties.append("-".join(losses))
     ## bs & lr
     properties.append(hparams["train"]["batch_size"])
     properties.append(hparams["train"]["learning_rate"])
