@@ -15,7 +15,6 @@ parser.add_argument("ckpt_dir", type=str)
 parser.add_argument("dataset_path", type=str)
 parser.add_argument("--gpu", type=int, default=0)
 parser.add_argument("--use_last", action="store_true")
-parser.add_argument("--emb_path", type=str, default="dense/bert")
 parser.add_argument("--batch_size", type=int, default=64)
 parser.add_argument("--num_workers", type=int, default=4)
 args = parser.parse_args()
@@ -72,8 +71,8 @@ def get_model_properties(hparams):
     return "_".join([str(p) for p in properties])
 
 
-def encode_dset(dset_path):
-    dataset = EmbeddingDataset(dset_path, args.emb_path)
+def encode_dset(dset_path, emb_path):
+    dataset = EmbeddingDataset(dset_path, emb_path)
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -115,8 +114,9 @@ if __name__ == "__main__":
     # load hparams & parse model properties
     hparams = load_hparams(hparams_path)
     model_props = get_model_properties(hparams)
+    emb_path = hparams["dataset"]["emb_path"].split("/")[1]
     print(model_props)
 
     # encode: queries
-    encode_dset(Path(args.dataset_path) / "queries.eval.zarr")
-    encode_dset(Path(args.dataset_path) / "docs.eval.zarr")
+    encode_dset(Path(args.dataset_path) / "queries.eval.zarr", emb_path)
+    encode_dset(Path(args.dataset_path) / "docs.eval.zarr", emb_path)
