@@ -73,7 +73,7 @@ def get_model_properties(hparams):
 
 
 def encode_dset(dset_path, emb_path):
-    dataset = EmbeddingDataset(dset_path, emb_path, on_memory=True)
+    dataset = EmbeddingDataset(dset_path, emb_path)
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -122,5 +122,6 @@ if __name__ == "__main__":
     print(model_props)
 
     # encode: queries
+    args.dataset_path = "E:/Data/msmarco-passages"
     encode_dset(Path(args.dataset_path) / "queries.eval.zarr", emb_path)
     encode_dset(Path(args.dataset_path) / "docs.eval.zarr", emb_path)
