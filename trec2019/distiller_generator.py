@@ -13,6 +13,7 @@ from trec2019.utils.dataset import EmbeddingDataset
 parser = ArgumentParser()
 parser.add_argument("ckpt_dir", type=str)
 parser.add_argument("dataset_path", type=str)
+parser.add_argument("--gpu", type=int, default=0)
 parser.add_argument("--use_last", action="store_true")
 parser.add_argument("--emb_path", type=str, default="dense/bert")
 parser.add_argument("--batch_size", type=int, default=64)
@@ -82,7 +83,6 @@ def encode_dset(dset_path):
     # encode
     z = zarr.open(str(dset_path))
     out_shape = (len(z.id), int(hparams["model"]["n"][-1]))
-    print(out_shape)
     z_out = z.zeros(
         f"result/{model_props}", shape=out_shape, chunks=(64, None), overwrite=True,
     )
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     # hparam_overrides = {"dataset": {"path": args.dataset_path}}
 
     # load model
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
     model = Distiller.load_from_checkpoint(
         model_path,
         hparams_file=hparams_path,
