@@ -29,7 +29,7 @@ def get_model_path(ckpt_dir, use_last):
     return str(f)
 
 
-def modify_hparams(hparams_path, dataset_path):
+def override_hparams(hparams_path, dataset_path):
     with open(hparams_path, encoding="utf-8") as fp:
         y = yaml.load(fp, Loader=yaml.SafeLoader)
     # modify and save
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     ckpt_dir = Path(args.ckpt_dir)
     model_path = get_model_path(ckpt_dir, args.use_last)
     hparams_path = str(ckpt_dir / "hparams.yaml")
-    modify_hparams(hparams_path, args.dataset_path)
+    override_hparams(hparams_path, args.dataset_path)
     # hparam_overrides = {"dataset": {"path": args.dataset_path}}
 
     # load model
