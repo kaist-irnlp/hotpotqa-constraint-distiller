@@ -254,9 +254,7 @@ class Distiller(pl.LightningModule):
             if aux_loss in losses:
                 tqdm_dict[f"val_loss_{aux_loss}"] = losses[aux_loss]
         return {
-            "val_loss": tqdm_dict["val_loss"],
-            "val_loss_task": tqdm_dict["val_loss_task"],
-            "val_loss_recover": tqdm_dict["val_loss_recover"],
+            **tqdm_dict,
             "progress_bar": tqdm_dict,
             "log": tqdm_dict,
         }
