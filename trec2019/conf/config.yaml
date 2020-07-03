@@ -1,4 +1,4 @@
-project: "kjang0517/msmarco"
+project: "kjang0517/msmarco-2"
 experiment:
   name: msmarco-passages
 defaults:
