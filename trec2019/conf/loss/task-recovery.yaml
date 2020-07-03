@@ -3,7 +3,7 @@ loss:
   use_task_loss: true
   use_recovery_loss: true
   # use_cosine_loss: true
-  recovery_loss_ratio: 5.0
+  recovery_loss_ratio: 2.0
   tags:
    - task
    - recovery
