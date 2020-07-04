@@ -3,7 +3,7 @@ experiment:
   name: msmarco-passages
 defaults:
   - model: wta
-  - dataset: msmarco-passages-fse
+  - dataset: msmarco-passages-bert-new
   - noise: gaussian
   - model_n: defaults
   - model_k: defaults
