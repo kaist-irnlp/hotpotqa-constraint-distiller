@@ -173,7 +173,7 @@ def main(hparams):
     early_stop_callback = None
     if hparams.train.use_early_stop:
         early_stop_callback = EarlyStopping(
-            monitor="val_loss", patience=20, verbose=True, mode="min"
+            monitor="val_loss", patience=10, verbose=True, mode="min"
         )
 
     # use profiler
