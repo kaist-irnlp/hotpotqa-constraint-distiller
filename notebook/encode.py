@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 
 parser = ArgumentParser()
 parser.add_argument("fpath", type=str)
-parser.add_argument("gpu", type=int, default=0)
+parser.add_argument("gpu", type=int)
 parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--emb_dim", type=int, default=768)
 parser.add_argument("--start", type=int, default=0)
@@ -36,7 +36,7 @@ args = parser.parse_args()
 
 # Store the model we want to use
 device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
-MODEL_NAME = "bert-base-uncased"
+MODEL_NAME = "bert-base-cased"
 
 # We need to create the model and tokenizer
 config = AutoConfig.from_pretrained(MODEL_NAME, output_hidden_states=True)
@@ -54,29 +54,21 @@ def batch_encode(texts):
     tokens = tokenizer.batch_encode_plus(
         texts,
         return_tensors="pt",
-        return_attention_masks=True,
         pad_to_max_length=True,
         max_length=200,
+        return_attention_masks=True,
         return_special_tokens_masks=True,
     )
     # encode
     inputs = tokens["input_ids"].to(device)
     outputs = model(inputs)
-    del inputs
-    torch.cuda.empty_cache()
-    hidden_states = outputs[2]
-    pooling_layer = hidden_states[-2]
-    # pooling
-    return pooling_layer.mean(1)
+    return outputs[1].cpu()
+    # hidden_states = outputs[2]
+    # pooling_layer = hidden_states[-2]
+    # return pooling_layer.mean(1)
 
 
 # In[ ]:
-
-
-data_dir = Path("../msmarco-passages/")
-output_dir = Path("./output")
-if not output_dir.exists():
-    output_dir.mkdir(parents=True)
 
 
 class TextDataset(Dataset):
@@ -96,12 +88,12 @@ dset = TextDataset(fpath)
 loader = DataLoader(dset, batch_size=args.batch_size, num_workers=0, pin_memory=True)
 
 # save to
-emb_path = "dense/bert"
+emb_path = "dense/bert_new"
 emb_dim = args.emb_dim
 z = zarr.open(str(fpath))
 if emb_path not in z:
     z_embs = z.zeros(
-        "dense/bert", shape=(len(z.text), emb_dim), chunks=(64, None), dtype="f4"
+        emb_path, shape=(len(z.text), emb_dim), chunks=(64, None), dtype="f4"
     )
 else:
     z_embs = z[emb_path]
