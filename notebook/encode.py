@@ -55,13 +55,17 @@ def batch_encode(texts):
         texts,
         return_tensors="pt",
         pad_to_max_length=True,
-        max_length=200,
+        max_length=512,
         return_attention_masks=True,
         return_special_tokens_masks=True,
     )
     # encode
-    inputs = tokens["input_ids"].to(device)
-    outputs = model(inputs)
+    input_ids = tokens["input_ids"].to(device)
+    attention_mask = tokens["attention_mask"].to(device)
+    outputs =model(
+      input_ids=input_ids,
+      attention_mask=attention_mask
+    ) 
     return outputs[1].cpu()
     # hidden_states = outputs[2]
     # pooling_layer = hidden_states[-2]
