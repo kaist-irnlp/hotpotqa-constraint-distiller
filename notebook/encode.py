@@ -22,6 +22,7 @@ parser = ArgumentParser()
 parser.add_argument("fpath", type=str)
 parser.add_argument("gpu", type=int)
 parser.add_argument("--batch_size", type=int, default=4)
+parser.add_argument("--max_len", type=int, default=512)
 parser.add_argument("--emb_dim", type=int, default=768)
 parser.add_argument("--start", type=int, default=0)
 parser.add_argument("--end", type=int, default=None)
@@ -55,7 +56,7 @@ def batch_encode(texts):
         texts,
         return_tensors="pt",
         pad_to_max_length=True,
-        max_length=512,
+        max_length=args.max_len,
         return_attention_masks=True,
         return_special_tokens_masks=True,
     )
