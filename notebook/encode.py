@@ -23,7 +23,8 @@ parser.add_argument("fpath", type=str)
 parser.add_argument("gpu", type=int)
 parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--max_len", type=int, default=512)
-parser.add_argument("--emb_dim", type=int, default=768)
+parser.add_argument("--emb_model", type=str, default='bert-base-cased')
+# parser.add_argument("--emb_dim", type=int, default=768)
 parser.add_argument("--start", type=int, default=0)
 parser.add_argument("--end", type=int, default=None)
 args = parser.parse_args()
@@ -37,7 +38,7 @@ args = parser.parse_args()
 
 # Store the model we want to use
 device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
-MODEL_NAME = "bert-base-cased"
+MODEL_NAME = args.emb_model
 
 # We need to create the model and tokenizer
 config = AutoConfig.from_pretrained(MODEL_NAME, output_hidden_states=True)
@@ -95,8 +96,8 @@ dset = TextDataset(fpath)
 loader = DataLoader(dset, batch_size=args.batch_size, num_workers=0, pin_memory=True)
 
 # save to
-emb_path = "dense/bert_new"
-emb_dim = args.emb_dim
+emb_path = "dense/bert"
+emb_dim = config.hidden_size 
 z = zarr.open(str(fpath))
 if emb_path not in z:
     z_embs = z.zeros(
