@@ -96,7 +96,7 @@ dset = TextDataset(fpath)
 loader = DataLoader(dset, batch_size=args.batch_size, num_workers=0, pin_memory=True)
 
 # save to
-emb_path = "dense/bert"
+emb_path = f"dense/{args.emb_model}"
 emb_dim = config.hidden_size 
 z = zarr.open(str(fpath))
 if emb_path not in z:
