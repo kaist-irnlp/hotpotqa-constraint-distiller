@@ -183,11 +183,20 @@ class EmbeddingDataset(AbstractNoisyDataset):
 
 
 class EmbeddingLabelDataset(EmbeddingDataset):
-    def __init__(self, data_path, emb_path, noise=None, noise_ratio=0.0):
-        super().__init__(data_path, emb_path, noise=noise, noise_ratio=noise_ratio)
+    def __init__(
+        self, data_path, emb_path, noise=None, noise_ratio=0.0, on_memory=False
+    ):
+        super().__init__(
+            data_path,
+            emb_path,
+            noise=noise,
+            noise_ratio=noise_ratio,
+            on_memory=on_memory,
+        )
+
+        self._load_data()
 
     def _load_data(self):
-        super()._load_data()
         data = zarr.open(str(self.data_path), "r")
         self.label = data.label[:]
 

@@ -76,16 +76,16 @@ class Distiller(pl.LightningModule):
 
     def _init_task_layer(self):
         if self.hparams.loss.use_task_loss:
-            dim_in = self.sparse.output_size
-            feat_dim = 128
-            self.task = nn.Sequential(
-                nn.Linear(dim_in, dim_in),
-                nn.ReLU(inplace=True),
-                nn.Linear(dim_in, feat_dim),
-            )
-            self._loss_task = TripletLoss()
+            # dim_in = self.sparse.output_size
+            # feat_dim = 128
+            # self.task = nn.Sequential(
+            #     nn.Linear(dim_in, dim_in),
+            #     nn.ReLU(inplace=True),
+            #     nn.Linear(dim_in, feat_dim),
+            # )
+            self.loss_task = SupConLoss()
         else:
-            self.task = None
+            self.loss_task = None
 
     def _init_recover_layer(self):
         if self.hparams.loss.use_recovery_loss:
@@ -95,34 +95,72 @@ class Distiller(pl.LightningModule):
         else:
             self.recover = None
 
-    def loss_task(self, outputs, margin=0.0):
-        q, pos, neg = outputs["task_q"], outputs["task_pos"], outputs["task_neg"]
-        return self._loss_task(q, pos, neg, size_average=False)
-        # sim_p = torch.sum(q * pos, axis=1)
-        # sim_n = torch.sum(q * neg, axis=1)
-        # delta = sim_n - sim_p
-        # return torch.sum(F.relu(margin + delta))
+    # dataset
+    def _init_dataset(self, dset_type):
+        data_path = self.hparams.dataset.path
+        data_cls = self.hparams.dataset.cls
+        emb_path = self.hparams.dataset.emb_path
+        on_memory = self.hparams.dataset.on_memory
+        noise = self.hparams.noise.type
+        noise_ratio = self.hparams.noise.ratio
 
-    def loss_recover(self, outputs):
-        loss = 0.0
-        ratio = self.hparams.loss.recovery_loss_ratio
-        fields = ["q", "pos", "neg"]
-        for e in fields:
-            loss += F.mse_loss(outputs[f"orig_{e}"], outputs[f"recover_{e}"])
-        return (loss / len(fields)) * ratio
+        data_cls = {
+            "tr": TripleEmbeddingDataset,
+            "emb": EmbeddingDataset,
+            "emb-lbl": EmbeddingLabelDataset,
+        }[data_cls]
+
+        return data_cls(
+            data_path,
+            emb_path,
+            dset_type,
+            noise=noise,
+            noise_ratio=noise_ratio,
+            on_memory=on_memory,
+        )
+
+    def _init_datasets(self):
+        self._train_dataset = self._init_dataset("train")
+        self._val_dataset = self._init_dataset("val")
+
+    def _get_dataloader(self, dataset, shuffle=False):
+        batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
+        num_workers = 4
+        return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            pin_memory=True,
+            shuffle=shuffle,
+        )
+
+    def _use_recovery_loss(self):
+        return self.hparams.loss.use_recovery_loss
+
+    def _use_task_loss(self):
+        return self.hparams.loss.use_task_loss
+
+    def train_dataloader(self):
+        return self._get_dataloader(self._train_dataset, shuffle=True)
+
+    def val_dataloader(self):
+        return self._get_dataloader(self._val_dataset)
 
     def loss(self, outputs):
         losses = {}
         losses["total"] = 0.0
 
         # recover loss
-        if self.recover is not None:
-            losses["recover"] = self.loss_recover(outputs)
+        if self._use_recovery_loss():
+            ratio = self.hparams.loss.recovery_loss_ratio
+            losses["recover"] = (
+                F.mse_loss(outputs["recover"], outputs["orig_data"]) * ratio
+            )
             losses["total"] += losses["recover"]
 
         # task loss
-        if self.task is not None:
-            losses["task"] = self.loss_task(outputs)
+        if self._use_task_loss():
+            losses["task"] = self.loss_task(outputs["sparse"], outputs["target"])
             losses["total"] += losses["task"]
 
         return losses
@@ -135,46 +173,30 @@ class Distiller(pl.LightningModule):
 
     @auto_move_data
     def forward(self, batch):
-        # elements to train
-        trainable = ["q", "pos", "neg"]
-
         # output features (start with orig_* data)
-        features = {k: v for (k, v) in batch.items() if "orig_" in k}
+        outputs = {}
 
         # forward sparse
-        for e in trainable:
-            features[f"sparse_{e}"] = self.forward_sparse(batch[e])
+        outputs[f"sparse"] = self.forward_sparse(batch["data"])
 
         # forward task
-        if self.task is not None:
-            for e in trainable:
-                features[f"task_{e}"] = self.forward_task(features[f"sparse_{e}"])
+        # if self._use_task_loss():
+        #     outputs[f"task"] = self.forward_task(outputs[f"sparse_{e}"])
 
         # forward recover
-        if self.recover is not None:
-            for e in trainable:
-                features[f"recover_{e}"] = self.recover(features[f"sparse_{e}"])
+        if if self._use_recovery_loss():
+            outputs[f"recover"] = self.recover(outputs[f"sparse"])
 
-        return features
+        return outputs
 
     def training_step(self, batch, batch_idx):
         return self.forward(batch)
 
     def training_step_end(self, outputs):
-        # aggregate
-        # outputs = {}
-        # for k in batch_parts_outputs[0].keys():
-        #     outputs[k] = torch.cat([part[k] for part in batch_parts_outputs], dim=1)
-
         # loss
         losses = self.loss(outputs)
 
-        # logging
-        # tqdm_dict = {
-        #     "train_loss": losses["total"],
-        #     "train_loss_task": losses["task"],
-        #     "train_loss_recover": losses["recover"],
-        # }
+        # logging losses
         tqdm_dict = {
             "train_loss": losses["total"],
         }
@@ -187,24 +209,6 @@ class Distiller(pl.LightningModule):
             "progress_bar": tqdm_dict,
             "log": tqdm_dict,
         }
-
-    # def training_epoch_end(self, outputs):
-    #     pprint(outputs)
-    #     avg_train_loss = torch.stack([out["loss"] for out in outputs]).mean()
-
-    #     # val_loss_mean = 0
-    #     # for output in outputs:
-    #     #     val_loss_mean += output["val_loss"]
-    #     # val_loss_mean /= len(outputs)
-    #     tqdm_dict = {"avg_train_loss": avg_train_loss}
-
-    #     results = {
-    #         "train_loss": avg_train_loss,
-    #         "progress_bar": tqdm_dict,
-    #         "log": tqdm_dict,
-    #     }
-
-    #     return results
 
     def validation_step(self, batch, batch_idx):
         return self.forward(batch)
@@ -238,18 +242,11 @@ class Distiller(pl.LightningModule):
 
     def validation_epoch_end(self, outputs):
         tqdm_dict = {}
-        for ls in ["val_loss", "val_loss_task", "val_loss_recover"]:
-            if ls in outputs[0]:
-                tqdm_dict[f"avg_{ls}"] = torch.stack(
-                    [out[ls] for out in outputs]
+        for k in outputs[0].keys():
+            if "loss" in k:
+                tqdm_dict[f"avg_{k}"] = torch.stack(
+                    [out[k] for out in outputs]
                 ).mean()
-
-        # avg_val_loss_task = torch.stack(
-        #     [torch.tensor(out["val_loss_task"]).detach() for out in outputs]
-        # ).mean()
-        # avg_val_loss_recover = torch.stack(
-        #     [torch.tensor(out["val_loss_recover"]).detach() for out in outputs]
-        # ).mean()
 
         results = {
             "val_loss": tqdm_dict["avg_val_loss"],
@@ -265,62 +262,11 @@ class Distiller(pl.LightningModule):
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers
-        optimizer = torch_optimizer.RAdam(
+        optimizer = optim.Adam(
             self.parameters(), lr=self.hparams.train.learning_rate
         )
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return [optimizer], [scheduler]
-
-    # dataset
-    def _init_dataset(self, dset_type):
-        data_path = self.hparams.dataset.path
-        data_cls = self.hparams.dataset.cls
-        emb_path = self.hparams.dataset.emb_path
-        on_memory = self.hparams.dataset.on_memory
-        noise = self.hparams.noise.type
-        noise_ratio = self.hparams.noise.ratio
-
-        data_cls = {
-            "tr": TripleEmbeddingDataset,
-            "emb": EmbeddingDataset,
-            "emb-lbl": EmbeddingLabelDataset,
-        }[data_cls]
-
-        return data_cls(
-            data_path,
-            emb_path,
-            dset_type,
-            noise=noise,
-            noise_ratio=noise_ratio,
-            on_memory=on_memory,
-        )
-
-    def _init_datasets(self):
-        data_path = self.hparams.dataset.path
-        data_cls = self.hparams.dataset.cls
-        emb_path = self.hparams.dataset.emb_path
-        noise = self.hparams.noise.type
-        noise_ratio = self.hparams.noise.ratio
-
-        self._train_dataset = self._init_dataset("train")
-        self._val_dataset = self._init_dataset("val")
-
-    def _get_dataloader(self, dataset, shuffle=False):
-        batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
-        num_workers = 4
-        return DataLoader(
-            dataset,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=True,
-            shuffle=shuffle,
-        )
-
-    def train_dataloader(self):
-        return self._get_dataloader(self._train_dataset, shuffle=True)
-
-    def val_dataloader(self):
-        return self._get_dataloader(self._val_dataset)
 
     # def test_dataloader(self):
     #     return self._get_dataloader(self._test_dataset)
