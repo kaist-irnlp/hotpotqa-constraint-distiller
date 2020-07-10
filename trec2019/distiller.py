@@ -42,29 +42,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 _root_dir = str(Path(__file__).parent.absolute())
 
-# class SupConResNet(nn.Module):
-#     """backbone + projection head"""
-#     def __init__(self, name='resnet50', head='mlp', feat_dim=128):
-#         super(SupConResNet, self).__init__()
-#         model_fun, dim_in = model_dict[name]
-#         self.encoder = model_fun()
-#         if head == 'linear':
-#             self.head = nn.Linear(dim_in, feat_dim)
-#         elif head == 'mlp':
-#             self.head = nn.Sequential(
-#                 nn.Linear(dim_in, dim_in),
-#                 nn.ReLU(inplace=True),
-#                 nn.Linear(dim_in, feat_dim)
-#             )
-#         else:
-#             raise NotImplementedError(
-#                 'head not supported: {}'.format(head))
-
-#     def forward(self, x):
-#         feat = self.encoder(x)
-#         feat = F.normalize(self.head(feat), dim=1)
-#         return feat
-
 
 class Distiller(pl.LightningModule):
     def __init__(self, hparams):
@@ -93,6 +70,10 @@ class Distiller(pl.LightningModule):
         else:
             raise ValueError("Unknown sparse model")
 
+    def _init_sparse_layer(self):
+        sparse_cls = self._get_sparse_cls()
+        self.sparse = sparse_cls(self.hparams)
+
     def _init_task_layer(self):
         if self.hparams.loss.use_task_loss:
             dim_in = self.sparse.output_size
@@ -105,10 +86,6 @@ class Distiller(pl.LightningModule):
             self._loss_task = TripletLoss()
         else:
             self.task = None
-
-    def _init_sparse_layer(self):
-        sparse_cls = self._get_sparse_cls()
-        self.sparse = sparse_cls(self.hparams)
 
     def _init_recover_layer(self):
         if self.hparams.loss.use_recovery_loss:
