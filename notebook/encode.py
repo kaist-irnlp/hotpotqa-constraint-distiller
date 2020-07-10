@@ -23,7 +23,7 @@ parser.add_argument("fpath", type=str)
 parser.add_argument("gpu", type=int)
 parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--max_len", type=int, default=512)
-parser.add_argument("--emb_model", type=str, default='bert-base-cased')
+parser.add_argument("--model", type=str, default="bert-base-cased")
 # parser.add_argument("--emb_dim", type=int, default=768)
 parser.add_argument("--start", type=int, default=0)
 parser.add_argument("--end", type=int, default=None)
@@ -38,7 +38,7 @@ args = parser.parse_args()
 
 # Store the model we want to use
 device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
-MODEL_NAME = args.emb_model
+MODEL_NAME = args.model
 
 # We need to create the model and tokenizer
 config = AutoConfig.from_pretrained(MODEL_NAME, output_hidden_states=True)
@@ -49,6 +49,9 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME,)
 # # Encode
 
 # In[5]:
+
+
+POOLING_LAYER_IDX = 2
 
 
 def batch_encode(texts):
@@ -70,10 +73,10 @@ def batch_encode(texts):
         attention_mask=attention_mask,
         token_type_ids=token_type_ids,
     )
-    return outputs[1].cpu()
-    # hidden_states = outputs[2]
-    # pooling_layer = hidden_states[-2]
-    # return pooling_layer.mean(1)
+    # return outputs[1].cpu()
+    hidden_states = outputs[2]
+    pooling_layer = hidden_states[POOLING_LAYER_IDX]
+    return pooling_layer.mean(1).cpu()
 
 
 # In[ ]:
@@ -96,8 +99,8 @@ dset = TextDataset(fpath)
 loader = DataLoader(dset, batch_size=args.batch_size, num_workers=0, pin_memory=True)
 
 # save to
-emb_path = f"dense/{args.emb_model}"
-emb_dim = config.hidden_size 
+emb_path = f"dense/{args.model}"
+emb_dim = config.hidden_size
 z = zarr.open(str(fpath))
 if emb_path not in z:
     z_embs = z.zeros(
