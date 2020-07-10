@@ -177,8 +177,8 @@ class EmbeddingDataset(AbstractNoisyDataset):
             data = self._add_noise(data)
         return {
             "index": index,
-            "data": data,
-            "orig_data": orig_data,
+            "data": data.astype("f4"),
+            "orig_data": orig_data.astype("f4"),
         }
 
 
@@ -194,9 +194,8 @@ class EmbeddingLabelDataset(EmbeddingDataset):
             on_memory=on_memory,
         )
 
-        self._load_data()
-
     def _load_data(self):
+        super()._load_data()
         data = zarr.open(str(self.data_path), "r")
         self.label = data.label[:]
 

@@ -1,0 +1,12 @@
+# @package _global_
+dataset:
+  name: news20
+  cls: emb-lbl
+  path: "news20"
+  emb_path: "dense/bert-base-cased"
+  on_memory: true
+  tags:
+    - news20
+model:
+  input_size: 768
+

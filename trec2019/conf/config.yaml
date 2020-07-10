@@ -1,9 +1,9 @@
-project: "kjang0517/msmarco-3"
+project: "kjang0517/news20"
 experiment:
-  name: msmarco-passages
+  name: news20
 defaults:
   - model: wta
-  - dataset: msmarco-passages-bert-new
+  - dataset: news20
   - noise: gaussian
   - model_n: defaults
   - model_k: defaults

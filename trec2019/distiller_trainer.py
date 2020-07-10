@@ -73,10 +73,14 @@ class PostTrainCallback(pl.Callback):
 
 def gather_tags(hparams):
     tags = []
+    # explicit tags
     for grp, val in hparams.items():
         if isinstance(val, DictConfig):
             _tags = hparams[grp].get("tags", [])
             tags += list(_tags)
+    # emb model
+    emb = hparams.dataset.emb_path.split("/")[1]
+    tags.append(emb)
     return tags
 
 

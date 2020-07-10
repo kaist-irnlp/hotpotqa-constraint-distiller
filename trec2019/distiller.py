@@ -76,15 +76,12 @@ class Distiller(pl.LightningModule):
 
     def _init_task_layer(self):
         if self.hparams.loss.use_task_loss:
-            # dim_in = self.sparse.output_size
-            # feat_dim = 128
-            # self.task = nn.Sequential(
-            #     nn.Linear(dim_in, dim_in),
-            #     nn.ReLU(inplace=True),
-            #     nn.Linear(dim_in, feat_dim),
-            # )
-            self.loss_task = SupConLoss()
+            dim_in = self.sparse.output_size
+            feat_dim = 128
+            self.task = nn.Sequential(nn.Linear(dim_in, feat_dim), nn.ReLU())
+            self.loss_task = SupConLoss(contrast_mode="one")
         else:
+            self.task = None
             self.loss_task = None
 
     def _init_recover_layer(self):
@@ -97,7 +94,7 @@ class Distiller(pl.LightningModule):
 
     # dataset
     def _init_dataset(self, dset_type):
-        data_path = self.hparams.dataset.path
+        data_path = Path(self.hparams.dataset.path) / f"{dset_type}.zarr"
         data_cls = self.hparams.dataset.cls
         emb_path = self.hparams.dataset.emb_path
         on_memory = self.hparams.dataset.on_memory
@@ -113,7 +110,6 @@ class Distiller(pl.LightningModule):
         return data_cls(
             data_path,
             emb_path,
-            dset_type,
             noise=noise,
             noise_ratio=noise_ratio,
             on_memory=on_memory,
@@ -160,7 +156,9 @@ class Distiller(pl.LightningModule):
 
         # task loss
         if self._use_task_loss():
-            losses["task"] = self.loss_task(outputs["sparse"], outputs["target"])
+            losses["task"] = self.loss_task(
+                outputs["task"].unsqueeze(1), outputs["target"]
+            )
             losses["total"] += losses["task"]
 
         return losses
@@ -174,18 +172,18 @@ class Distiller(pl.LightningModule):
     @auto_move_data
     def forward(self, batch):
         # output features (start with orig_* data)
-        outputs = {}
+        outputs = batch.copy()
 
         # forward sparse
-        outputs[f"sparse"] = self.forward_sparse(batch["data"])
+        outputs["sparse"] = self.forward_sparse(batch["data"])
 
         # forward task
-        # if self._use_task_loss():
-        #     outputs[f"task"] = self.forward_task(outputs[f"sparse_{e}"])
+        if self._use_task_loss():
+            outputs["task"] = self.forward_task(outputs["sparse"])
 
         # forward recover
-        if if self._use_recovery_loss():
-            outputs[f"recover"] = self.recover(outputs[f"sparse"])
+        if self._use_recovery_loss():
+            outputs["recover"] = self.recover(outputs[f"sparse"])
 
         return outputs
 
@@ -244,9 +242,7 @@ class Distiller(pl.LightningModule):
         tqdm_dict = {}
         for k in outputs[0].keys():
             if "loss" in k:
-                tqdm_dict[f"avg_{k}"] = torch.stack(
-                    [out[k] for out in outputs]
-                ).mean()
+                tqdm_dict[f"avg_{k}"] = torch.stack([out[k] for out in outputs]).mean()
 
         results = {
             "val_loss": tqdm_dict["avg_val_loss"],
@@ -262,9 +258,7 @@ class Distiller(pl.LightningModule):
 
     def configure_optimizers(self):
         # can return multiple optimizers and learning_rate schedulers
-        optimizer = optim.Adam(
-            self.parameters(), lr=self.hparams.train.learning_rate
-        )
+        optimizer = optim.Adam(self.parameters(), lr=self.hparams.train.learning_rate)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return [optimizer], [scheduler]
 
