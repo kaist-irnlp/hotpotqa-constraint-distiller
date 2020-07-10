@@ -7,6 +7,7 @@ import yaml
 import zarr
 import numpy as np
 from tqdm import tqdm
+from numcodecs import Zstd
 
 from trec2019.distiller import Distiller
 from trec2019.utils.dataset import EmbeddingDataset
@@ -95,6 +96,7 @@ def encode_dset(model, hparams, dset_path, emb_path):
         shape=out_shape,
         chunks=(args.batch_size, None),
         overwrite=True,
+        compressor=Zstd(),
     )
     for i, data in enumerate(tqdm(loader)):
         out = model.forward_sparse(data["orig_data"]).cpu().numpy()
@@ -107,8 +109,8 @@ def encode_dset(model, hparams, dset_path, emb_path):
 
 
 def main(ckpt_dir, dataset_dir):
-    exp_id = ckpt_dir.parent.parent.name
-    print("Processing", exp_id)
+    # exp_id = ckpt_dir.parent.parent.name
+    # print("Processing", exp_id)
     # get paths
     ckpt_dir = Path(ckpt_dir)
     model_path = get_model_path(ckpt_dir)
@@ -150,6 +152,7 @@ def main(ckpt_dir, dataset_dir):
 
 
 if __name__ == "__main__":
-    out_dirs = list(Path(args.exp_dir).glob("**/output"))
-    for out_dir in tqdm(out_dirs):
-        main((out_dir / "checkpoints"), args.dataset_dir)
+    main(r"C:\Users\kyoun\Downloads\checkpoints", r"D:\Data\msmarco-passages")
+    # out_dirs = list(Path(args.exp_dir).glob("**/output"))
+    # for out_dir in tqdm(out_dirs):
+    #     main((out_dir / "checkpoints"), args.dataset_dir)
