@@ -146,6 +146,12 @@ class Distiller(pl.LightningModule):
         losses = {}
         losses["total"] = 0.0
 
+        # task loss
+        if self._use_task_loss():
+            task_tensors = torch.stack([outputs["task"], outputs["orig_task"]], dim=1)
+            losses["task"] = self.loss_task(task_tensors, outputs["target"])
+            losses["total"] += losses["task"]
+
         # recover loss
         if self._use_recovery_loss():
             ratio = self.hparams.loss.recovery_loss_ratio
@@ -153,13 +159,6 @@ class Distiller(pl.LightningModule):
                 F.mse_loss(outputs["recover"], outputs["orig_data"]) * ratio
             )
             losses["total"] += losses["recover"]
-
-        # task loss
-        if self._use_task_loss():
-            losses["task"] = self.loss_task(
-                outputs["task"].unsqueeze(1).repeat(1, 3, 1), outputs["target"]
-            )
-            losses["total"] += losses["task"]
 
         return losses
 
@@ -173,17 +172,20 @@ class Distiller(pl.LightningModule):
     def forward(self, batch):
         # output features (start with orig_* data)
         outputs = batch.copy()
+        trainables = ["data", "orig_data"]
 
         # normalize
-        for fld in ["data", "orig_data"]:
+        for fld in trainables:
             batch[fld] = F.normalize(batch[fld], dim=1)
 
         # forward sparse
-        outputs["sparse"] = self.forward_sparse(batch["data"])
+        outputs["sparse"] = self.forward_sparse(outputs["data"])
+        outputs["orig_sparse"] = self.forward_sparse(outputs["orig_data"])
 
         # forward task
         if self._use_task_loss():
             outputs["task"] = self.forward_task(outputs["sparse"])
+            outputs["orig_task"] = self.forward_task(outputs["orig_sparse"])
 
         # forward recover
         if self._use_recovery_loss():
