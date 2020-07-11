@@ -13,6 +13,7 @@ from torchtext.vocab import Vocab
 import torchtext
 from collections import Counter
 import json
+from sklearn.preprocessing import normalize
 
 # from textblob import TextBlob
 # from gensim.corpora import Dictionary
@@ -153,11 +154,12 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
 
 class EmbeddingDataset(AbstractNoisyDataset):
     def __init__(
-        self, data_path, emb_path, noise=None, noise_ratio=0.0, on_memory=False
+        self, data_path, emb_path, noise=None, noise_ratio=0.0, on_memory=False,
     ):
         super().__init__(noise=noise, noise_ratio=noise_ratio, on_memory=on_memory)
         self.data_path = data_path
         self.emb_path = emb_path
+        self.normalize = normalize
         self._load_data()
 
     def _load_data(self):
@@ -184,7 +186,7 @@ class EmbeddingDataset(AbstractNoisyDataset):
 
 class EmbeddingLabelDataset(EmbeddingDataset):
     def __init__(
-        self, data_path, emb_path, noise=None, noise_ratio=0.0, on_memory=False
+        self, data_path, emb_path, noise=None, noise_ratio=0.0, on_memory=False,
     ):
         super().__init__(
             data_path,
@@ -203,69 +205,6 @@ class EmbeddingLabelDataset(EmbeddingDataset):
         item = super().__getitem__(index)
         item["target"] = self.label[index].astype("i8")
         return item
-
-
-# class EmbeddingLabelDataset(Dataset):
-#     def __init__(self, data_path, arr_path):
-#         super().__init__()
-#         self.data_path = Path(data_path)
-#         self.data = None
-#         self.arr_path = arr_path
-#         data_name = f"{self.data_path.parent.stem}_{self.data_path.stem}"
-#         self.sync = zarr.ProcessSynchronizer(f"sync/{data_name}.sync")
-
-#     def _load_data(self):
-#         self.data = zarr.open(str(self.data_path), "r", synchronizer=self.sync)
-#         self.embedding = self.data[self.arr_path]
-#         self.label = self.data.label[:]
-
-#     def __len__(self):
-#         data = zarr.open(str(self.data_path), "r", synchronizer=self.sync)
-#         return len(data.label)
-
-#     def __getitem__(self, index):
-#         if self.data is None:
-#             self._load_data()
-
-#         emb, lbl = (
-#             self.embedding[index].astype(np.float32),
-#             self.label[index],
-#         )
-#         return {"index": index, "data": emb, "target": lbl}
-
-
-class News20Dataset(Dataset):
-    def __init__(self, data_path, tokenizer):
-        super().__init__()
-        self.data = pd.read_parquet(data_path)
-        self.tokenizer = tokenizer
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, index):
-        row = self.data.iloc[index]
-        text_ids = self.tokenizer.encode(row.text)
-        return {"data": text_ids, "target": row.label}
-
-
-# class TripleDataset(Dataset):
-#     def __init__(self, data_path, tokenizer):
-#         super().__init__()
-#         # synchronizer = zarr.ProcessSynchronizer("./sync/triple_dataset.sync")
-#         self.data = zarr.open(data_path, "r")
-#         self.tokenizer = tokenizer
-
-#     def __len__(self):
-#         return len(self.data)
-
-#     def __getitem__(self, index):
-#         # get a sample
-#         query, doc_pos, doc_neg = self.data[index]
-#         query_ids = self.tokenizer.encode(query, 128)
-#         doc_pos_ids = self.tokenizer.encode(doc_pos)
-#         doc_neg_ids = self.tokenizer.encode(doc_neg)
-#         return {"query": query_ids, "doc_pos": doc_pos_ids, "doc_neg": doc_neg_ids}
 
 
 if __name__ == "__main__":

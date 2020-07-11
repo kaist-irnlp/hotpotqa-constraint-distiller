@@ -78,8 +78,8 @@ class Distiller(pl.LightningModule):
         if self.hparams.loss.use_task_loss:
             dim_in = self.sparse.output_size
             feat_dim = 128
-            self.task = nn.Sequential(nn.Linear(dim_in, feat_dim), nn.ReLU())
-            self.loss_task = SupConLoss(contrast_mode="one")
+            self.task = nn.Sequential(nn.Linear(dim_in, feat_dim), nn.Tanh())
+            self.loss_task = SupConLoss()
         else:
             self.task = None
             self.loss_task = None
@@ -157,7 +157,7 @@ class Distiller(pl.LightningModule):
         # task loss
         if self._use_task_loss():
             losses["task"] = self.loss_task(
-                outputs["task"].unsqueeze(1), outputs["target"]
+                outputs["task"].unsqueeze(1).repeat(1, 3, 1), outputs["target"]
             )
             losses["total"] += losses["task"]
 
@@ -173,6 +173,10 @@ class Distiller(pl.LightningModule):
     def forward(self, batch):
         # output features (start with orig_* data)
         outputs = batch.copy()
+
+        # normalize
+        for fld in ["data", "orig_data"]:
+            batch[fld] = F.normalize(batch[fld], dim=1)
 
         # forward sparse
         outputs["sparse"] = self.forward_sparse(batch["data"])
