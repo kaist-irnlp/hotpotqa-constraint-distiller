@@ -1,6 +1,4 @@
 project: "kjang0517/news20"
-experiment:
-  name: news20
 defaults:
   - model: wta
   - dataset: news20

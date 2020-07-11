@@ -154,7 +154,7 @@ def main(hparams):
     close_after_fit = not hparams.train.upload_checkpoints
     neptune_logger = NeptuneLogger(
         project_name=hparams.project,
-        experiment_name=hparams.experiment.name,  # Optional,
+        experiment_name=hparams.project.split("/")[1],  # Optional,
         params=log_params,  # Optional,
         tags=tags,  # Optional,
         close_after_fit=close_after_fit,
