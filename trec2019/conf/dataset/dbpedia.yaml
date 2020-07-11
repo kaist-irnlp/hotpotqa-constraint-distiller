@@ -1,0 +1,12 @@
+# @package _global_
+dataset:
+  name: dbpedia
+  cls: emb-lbl
+  path: "dbpedia"
+  emb_path: "dense/bert-base-cased"
+  on_memory: true
+  tags:
+    - dbpedia
+model:
+  input_size: 768
+

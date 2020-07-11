@@ -1,0 +1,12 @@
+# @package _global_
+dataset:
+  name: ag_news
+  cls: emb-lbl
+  path: "ag_news"
+  emb_path: "dense/bert-base-cased"
+  on_memory: true
+  tags:
+    - ag_news
+model:
+  input_size: 768
+
