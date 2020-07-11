@@ -150,7 +150,7 @@ class Distiller(pl.LightningModule):
 
         # task loss
         if self._use_task_loss():
-            task_tensors = torch.stack([outputs["task"], outputs["orig_task"]], dim=1)
+            task_tensors = torch.stack([outputs["orig_task"], outputs["task"]], dim=1)
             losses["task"] = self.loss_task(task_tensors, outputs["target"])
             losses["total"] += losses["task"]
 
