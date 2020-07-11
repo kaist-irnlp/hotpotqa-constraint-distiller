@@ -78,7 +78,9 @@ class Distiller(pl.LightningModule):
         if self.hparams.loss.use_task_loss:
             dim_in = self.sparse.output_size
             feat_dim = 128
-            self.task = nn.Sequential(nn.Linear(dim_in, feat_dim), nn.Tanh())
+            self.task = nn.Sequential(
+                nn.Linear(dim_in, dim_in), nn.ReLU(), nn.Linear(dim_in, feat_dim)
+            )
             self.loss_task = SupConLoss()
         else:
             self.task = None
