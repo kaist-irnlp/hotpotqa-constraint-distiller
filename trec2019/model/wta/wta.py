@@ -50,22 +50,17 @@ class WTAModel(nn.Module):
 class BatchTopK(nn.Module):
     DIM_BATCH = 0
 
-    def __init__(self, k=1.0, is_adaptive=False):
+    def __init__(self, k=1.0):
         super().__init__()
         self._k = k
         self._h = None
-        # fixed or adaptive
-        if is_adaptive:
-            self._topk = self._get_adaptive_k
-        else:
-            self._topk = torch.topk
 
     # TODO: https://discuss.pytorch.org/t/implementing-k-sparse-autoencoder-on-fasttext-embedding-the-output-is-strange/39245/2
     def forward(self, x):
         batch_size = x.shape[0]
         # TODO: k * 1.5 (inference)?
         k = math.ceil(self._k * batch_size)
-        _, self.indices = self._topk(x, k, dim=self.DIM_BATCH)
+        _, self.indices = torch.topk(x, k, dim=self.DIM_BATCH)
         mask = torch.zeros(x.size()).type_as(x)
         mask.scatter_(self.DIM_BATCH, self.indices, 1)
         output = torch.mul(x, mask)
@@ -84,11 +79,6 @@ class BatchTopK(nn.Module):
 
     def set_k(self, k):
         self._k = k
-
-    def _get_adaptive_k(self, x, k, dim, largest=True):
-        avg_sparsity = len(x.nonzero()) / x.nelement()
-        buffer, indices = torch.topk(x, k, dim=dim, largest=largest)
-        output = torch.zeros_like(x).scatter(0, indices, buffer)
 
     def _backward_hook(self, grad):
         if self.training:

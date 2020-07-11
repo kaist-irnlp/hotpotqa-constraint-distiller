@@ -79,7 +79,7 @@ class Distiller(pl.LightningModule):
             dim_in = self.sparse.output_size
             feat_dim = 128
             self.task = nn.Sequential(
-                nn.Linear(dim_in, dim_in), nn.ReLU(), nn.Linear(dim_in, feat_dim)
+                nn.Linear(dim_in, feat_dim), nn.Linear(feat_dim, feat_dim), nn.ReLU(),
             )
             self.loss_task = SupConLoss()
         else:
@@ -165,10 +165,11 @@ class Distiller(pl.LightningModule):
         return losses
 
     def forward_sparse(self, x):
-        return F.normalize(self.sparse(x), dim=1)
+        return self.sparse(x)
 
     def forward_task(self, x):
-        return F.normalize(self.task(x), dim=1)
+        return self.task(x)
+        # return F.normalize(self.task(x), dim=1)
 
     @auto_move_data
     def forward(self, batch):
@@ -177,8 +178,8 @@ class Distiller(pl.LightningModule):
         trainables = ["data", "orig_data"]
 
         # normalize
-        for fld in trainables:
-            batch[fld] = F.normalize(batch[fld], dim=1)
+        # for fld in trainables:
+        #     batch[fld] = F.normalize(batch[fld], dim=1)
 
         # forward sparse
         outputs["sparse"] = self.forward_sparse(outputs["data"])
