@@ -100,7 +100,6 @@ class Distiller(pl.LightningModule):
         data_cls = self.hparams.dataset.cls
         emb_path = self.hparams.dataset.emb_path
         on_memory = self.hparams.dataset.on_memory
-        noise = self.hparams.noise.type
         noise_ratio = self.hparams.noise.ratio
 
         data_cls = {
@@ -110,11 +109,7 @@ class Distiller(pl.LightningModule):
         }[data_cls]
 
         return data_cls(
-            data_path,
-            emb_path,
-            noise=noise,
-            noise_ratio=noise_ratio,
-            on_memory=on_memory,
+            data_path, emb_path, noise_ratio=noise_ratio, on_memory=on_memory,
         )
 
     def _init_datasets(self):
@@ -150,47 +145,49 @@ class Distiller(pl.LightningModule):
 
         # task loss
         if self._use_task_loss():
-            task_tensors = torch.stack([outputs["orig_task"], outputs["task"]], dim=1)
-            losses["task"] = self.loss_task(task_tensors, outputs["target"])
+            losses["task"] = self.loss_task(outputs["task"], outputs["target"])
             losses["total"] += losses["task"]
 
         # recover loss
         if self._use_recovery_loss():
-            ratio = self.hparams.loss.recovery_loss_ratio
-            losses["recover"] = (
-                F.mse_loss(outputs["recover"], outputs["orig_data"]) * ratio
+            orig_data = outputs["data"][:, 0, :]
+            recv_data_list = outputs["recover"].unbind(dim=1)
+            losses["recover"] = torch.mean(
+                torch.stack([F.mse_loss(rt, orig_data) for rt in recv_data_list], dim=0)
             )
+            # ratio = self.hparams.loss.recovery_loss_ratio
+            # losses["recover"] = (
+            #     F.mse_loss(outputs["recover"], outputs["orig_data"]) * ratio
+            # )
             losses["total"] += losses["recover"]
 
         return losses
 
     def forward_sparse(self, x):
-        return self.sparse(x)
+        sparse_tensors = [self.sparse(t) for t in x.unbind(dim=1)]
+        return torch.stack(sparse_tensors, dim=1)
 
     def forward_task(self, x):
-        return self.task(x)
-        # return F.normalize(self.task(x), dim=1)
+        # return self.task(x)
+        return F.normalize(self.task(x), dim=-1)
 
     @auto_move_data
     def forward(self, batch):
-        # output features (start with orig_* data)
+        # output features
         outputs = batch.copy()
-        trainables = ["data", "orig_data"]
+        outputs["data"] = outputs["data"].permute(0, 2, 1)
 
         # normalize
-        # for fld in trainables:
-        #     batch[fld] = F.normalize(batch[fld], dim=1)
+        outputs["data"] = F.normalize(outputs["data"], dim=-1)
 
         # forward sparse
         outputs["sparse"] = self.forward_sparse(outputs["data"])
-        outputs["orig_sparse"] = self.forward_sparse(outputs["orig_data"])
 
-        # forward task
+        # forward task (optional)
         if self._use_task_loss():
             outputs["task"] = self.forward_task(outputs["sparse"])
-            outputs["orig_task"] = self.forward_task(outputs["orig_sparse"])
 
-        # forward recover
+        # forward recover (optional)
         if self._use_recovery_loss():
             outputs["recover"] = self.recover(outputs[f"sparse"])
 

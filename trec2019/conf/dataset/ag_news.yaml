@@ -9,4 +9,3 @@ dataset:
     - ag_news
 model:
   input_size: 768
-

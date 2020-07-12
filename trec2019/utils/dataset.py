@@ -27,12 +27,12 @@ blosc.use_threads = False
 
 
 class AbstractNoisyDataset(Dataset):
-    def __init__(self, noise=None, noise_ratio=0.0, on_memory=False):
-        self._add_noise = {
+    def __init__(self, noise_ratio=0.0, on_memory=False):
+        self._noise_funcs = {
             "gaussian": self.add_gaussian_noise,
             "masking": self.add_masking_noise,
             "salt": self.add_salt_pepper_noise,
-        }.get(noise, None)
+        }
         self._noise_ratio = noise_ratio
         self.on_memory = on_memory
 
@@ -45,40 +45,81 @@ class AbstractNoisyDataset(Dataset):
         return X_noisy
 
     def add_masking_noise(self, X):
-        # TODO: non-zero만 골라서 제거하도록 구현
         assert self._noise_ratio >= 0 and self._noise_ratio <= 1
         X_noisy = np.copy(X)
-        nrow, ncol = X.shape
+        nrow, ncol = 1, X.shape[0]
         n = int(ncol * self._noise_ratio)
-        for i in range(nrow):
-            idx_noisy = np.random.choice(ncol, n, replace=False)
-            X_noisy[i, idx_noisy] = 0
+        idx_noisy = np.random.choice(ncol, n, replace=False)
+        X_noisy[idx_noisy] = 0
 
         return X_noisy
 
     def add_salt_pepper_noise(self, X):
         assert self._noise_ratio >= 0 and self._noise_ratio <= 1
         X_noisy = np.copy(X)
-        nrow, ncol = X.shape
+        nrow, ncol = 1, X.shape[0]
         n = int(ncol * self._noise_ratio)
-        for i in range(nrow):
-            idx_noisy = np.random.choice(ncol, n, replace=False)
-            X_noisy[i, idx_noisy] = np.random.binomial(1, 0.5, n)
+        idx_noisy = np.random.choice(ncol, n, replace=False)
+        X_noisy[idx_noisy] = np.random.binomial(1, 0.5, n)
 
         return X_noisy
 
 
+class EmbeddingDataset(AbstractNoisyDataset):
+    def __init__(
+        self, data_path, emb_path, noise_ratio=0.0, on_memory=False,
+    ):
+        super().__init__(noise_ratio=noise_ratio, on_memory=on_memory)
+        self.data_path = data_path
+        self.emb_path = emb_path
+        self.normalize = normalize
+        self._load_data()
+
+    def _load_data(self):
+        data = zarr.open(str(self.data_path), "r")
+        self.embedding = data[self.emb_path]
+        if self.on_memory:
+            self.embedding = self.embedding[:]
+
+    def __len__(self):
+        return len(self.embedding)
+
+    def __getitem__(self, index):
+        data = self.embedding[index]
+        # generate noised version (nbs, n_view, ...)
+        data = np.stack(
+            [data] + [noise_f(data) for noise_f in self._noise_funcs.values()], axis=1
+        )
+        return {
+            "index": index,
+            "data": data.astype("f4"),
+        }
+
+
+class EmbeddingLabelDataset(EmbeddingDataset):
+    def __init__(
+        self, data_path, emb_path, noise_ratio=0.0, on_memory=False,
+    ):
+        super().__init__(
+            data_path, emb_path, noise_ratio=noise_ratio, on_memory=on_memory,
+        )
+
+    def _load_data(self):
+        super()._load_data()
+        data = zarr.open(str(self.data_path), "r")
+        self.label = data.label[:]
+
+    def __getitem__(self, index):
+        item = super().__getitem__(index)
+        item["target"] = self.label[index].astype("i8")
+        return item
+
+
 class TripleEmbeddingDataset(AbstractNoisyDataset):
     def __init__(
-        self,
-        data_dir,
-        emb_path,
-        dset_type,
-        noise=None,
-        noise_ratio=0.0,
-        on_memory=False,
+        self, data_dir, emb_path, dset_type, noise_ratio=0.0, on_memory=False,
     ):
-        super().__init__(noise=noise, noise_ratio=noise_ratio, on_memory=on_memory)
+        super().__init__(noise_ratio=noise_ratio, on_memory=on_memory)
         self.data_dir = Path(data_dir)
         self.emb_path = str(emb_path)
         self.dset_type = dset_type
@@ -152,68 +193,13 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
         }
 
 
-class EmbeddingDataset(AbstractNoisyDataset):
-    def __init__(
-        self, data_path, emb_path, noise=None, noise_ratio=0.0, on_memory=False,
-    ):
-        super().__init__(noise=noise, noise_ratio=noise_ratio, on_memory=on_memory)
-        self.data_path = data_path
-        self.emb_path = emb_path
-        self.normalize = normalize
-        self._load_data()
-
-    def _load_data(self):
-        data = zarr.open(str(self.data_path), "r")
-        self.embedding = data[self.emb_path]
-        if self.on_memory:
-            self.embedding = self.embedding[:]
-
-    def __len__(self):
-        return len(self.embedding)
-
-    def __getitem__(self, index):
-        data = self.embedding[index].astype("f4")
-        orig_data = np.copy(data)
-        # add noise
-        if self._add_noise:
-            data = self._add_noise(data)
-        return {
-            "index": index,
-            "data": data.astype("f4"),
-            "orig_data": orig_data.astype("f4"),
-        }
-
-
-class EmbeddingLabelDataset(EmbeddingDataset):
-    def __init__(
-        self, data_path, emb_path, noise=None, noise_ratio=0.0, on_memory=False,
-    ):
-        super().__init__(
-            data_path,
-            emb_path,
-            noise=noise,
-            noise_ratio=noise_ratio,
-            on_memory=on_memory,
-        )
-
-    def _load_data(self):
-        super()._load_data()
-        data = zarr.open(str(self.data_path), "r")
-        self.label = data.label[:]
-
-    def __getitem__(self, index):
-        item = super().__getitem__(index)
-        item["target"] = self.label[index].astype("i8")
-        return item
-
-
 if __name__ == "__main__":
     # data
-    data_dir = r"E:\msmarco-passages"
-    dataset = TripleDataset(data_dir, "dense/fse_Average")
+    data_dir = "D:/Data/news20/test.zarr"
+    dataset = EmbeddingDataset(data_dir, "dense/bert-base-cased")
     # test
-    loader = DataLoader(dataset, batch_size=128)
-    for i, sample in enumerate(loader):
-        print(sample["q"].shape)
+    loader = DataLoader(dataset, batch_size=32)
+    for i, batch in enumerate(loader):
+        print(batch["data"].shape)
         if i > 3:
             break
