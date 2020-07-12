@@ -163,13 +163,13 @@ class Distiller(pl.LightningModule):
 
         return losses
 
-    def forward_sparse(self, x):
-        sparse_tensors = [self.sparse(t) for t in x.unbind(dim=1)]
+    def forward_sparse(self, data):
+        sparse_tensors = [self.sparse(t) for t in data.unbind(dim=1)]
         return torch.stack(sparse_tensors, dim=1)
 
-    def forward_task(self, x):
-        # return self.task(x)
-        return F.normalize(self.task(x), dim=-1)
+    def forward_task(self, data):
+        # return self.task(data)
+        return F.normalize(self.task(data), dim=-1)
 
     @auto_move_data
     def forward(self, batch):
