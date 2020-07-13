@@ -40,7 +40,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-_root_dir = str(Path(__file__).parent.absolute())
 
 
 class Distiller(pl.LightningModule):
@@ -153,10 +152,6 @@ class Distiller(pl.LightningModule):
             losses["recover"] = torch.mean(
                 torch.stack([F.mse_loss(rt, orig_data) for rt in recv_data_list], dim=0)
             )
-            # ratio = self.hparams.loss.recovery_loss_ratio
-            # losses["recover"] = (
-            #     F.mse_loss(outputs["recover"], outputs["orig_data"]) * ratio
-            # )
             losses["total"] += losses["recover"]
 
         return losses
@@ -217,20 +212,10 @@ class Distiller(pl.LightningModule):
         return self.forward(batch)
 
     def validation_step_end(self, outputs):
-        # aggregate
-        # outputs = {}
-        # for k in batch_parts_outputs[0].keys():
-        #     outputs[k] = torch.cat([part[k] for part in batch_parts_outputs], dim=1)
-
         # loss
         losses = self.loss(outputs)
 
         # logging
-        # tqdm_dict = {
-        #     "val_loss": losses["total"],
-        #     "val_loss_task": losses["task"],
-        #     "val_loss_recover": losses["recover"],
-        # }
         tqdm_dict = {
             "val_loss": losses["total"],
         }
