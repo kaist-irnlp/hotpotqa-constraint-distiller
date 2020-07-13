@@ -110,6 +110,7 @@ def encode_dset(model, hparams, dset_path, emb_path):
 
 def main(ckpt_dir, dataset_dir):
     # get paths
+    print(ckpt_dir)
     ckpt_dir = Path(ckpt_dir)
     model_path = get_model_path(ckpt_dir)
     hparams_path = ckpt_dir / "hparams.yaml"
