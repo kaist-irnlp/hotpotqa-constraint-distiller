@@ -72,7 +72,6 @@ class EmbeddingDataset(AbstractNoisyDataset):
         super().__init__(noise_ratio=noise_ratio, on_memory=on_memory)
         self.data_path = data_path
         self.emb_path = emb_path
-        self.normalize = normalize
         self._load_data()
 
     def _load_data(self):
