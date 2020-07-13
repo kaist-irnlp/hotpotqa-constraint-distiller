@@ -10,7 +10,7 @@ from tqdm import tqdm
 from numcodecs import Zstd
 
 from trec2019.distiller import Distiller
-from trec2019.utils.dataset import EmbeddingDataset
+from trec2019.utils.dataset import EmbeddingDataset, EmbeddingLabelDataset
 
 parser = ArgumentParser()
 parser.add_argument("exp_dir", type=str)
@@ -78,7 +78,7 @@ def get_model_properties(hparams):
 
 
 def encode_dset(model, hparams, dset_path, emb_path):
-    dataset = EmbeddingDataset(dset_path, emb_path)
+    dataset = EmbeddingLabelDataset(dset_path, emb_path)
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -99,7 +99,7 @@ def encode_dset(model, hparams, dset_path, emb_path):
         compressor=Zstd(),
     )
     for i, data in enumerate(tqdm(loader)):
-        out = model.forward_sparse(data["orig_data"]).cpu().numpy()
+        out = model.forward_sparse(data["data"].permute(0, 2, 1)).cpu().numpy()[:, 0, :]
         start = args.batch_size * i
         end = start + out.shape[0]
         z_out[start:end] = out[:]
@@ -109,21 +109,19 @@ def encode_dset(model, hparams, dset_path, emb_path):
 
 
 def main(ckpt_dir, dataset_dir):
-    # exp_id = ckpt_dir.parent.parent.name
-    # print("Processing", exp_id)
     # get paths
     ckpt_dir = Path(ckpt_dir)
     model_path = get_model_path(ckpt_dir)
     hparams_path = ckpt_dir / "hparams.yaml"
     if (model_path is None) or (not hparams_path.exists()):
-        print(f"checkpoint or hparams does not exist: {exp_id}")
+        print(f"checkpoint or hparams does not exist: {ckpt_dir}")
         return None
     hparams_path = str(hparams_path)
     hparams = load_hparams(hparams_path)
 
     # skip if SparseNet
     if hparams["model"]["name"] == "sparsenet":
-        print(f"Skipping SparseNet: {exp_id}")
+        print(f"Skipping SparseNet: {ckpt_dir}")
         return None
 
     model_props = get_model_properties(hparams)
@@ -145,14 +143,13 @@ def main(ckpt_dir, dataset_dir):
     # load hparams & parse model properties
     emb_path = hparams["dataset"]["emb_path"]
 
-    # encode: queries
-    # dataset_dir = "E:/Data/msmarco-passages"
-    encode_dset(model, hparams, Path(dataset_dir) / "queries.eval.zarr", emb_path)
-    encode_dset(model, hparams, Path(dataset_dir) / "docs.eval.zarr", emb_path)
+    # encode: all
+    for f in Path(dataset_dir).glob("*.zarr"):
+        encode_dset(model, hparams, f, emb_path)
 
 
 if __name__ == "__main__":
-    main(r"C:\Users\kyoun\Downloads\checkpoints", r"D:\Data\msmarco-passages")
+    main(args.exp_dir, args.dataset_dir)
     # out_dirs = list(Path(args.exp_dir).glob("**/output"))
     # for out_dir in tqdm(out_dirs):
     #     main((out_dir / "checkpoints"), args.dataset_dir)
