@@ -25,11 +25,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from trec2019.model.sparsenet.helper.duty_cycle_metrics import (
+from trec2019.model.wta.helper.duty_cycle_metrics import (
     maxEntropy,
     binaryEntropy,
 )
-from trec2019.model.sparsenet.helper.k_winners_func import k_winners, k_winners2d
+from trec2019.model.wta.helper.k_winners_func import k_winners, k_winners2d
 
 
 def updateBoostStrength(m):

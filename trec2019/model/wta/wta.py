@@ -45,9 +45,10 @@ class WTAModel(nn.Module):
             self.layers.add_module(f"linear_{i+1}", linear)
             self.layers.add_module(f"bn_{i+1}", nn.BatchNorm1d(n[i], affine=False))
             # add kwinner layer
+            k = math.floor(n[i] * k[i])
             kwinner = KWinners(
                 n=n[i],
-                k=k[i],
+                k=k,
                 kInferenceFactor=k_inference_factor,
                 boostStrength=boost_strength,
                 boostStrengthFactor=boost_strength_factor,

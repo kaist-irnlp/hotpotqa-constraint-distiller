@@ -31,7 +31,7 @@ from pprint import pprint
 # project specific
 from trec2019.utils.dataset import *
 from trec2019.utils.noise import *
-from trec2019.model import SparseNetModel, WTAModel
+from trec2019.model import WTAModel
 from trec2019.model.wta.helper import *
 from trec2019.task import ClassificationTask, RankingTask
 from trec2019.utils.losses import SupConLoss, TripletLoss
