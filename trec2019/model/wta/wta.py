@@ -3,6 +3,7 @@ import torch
 import math
 import torch.nn.functional as F
 import abc
+from trec2019.model.wta.helper import *
 
 
 class WTAModel(nn.Module):
@@ -19,21 +20,41 @@ class WTAModel(nn.Module):
         return F.normalize(features, dim=-1)
 
     def on_epoch_end(self):
-        pass
+        self.apply(updateBoostStrength)
+        self.apply(rezeroWeights)
 
+    # TODO: May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
+    # TODO: Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
     def _init_layers(self):
         self.layers = nn.Sequential()
 
         n = self.hparams.model.n
         k = self.hparams.model.k
+        weight_sparsity = self.hparams.model.weight_sparsity
+        normalize_weights = self.hparams.model.normalize_weights
+        k_inference_factor = self.hparams.model.k_inference_factor
+        boost_strength = self.hparams.model.boost_strength
+        boost_strength_factor = self.hparams.model.boost_strength_factor
         next_input_size = self.hparams.model.input_size
-        # TODO: May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
-        # TODO: Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
         for i in range(len(n)):
-            self.layers.add_module(f"linear_{i+1}", nn.Linear(next_input_size, n[i]))
-            self.layers.add_module(f"bn_{i+1}", nn.BatchNorm1d(n[i]))
-            self.layers.add_module(f"relu_{i+1}", nn.ReLU())
-            self.layers.add_module(f"kwinner_{i+1}", BatchTopK(k[i]))
+            linear = nn.Linear(next_input_size, n[i])
+            if 0 < weight_sparsity < 1:
+                linear = SparseWeights(linear, weightSparsity=weight_sparsity)
+                if normalize_weights:
+                    linear.apply(normalizeSparseWeights)
+            self.layers.add_module(f"linear_{i+1}", linear)
+            self.layers.add_module(f"bn_{i+1}", nn.BatchNorm1d(n[i], affine=False))
+            # add kwinner layer
+            kwinner = KWinners(
+                n=n[i],
+                k=k[i],
+                kInferenceFactor=k_inference_factor,
+                boostStrength=boost_strength,
+                boostStrengthFactor=boost_strength_factor,
+            )
+            self.layers.add_module(f"kwinner_{i+1}", kwinner)
+            # self.layers.add_module(f"relu_{i+1}", nn.ReLU())
+            # self.layers.add_module(f"kwinner_{i+1}", BatchTopK(k[i]))
             next_input_size = n[i]
         # save output_size
         self.output_size = next_input_size

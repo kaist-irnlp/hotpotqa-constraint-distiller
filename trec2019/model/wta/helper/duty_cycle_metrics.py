@@ -24,7 +24,10 @@ import math
 
 import numpy as np
 
+import matplotlib
 import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
 
 
 def maxEntropy(n, k):
@@ -53,7 +56,7 @@ def binaryEntropy(x):
     return entropy, entropy.sum()
 
 
-def plotDutyCycles(dutyCycle, filePath):
+def plotDutyCycles(dutyCycle):
     """
     Create plot showing histogram of duty cycles
 
@@ -61,11 +64,11 @@ def plotDutyCycles(dutyCycle, filePath):
     :param filePath: (str) Full filename of image file
     """
     _, entropy = binaryEntropy(dutyCycle)
+    fig = plt.figure()
     bins = np.linspace(0.0, 0.3, 200)
     plt.hist(dutyCycle, bins, alpha=0.5, label="All cols")
     plt.title("Histogram of duty cycles, entropy=" + str(float(entropy)))
     plt.xlabel("Duty cycle")
     plt.ylabel("Number of units")
-    plt.savefig(filePath)
-    plt.close()
+    return fig
 
