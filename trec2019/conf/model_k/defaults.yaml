@@ -1,5 +1,5 @@
-model:
-  k: 
+model_k:
+  k:
     - 8
   tags:
     - 8

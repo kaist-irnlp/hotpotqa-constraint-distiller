@@ -25,20 +25,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from trec2019.model.sparsenet.helper.duty_cycle_metrics import (
+from trec2019.model.wta.helper.duty_cycle_metrics import (
     maxEntropy,
     binaryEntropy,
 )
-from trec2019.model.sparsenet.helper.k_winners_func import k_winners, k_winners2d
+from trec2019.model.wta.helper.k_winners_func import k_winners, k_winners2d
 
 
 def updateBoostStrength(m):
     """
   Function used to update KWinner modules boost strength after each epoch.
-
   Call using :meth:`torch.nn.Module.apply` after each epoch if required
   For example: ``m.apply(updateBoostStrength)``
-
   :param m: KWinner module
   """
     if isinstance(m, KWinnersBase):
@@ -66,24 +64,19 @@ class KWinnersBase(nn.Module):
     :param n:
       Number of units
     :type n: int
-
     :param k:
       The activity of the top k units will be allowed to remain, the rest are set
       to zero
     :type k: int
-
     :param kInferenceFactor:
       During inference (training=False) we increase k by this factor.
     :type kInferenceFactor: float
-
     :param boostStrength:
       boost strength (0.0 implies no boosting).
     :type boostStrength: float
-
     :param boostStrengthFactor:
       Boost strength factor to use [0..1]
     :type boostStrengthFactor: float
-
     :param dutyCyclePeriod:
       The period used to calculate duty cycles
     :type dutyCyclePeriod: int
@@ -109,7 +102,6 @@ class KWinnersBase(nn.Module):
         """
      Updates our duty cycle estimates with the new value. Duty cycles are
      updated according to the following formula:
-
     .. math::
         dutyCycle = \\frac{dutyCycle \\times \\left( period - batchSize \\right)
                             + newValue}{period}
@@ -145,9 +137,7 @@ class KWinnersBase(nn.Module):
 class KWinners(KWinnersBase):
     """
   Applies K-Winner function to the input tensor
-
   See :class:`htmresearch.frameworks.pytorch.functions.k_winners`
-
   """
 
     def __init__(
@@ -163,24 +153,19 @@ class KWinners(KWinnersBase):
     :param n:
       Number of units
     :type n: int
-
     :param k:
       The activity of the top k units will be allowed to remain, the rest are set
       to zero
     :type k: int
-
     :param kInferenceFactor:
       During inference (training=False) we increase k by this factor.
     :type kInferenceFactor: float
-
     :param boostStrength:
       boost strength (0.0 implies no boosting).
     :type boostStrength: float
-
     :param boostStrengthFactor:
       Boost strength factor to use [0..1]
     :type boostStrengthFactor: float
-
     :param dutyCyclePeriod:
       The period used to calculate duty cycles
     :type dutyCyclePeriod: int
@@ -225,9 +210,7 @@ class KWinners(KWinnersBase):
 class KWinners2d(KWinnersBase):
     """
   Applies K-Winner function to the input tensor
-
   See :class:`htmresearch.frameworks.pytorch.functions.k_winners2d`
-
   """
 
     def __init__(
@@ -241,33 +224,26 @@ class KWinners2d(KWinnersBase):
         dutyCyclePeriod=1000,
     ):
         """
-
     :param n:
       Number of units. Usually the output of the max pool or whichever layer
       preceding the KWinners2d layer.
     :type n: int
-
     :param k:
       The activity of the top k units will be allowed to remain, the rest are set
       to zero
     :type k: int
-
     :param channels:
       Number of channels (filters) in the convolutional layer.
     :type channels: int
-
     :param kInferenceFactor:
       During inference (training=False) we increase k by this factor.
     :type kInferenceFactor: float
-
     :param boostStrength:
       boost strength (0.0 implies no boosting).
     :type boostStrength: float
-
     :param boostStrengthFactor:
       Boost strength factor to use [0..1]
     :type boostStrengthFactor: float
-
     :param dutyCyclePeriod:
       The period used to calculate duty cycles
     :type dutyCyclePeriod: int

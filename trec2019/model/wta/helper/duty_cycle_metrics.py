@@ -53,7 +53,7 @@ def binaryEntropy(x):
     """
     entropy = -x * x.log2() - (1 - x) * (1 - x).log2()
     entropy[x * (1 - x) == 0] = 0
-    return entropy, entropy.sum()
+    return entropy, entropy.mean()
 
 
 def plotDutyCycles(dutyCycle):

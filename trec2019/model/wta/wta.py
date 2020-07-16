@@ -28,8 +28,8 @@ class WTAModel(nn.Module):
     def _init_layers(self):
         self.layers = nn.Sequential()
 
-        n = self.hparams.model.n
-        k = self.hparams.model.k
+        n = self.hparams.model_n.n
+        k = self.hparams.model_k.k
         weight_sparsity = self.hparams.model.weight_sparsity
         normalize_weights = self.hparams.model.normalize_weights
         k_inference_factor = self.hparams.model.k_inference_factor
