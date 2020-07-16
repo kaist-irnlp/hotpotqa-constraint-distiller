@@ -2,6 +2,7 @@ from torch import nn
 import torch
 import math
 import torch.nn.functional as F
+import abc
 
 
 class WTAModel(nn.Module):
@@ -15,7 +16,7 @@ class WTAModel(nn.Module):
 
     def forward(self, x):
         features = self.layers(x)
-        return F.normalize(features, p=2, dim=1)
+        return F.normalize(features, dim=-1)
 
     def on_epoch_end(self):
         pass
@@ -48,21 +49,26 @@ class WTAModel(nn.Module):
 
 
 class BatchTopK(nn.Module):
-    DIM_BATCH = 0
-
-    def __init__(self, k=1.0):
+    def __init__(self, k_ratio=1.0, batchwise=False):
         super().__init__()
-        self._k = k
-        self._h = None
+        self.k_ratio = k_ratio
+        self.batchwise = batchwise
+        if batchwise:
+            self.k_dim = 0  # batch
+        else:
+            self.k_dim = -1  # emb
 
     # TODO: https://discuss.pytorch.org/t/implementing-k-sparse-autoencoder-on-fasttext-embedding-the-output-is-strange/39245/2
     def forward(self, x):
-        batch_size = x.shape[0]
-        # TODO: k * 1.5 (inference)?
-        k = math.ceil(self._k * batch_size)
-        _, self.indices = torch.topk(x, k, dim=self.DIM_BATCH)
+        if self.batchwise:
+            batch_size = x.shape[0]
+            k = math.ceil(self.k_ratio * batch_size)
+        else:
+            emb_size = x.shape[-1]
+            k = math.ceil(self.k_ratio * emb_size)
+        _, self.indices = torch.topk(x, k, dim=self.k_dim)
         mask = torch.zeros(x.size()).type_as(x)
-        mask.scatter_(self.DIM_BATCH, self.indices, 1)
+        mask.scatter_(self.k_dim, self.indices, 1)
         output = torch.mul(x, mask)
 
         if self.training:
@@ -77,20 +83,18 @@ class BatchTopK(nn.Module):
 
         return output
 
-    def set_k(self, k):
-        self._k = k
-
     def _backward_hook(self, grad):
         if self.training:
             mask = torch.zeros(grad.size()).type_as(grad)
-            mask.scatter_(self.DIM_BATCH, self.indices, 1)
-            _grad = torch.mul(grad, mask)
+            mask.scatter_(self.k_dim, self.indices, 1)
+            grad.mul_(mask)
+            return grad
 
             # _grad = torch.zeros_like(grad).scatter(
-            #     self.DIM_BATCH,
+            #     self.k_dim,
             #     self.indices,
-            #     torch.gather(grad, self.DIM_BATCH, self.indices),
+            #     torch.gather(grad, self.k_dim, self.indices),
             # )
         else:
-            _grad = grad
-        return _grad
+            return grad
+
