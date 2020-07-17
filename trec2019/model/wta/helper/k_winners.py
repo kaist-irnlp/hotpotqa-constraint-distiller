@@ -217,7 +217,7 @@ class KWinners(KWinnersBase):
         batchSize = x.shape[0]
         alpha = 0.2
         self.dutyCycle.mul_(1 - alpha)
-        self.dutyCycle.add_(alpha * x.gt(0).mean(dim=0, dtype=torch.float))
+        self.dutyCycle.add_(alpha * (x > 0).mean(dim=0, dtype=torch.float))
         # self.learningIterations += batchSize
         # period = min(self.dutyCyclePeriod, self.learningIterations)
         # self.dutyCycle.mul_(period - batchSize)
