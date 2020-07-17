@@ -3,10 +3,10 @@ dataset:
   name: dbpedia
   cls: emb-lbl
   path: "dbpedia"
-  emb_path: "dense/bert-base-cased"
+  emb_path: "dense/bert-large-cased"
   on_memory: true
   tags:
     - dbpedia
 model:
-  input_size: 768
+  input_size: 1024
 

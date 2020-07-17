@@ -3,9 +3,9 @@ dataset:
   name: ag_news
   cls: emb-lbl
   path: "ag_news"
-  emb_path: "dense/bert-base-cased"
+  emb_path: "dense/bert-large-cased"
   on_memory: true
   tags:
     - ag_news
 model:
-  input_size: 768
+  input_size: 1024
