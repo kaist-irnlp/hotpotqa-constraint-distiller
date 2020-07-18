@@ -91,6 +91,7 @@ class k_winners(torch.autograd.Function):
     :return: 
       A tensor representing the activity of x after k-winner take all.
     """
+        boostFactors = None
         if boostStrength > 0.0:
             targetDensity = float(k) / x.size(1)
             boostFactors = torch.exp((targetDensity - dutyCycles) * boostStrength)
@@ -108,7 +109,7 @@ class k_winners(torch.autograd.Function):
             res[i, indices[i]] = x[i, indices[i]]
 
         ctx.save_for_backward(indices)
-        return res
+        return res, boostFactors
 
     @staticmethod
     def backward(ctx, grad_output):

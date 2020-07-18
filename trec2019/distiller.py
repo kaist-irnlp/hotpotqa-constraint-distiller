@@ -235,8 +235,9 @@ class Distiller(pl.LightningModule):
             "log": tqdm_dict,
         }
 
-    def _log_duty_cycle(self, m):
+    def _log_kwinner(self, m):
         if isinstance(m, KWinnersBase):
+            # entropy
             duty_cycles = m.dutyCycle.cpu()
             _, entropy = binaryEntropy(duty_cycles)
             self.logger.experiment.log_metric("entropy", entropy)
@@ -246,9 +247,21 @@ class Distiller(pl.LightningModule):
             self.logger.experiment.log_image("duty_cycles", fig)
             plt.close(fig)
 
+            # boost strength 
+            boost_strength = m.boostStrength
+            self.logger.experiment.log_metric("boost_strength", entropy)
+
+            # boost factors
+            boost_factors = m.boost_factors
+            fig = plot_boost_factors(boost_factors)
+            self.logger.experiment.log_image("boost_factors", fig)
+            plt.close(fig)
+
+
+
     def _log_network_states(self):
         # duty cycles & entropy
-        self.apply(self._log_duty_cycle)
+        self.apply(self._log_kwinner)
 
     def validation_epoch_end(self, outputs):
         # network states

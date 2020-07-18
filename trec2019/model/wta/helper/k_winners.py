@@ -46,6 +46,21 @@ def updateBoostStrength(m):
             m.boostStrength = m.boostStrength * m.boostStrengthFactor
 
 
+def plot_boost_factors(boost_factors):
+    """
+    Create plot showing histogram of boost factors
+
+    :param boost_factors: (torch tensor) the boost factors
+    """
+    fig = plt.figure()
+    xlabels = [f"d{i+1}" for i in range(boost_factors.shape[0])]
+    plt.bar(xlabels, boost_factors)
+    plt.title("Boost factors")
+    plt.xlabel("Dim")
+    plt.ylabel("Strength")
+    return fig
+
+
 class KWinnersBase(nn.Module):
     """
   Base KWinners class
@@ -206,7 +221,8 @@ class KWinners(KWinnersBase):
         else:
             k = min(int(round(self.k * self.kInferenceFactor)), self.n)
 
-        x = k_winners.apply(x, self.dutyCycle, k, self.boostStrength)
+        x, boost_factors = k_winners.apply(x, self.dutyCycle, k, self.boostStrength)
+        self.boost_factors = boost_factors
 
         if self.training:
             self.updateDutyCycle(x)
