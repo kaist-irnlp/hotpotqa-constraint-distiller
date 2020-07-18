@@ -15,6 +15,6 @@ train:
   val_percent_check: 1.0
   train_percent_check: 1.0
   # early stop & logging
-  use_early_stop: false
+  use_early_stop: true
   upload_checkpoints: false
   save_last_checkpoint: false
