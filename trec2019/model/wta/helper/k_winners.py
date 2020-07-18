@@ -226,8 +226,7 @@ class KWinners(KWinnersBase):
         else:
             k = min(int(round(self.k * self.kInferenceFactor)), self.n)
 
-        x, boost_factors = k_winners.apply(x, self.dutyCycle, k, self.boostStrength)
-        self.boost_factors = boost_factors
+        x = k_winners.apply(x, self.dutyCycle, k, self.boostStrength)
 
         if self.training:
             self.updateDutyCycle(x)
@@ -236,8 +235,8 @@ class KWinners(KWinnersBase):
 
     def updateDutyCycle(self, x):
         batchSize = x.shape[0]
-        while self.dutyCyclePeriod <= batchSize:
-            self.dutyCyclePeriod *= 10
+        # modification
+        self.dutyCyclePeriod = batchSize * 10
         # alpha = 0.2
         # self.dutyCycle.mul_(1 - alpha)
         # self.dutyCycle.add_(alpha * (x > 0).mean(dim=0, dtype=torch.float))

@@ -238,22 +238,24 @@ class Distiller(pl.LightningModule):
             # entropy
             duty_cycles = m.dutyCycle.cpu()
             _, entropy = binaryEntropy(duty_cycles)
-            self.logger.experiment.log_metric(f"{m}_entropy", entropy)
+            self.logger.experiment.log_metric(f"entropy", entropy)
 
             # duty cycle
             fig = plotDutyCycles(duty_cycles)
-            self.logger.experiment.log_image(f"{m}_duty_cycles", fig)
+            self.logger.experiment.log_image(f"duty_cycles", fig)
             plt.close(fig)
 
             # boost strength
             boost_strength = m.boostStrength
-            self.logger.experiment.log_metric(f"{m}_boost_strength", boost_strength)
+            self.logger.experiment.log_metric(
+                f"boost_strength", boost_strength
+            )
 
             # boost factors
             # boost_factors = m.boost_factors
             # if boost_factors is not None:
             #     fig = plot_boost_factors(boost_factors)
-            #     self.logger.experiment.log_image(f"{m}_boost_factors", fig)
+            #     self.logger.experiment.log_image(f"boost_factors", fig)
             #     plt.close(fig)
 
     def _log_network_states(self):
