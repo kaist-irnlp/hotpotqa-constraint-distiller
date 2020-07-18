@@ -40,7 +40,7 @@ class AbstractNoisyDataset(Dataset):
         X_noisy = X + self._noise_ratio * np.random.normal(
             loc=0.0, scale=1.0, size=X.shape
         )
-        X_noisy = np.clip(X_noisy, range_[0], range_[1])
+        # X_noisy = np.clip(X_noisy, range_[0], range_[1])
 
         return X_noisy
 
