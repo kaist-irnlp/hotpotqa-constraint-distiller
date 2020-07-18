@@ -78,9 +78,7 @@ class Distiller(pl.LightningModule):
             h_dim = 256
             feat_dim = 128
             self.task = nn.Sequential(
-                nn.Linear(in_dim, h_dim),
-                nn.LeakyReLU(),
-                nn.Linear(h_dim, feat_dim),
+                nn.Linear(in_dim, h_dim), nn.LeakyReLU(), nn.Linear(h_dim, feat_dim),
             )
             self.loss_task = SupConLoss()
         else:
@@ -174,7 +172,7 @@ class Distiller(pl.LightningModule):
     def forward(self, batch):
         # output features
         outputs = batch.copy()
-        
+
         ## (bsz, n_views, ...)
         outputs["data"] = outputs["data"].permute(0, 2, 1)
 
@@ -240,24 +238,23 @@ class Distiller(pl.LightningModule):
             # entropy
             duty_cycles = m.dutyCycle.cpu()
             _, entropy = binaryEntropy(duty_cycles)
-            self.logger.experiment.log_metric("entropy", entropy)
+            self.logger.experiment.log_metric(f"{m}_entropy", entropy)
 
             # duty cycle
             fig = plotDutyCycles(duty_cycles)
-            self.logger.experiment.log_image("duty_cycles", fig)
+            self.logger.experiment.log_image(f"{m}_duty_cycles", fig)
             plt.close(fig)
 
-            # boost strength 
+            # boost strength
             boost_strength = m.boostStrength
-            self.logger.experiment.log_metric("boost_strength", entropy)
+            self.logger.experiment.log_metric(f"{m}_boost_strength", boost_strength)
 
             # boost factors
-            boost_factors = m.boost_factors
-            fig = plot_boost_factors(boost_factors)
-            self.logger.experiment.log_image("boost_factors", fig)
-            plt.close(fig)
-
-
+            # boost_factors = m.boost_factors
+            # if boost_factors is not None:
+            #     fig = plot_boost_factors(boost_factors)
+            #     self.logger.experiment.log_image(f"{m}_boost_factors", fig)
+            #     plt.close(fig)
 
     def _log_network_states(self):
         # duty cycles & entropy
