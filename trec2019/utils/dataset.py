@@ -27,14 +27,13 @@ blosc.use_threads = False
 
 
 class AbstractNoisyDataset(Dataset):
-    def __init__(self, noise_ratio=0.0, on_memory=False):
+    def __init__(self, noise_ratio=0.0):
         self._noise_funcs = {
             "gaussian": self.add_gaussian_noise,
             "masking": self.add_masking_noise,
             "salt": self.add_salt_pepper_noise,
         }
         self._noise_ratio = noise_ratio
-        self.on_memory = on_memory
 
     def add_gaussian_noise(self, X, range_=[0, 1]):
         X_noisy = X + self._noise_ratio * np.random.normal(
@@ -69,9 +68,10 @@ class EmbeddingLabelDataset(AbstractNoisyDataset):
     def __init__(
         self, data_path, emb_path, noise_ratio=0.0, on_memory=False,
     ):
-        super().__init__(noise_ratio=noise_ratio, on_memory=on_memory)
+        super().__init__(noise_ratio=noise_ratio)
         self.data_path = data_path
         self.emb_path = emb_path
+        self.on_memory = on_memory
         self._load_data()
 
     def _load_data(self):

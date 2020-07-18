@@ -174,6 +174,7 @@ class Distiller(pl.LightningModule):
     def forward(self, batch):
         # output features
         outputs = batch.copy()
+        
         ## (bsz, n_views, ...)
         outputs["data"] = outputs["data"].permute(0, 2, 1)
 
