@@ -235,16 +235,17 @@ class KWinners(KWinnersBase):
 
     def updateDutyCycle(self, x):
         batchSize = x.shape[0]
+        alpha = 0.2
+        self.dutyCycle.mul_(1 - alpha)
+        self.dutyCycle.add_(alpha * (x > 0).mean(dim=0, dtype=torch.float))
+
         # modification
-        self.dutyCyclePeriod = batchSize * 10
-        # alpha = 0.2
-        # self.dutyCycle.mul_(1 - alpha)
-        # self.dutyCycle.add_(alpha * (x > 0).mean(dim=0, dtype=torch.float))
-        self.learningIterations += batchSize
-        period = min(self.dutyCyclePeriod, self.learningIterations)
-        self.dutyCycle.mul_(period - batchSize)
-        self.dutyCycle.add_(x.gt(0).sum(dim=0, dtype=torch.float))
-        self.dutyCycle.div_(period)
+        # self.dutyCyclePeriod = batchSize * 10
+        # self.learningIterations += batchSize
+        # period = min(self.dutyCyclePeriod, self.learningIterations)
+        # self.dutyCycle.mul_(period - batchSize)
+        # self.dutyCycle.add_(x.gt(0).sum(dim=0, dtype=torch.float))
+        # self.dutyCycle.div_(period)
 
 
 class KWinners2d(KWinnersBase):
