@@ -32,6 +32,7 @@ class WTAModel(nn.Module):
         k = self.hparams.model_k.k
         weight_sparsity = self.hparams.model.weight_sparsity
         normalize_weights = self.hparams.model.normalize_weights
+        dropout = self.hparams.model.dropout
         k_inference_factor = self.hparams.model.k_inference_factor
         boost_strength = self.hparams.model.boost_strength
         boost_strength_factor = self.hparams.model.boost_strength_factor
@@ -44,6 +45,8 @@ class WTAModel(nn.Module):
                     linear.apply(normalizeSparseWeights)
             self.layers.add_module(f"linear_{i+1}", linear)
             self.layers.add_module(f"bn_{i+1}", nn.BatchNorm1d(n[i], affine=False))
+            # dropout
+            self.linearSdr.add_module(f"dropout_{i+1}", nn.Dropout(dropout))
             # add kwinner layer
             k = math.floor(n[i] * k[i])
             kwinner = KWinners(
