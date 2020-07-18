@@ -25,11 +25,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from trec2019.model.sparsenet.helper.duty_cycle_metrics import (
+from trec2019.model.wta.helper.duty_cycle_metrics import (
     maxEntropy,
     binaryEntropy,
 )
-from trec2019.model.sparsenet.helper.k_winners_func import k_winners, k_winners2d
+from trec2019.model.wta.helper.k_winners_func import k_winners, k_winners2d
 
 
 def updateBoostStrength(m):
@@ -215,6 +215,11 @@ class KWinners(KWinnersBase):
 
     def updateDutyCycle(self, x):
         batchSize = x.shape[0]
+        while self.dutyCyclePeriod <= batchSize:
+            self.dutyCyclePeriod *= 10
+        # alpha = 0.2
+        # self.dutyCycle.mul_(1 - alpha)
+        # self.dutyCycle.add_(alpha * (x > 0).mean(dim=0, dtype=torch.float))
         self.learningIterations += batchSize
         period = min(self.dutyCyclePeriod, self.learningIterations)
         self.dutyCycle.mul_(period - batchSize)

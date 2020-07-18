@@ -1,8 +1,8 @@
 train:
   # general
-  batch_size: 2048
-  max_epochs: 30
-  learning_rate: 0.0003
+  batch_size: 1024
+  max_epochs: 100
+  learning_rate: 0.0001
   # device
   gpus: null
   distributed_backend: null

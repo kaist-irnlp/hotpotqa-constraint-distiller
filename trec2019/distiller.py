@@ -31,7 +31,8 @@ from pprint import pprint
 # project specific
 from trec2019.utils.dataset import *
 from trec2019.utils.noise import *
-from trec2019.model import SparseNetModel, WTAModel
+from trec2019.model import WTAModel
+from trec2019.model.wta.helper import *
 from trec2019.task import ClassificationTask, RankingTask
 from trec2019.utils.losses import SupConLoss, TripletLoss
 
@@ -60,9 +61,7 @@ class Distiller(pl.LightningModule):
 
     def _get_sparse_cls(self):
         name = self.hparams.model.name
-        if name == "sparsenet":
-            return SparseNetModel
-        elif name == "wta":
+        if name == "wta":
             return WTAModel
         elif name == "kate":
             raise NotImplementedError()
@@ -228,7 +227,26 @@ class Distiller(pl.LightningModule):
             "log": tqdm_dict,
         }
 
+    def _log_duty_cycle(self, m):
+        if isinstance(m, KWinnersBase):
+            duty_cycles = m.dutyCycle.cpu()
+            _, entropy = binaryEntropy(duty_cycles)
+            self.logger.experiment.log_metric("entropy", entropy)
+
+            # duty cycle
+            fig = plotDutyCycles(duty_cycles)
+            self.logger.experiment.log_image("duty_cycles", fig)
+            plt.close(fig)
+
+    def _log_network_states(self):
+        # duty cycles & entropy
+        self.apply(self._log_duty_cycle)
+
     def validation_epoch_end(self, outputs):
+        # network states
+        self._log_network_states()
+
+        # losses
         tqdm_dict = {}
         for k in outputs[0].keys():
             if "loss" in k:

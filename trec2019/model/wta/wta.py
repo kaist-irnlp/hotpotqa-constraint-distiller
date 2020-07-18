@@ -2,6 +2,8 @@ from torch import nn
 import torch
 import math
 import torch.nn.functional as F
+import abc
+from trec2019.model.wta.helper import *
 
 
 class WTAModel(nn.Module):
@@ -15,24 +17,45 @@ class WTAModel(nn.Module):
 
     def forward(self, x):
         features = self.layers(x)
-        return F.normalize(features, p=2, dim=1)
+        return F.normalize(features, dim=-1)
 
     def on_epoch_end(self):
-        pass
+        self.apply(updateBoostStrength)
+        self.apply(rezeroWeights)
 
+    # TODO: May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
+    # TODO: Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
     def _init_layers(self):
         self.layers = nn.Sequential()
 
-        n = self.hparams.model.n
-        k = self.hparams.model.k
+        n = self.hparams.model_n.n
+        k = self.hparams.model_k.k
+        weight_sparsity = self.hparams.model.weight_sparsity
+        normalize_weights = self.hparams.model.normalize_weights
+        k_inference_factor = self.hparams.model.k_inference_factor
+        boost_strength = self.hparams.model.boost_strength
+        boost_strength_factor = self.hparams.model.boost_strength_factor
         next_input_size = self.hparams.model.input_size
-        # TODO: May consider weight sharing (https://gist.github.com/InnovArul/500e0c57e88300651f8005f9bd0d12bc)
-        # TODO: Also see (https://pytorch.org/blog/pytorch-0_4_0-migration-guide/)
         for i in range(len(n)):
-            self.layers.add_module(f"linear_{i+1}", nn.Linear(next_input_size, n[i]))
-            self.layers.add_module(f"bn_{i+1}", nn.BatchNorm1d(n[i]))
-            self.layers.add_module(f"relu_{i+1}", nn.ReLU())
-            self.layers.add_module(f"kwinner_{i+1}", BatchTopK(k[i]))
+            linear = nn.Linear(next_input_size, n[i])
+            if 0 < weight_sparsity < 1:
+                linear = SparseWeights(linear, weightSparsity=weight_sparsity)
+                if normalize_weights:
+                    linear.apply(normalizeSparseWeights)
+            self.layers.add_module(f"linear_{i+1}", linear)
+            self.layers.add_module(f"bn_{i+1}", nn.BatchNorm1d(n[i], affine=False))
+            # add kwinner layer
+            k = math.floor(n[i] * k[i])
+            kwinner = KWinners(
+                n=n[i],
+                k=k,
+                kInferenceFactor=k_inference_factor,
+                boostStrength=boost_strength,
+                boostStrengthFactor=boost_strength_factor,
+            )
+            self.layers.add_module(f"kwinner_{i+1}", kwinner)
+            # self.layers.add_module(f"relu_{i+1}", nn.ReLU())
+            # self.layers.add_module(f"kwinner_{i+1}", BatchTopK(k[i]))
             next_input_size = n[i]
         # save output_size
         self.output_size = next_input_size
@@ -48,21 +71,26 @@ class WTAModel(nn.Module):
 
 
 class BatchTopK(nn.Module):
-    DIM_BATCH = 0
-
-    def __init__(self, k=1.0):
+    def __init__(self, k_ratio=1.0, batchwise=False):
         super().__init__()
-        self._k = k
-        self._h = None
+        self.k_ratio = k_ratio
+        self.batchwise = batchwise
+        if batchwise:
+            self.k_dim = 0  # batch
+        else:
+            self.k_dim = -1  # emb
 
     # TODO: https://discuss.pytorch.org/t/implementing-k-sparse-autoencoder-on-fasttext-embedding-the-output-is-strange/39245/2
     def forward(self, x):
-        batch_size = x.shape[0]
-        # TODO: k * 1.5 (inference)?
-        k = math.ceil(self._k * batch_size)
-        _, self.indices = torch.topk(x, k, dim=self.DIM_BATCH)
+        if self.batchwise:
+            batch_size = x.shape[0]
+            k = math.ceil(self.k_ratio * batch_size)
+        else:
+            emb_size = x.shape[-1]
+            k = math.ceil(self.k_ratio * emb_size)
+        _, self.indices = torch.topk(x, k, dim=self.k_dim)
         mask = torch.zeros(x.size()).type_as(x)
-        mask.scatter_(self.DIM_BATCH, self.indices, 1)
+        mask.scatter_(self.k_dim, self.indices, 1)
         output = torch.mul(x, mask)
 
         if self.training:
@@ -77,20 +105,18 @@ class BatchTopK(nn.Module):
 
         return output
 
-    def set_k(self, k):
-        self._k = k
-
     def _backward_hook(self, grad):
         if self.training:
             mask = torch.zeros(grad.size()).type_as(grad)
-            mask.scatter_(self.DIM_BATCH, self.indices, 1)
-            _grad = torch.mul(grad, mask)
+            mask.scatter_(self.k_dim, self.indices, 1)
+            grad.mul_(mask)
+            return grad
 
             # _grad = torch.zeros_like(grad).scatter(
-            #     self.DIM_BATCH,
+            #     self.k_dim,
             #     self.indices,
-            #     torch.gather(grad, self.DIM_BATCH, self.indices),
+            #     torch.gather(grad, self.k_dim, self.indices),
             # )
         else:
-            _grad = grad
-        return _grad
+            return grad
+

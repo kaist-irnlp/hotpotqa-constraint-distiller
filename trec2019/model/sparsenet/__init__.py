@@ -1,1 +1,0 @@
-from .sparsenet import SparseNetModel

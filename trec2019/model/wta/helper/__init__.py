@@ -21,3 +21,4 @@
 from .flatten import *
 from .k_winners import *
 from .sparse_weights import *
+from .duty_cycle_metrics import *
