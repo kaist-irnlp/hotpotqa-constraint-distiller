@@ -13,7 +13,7 @@ class WTAModel(nn.Module):
 
         # init weights
         self._init_layers()
-        self.apply(self._init_weights)
+        # self.apply(self._init_weights)
 
     def forward(self, x):
         features = self.layers(x)
@@ -60,14 +60,14 @@ class WTAModel(nn.Module):
         # save output_size
         self.output_size = next_input_size
 
-    def _init_weights(self, m):
-        if type(m) == nn.Linear:
-            w = m.weight
-            if self.hparams.model.use_sparse_weights:
-                nn.init.sparse_(w, sparsity=0.3)
-            else:
-                torch.nn.init.kaiming_normal_(w)
-            m.bias.data.fill_(0.01)
+    # def _init_weights(self, m):
+    #     if type(m) == nn.Linear:
+    #         w = m.weight
+    #         if self.hparams.model.use_sparse_weights:
+    #             nn.init.sparse_(w, sparsity=0.3)
+    #         else:
+    #             torch.nn.init.kaiming_normal_(w)
+    #         m.bias.data.fill_(0.01)
 
 
 class BatchTopK(nn.Module):

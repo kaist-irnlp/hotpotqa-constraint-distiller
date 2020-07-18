@@ -75,7 +75,7 @@ class Distiller(pl.LightningModule):
     def _init_task_layer(self):
         if self.hparams.loss.use_task_loss:
             dim_in = self.sparse.output_size
-            feat_dim = 128
+            feat_dim = 256
             self.task = nn.Sequential(nn.Linear(dim_in, feat_dim))
             self.loss_task = SupConLoss()
         else:
@@ -156,8 +156,10 @@ class Distiller(pl.LightningModule):
         return losses
 
     def forward_sparse(self, data):
-        sparse_tensors = [self.sparse(t) for t in data.unbind(dim=1)]
-        return torch.stack(sparse_tensors, dim=1)
+        sparse_tensors = torch.stack(
+            [self.sparse(t) for t in data.unbind(dim=1)], dim=1
+        )
+        return F.normalize(sparse_tensors, dim=-1)
 
     def forward_task(self, data):
         # return self.task(data)
