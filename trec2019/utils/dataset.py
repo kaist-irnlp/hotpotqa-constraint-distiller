@@ -64,7 +64,7 @@ class AbstractNoisyDataset(Dataset):
         return X_noisy
 
 
-class EmbeddingLabelDataset(AbstractNoisyDataset):
+class EmbeddingDataset(AbstractNoisyDataset):
     def __init__(
         self, data_path, emb_path, noise_ratio=0.0, on_memory=False,
     ):
