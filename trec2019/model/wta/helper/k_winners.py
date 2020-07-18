@@ -21,6 +21,11 @@
 from __future__ import print_function
 import abc
 
+import matplotlib
+import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
