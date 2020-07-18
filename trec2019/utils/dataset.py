@@ -65,7 +65,7 @@ class AbstractNoisyDataset(Dataset):
         return X_noisy
 
 
-class EmbeddingDataset(AbstractNoisyDataset):
+class EmbeddingLabelDataset(AbstractNoisyDataset):
     def __init__(
         self, data_path, emb_path, noise_ratio=0.0, on_memory=False,
     ):
@@ -195,10 +195,10 @@ class TripleEmbeddingDataset(AbstractNoisyDataset):
 if __name__ == "__main__":
     # data
     data_dir = "D:/Data/news20/test.zarr"
-    dataset = EmbeddingDataset(data_dir, "dense/bert-base-cased")
+    dataset = EmbeddingLabelDataset(data_dir, "dense/bert-base-cased")
     # test
-    loader = DataLoader(dataset, batch_size=32)
+    loader = DataLoader(dataset, batch_size=2)
     for i, batch in enumerate(loader):
         print(batch["data"].shape)
-        if i > 3:
+        if i > 1:
             break
