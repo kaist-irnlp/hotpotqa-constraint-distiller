@@ -15,6 +15,7 @@ import pytorch_lightning as pl
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning import loggers
 from pytorch_lightning.loggers import NeptuneLogger
+from pytorch_lightning.callbacks import LearningRateLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.profiler import AdvancedProfiler, PassThroughProfiler
@@ -169,7 +170,7 @@ def main(hparams):
     #         trainer.logger.experiment.log_artifact(str(hparams_path))
 
     # Callbacks
-    callbacks = [PostTrainCallback()]
+    callbacks = [PostTrainCallback(), LearningRateLogger()]
 
     # Callbacks: Early stop
     early_stop_callback = None
