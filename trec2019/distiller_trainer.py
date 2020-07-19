@@ -152,8 +152,7 @@ def main(hparams):
     log_params = flatten_params(hparams)
     close_after_fit = not hparams.train.upload_checkpoints
     neptune_logger = NeptuneLogger(
-        project_name=hparams.project,
-        experiment_name=hparams.project.split("/")[1],  # Optional,
+        project_name=f"kjang0517/{hparams.dataset.name}",
         params=log_params,  # Optional,
         tags=tags,  # Optional,
         close_after_fit=close_after_fit,
