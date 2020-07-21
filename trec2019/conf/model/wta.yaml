@@ -1,8 +1,6 @@
 # @package _global_
 model:
   name: wta
-  tags:
-    - wta
   # boosting
   k_inference_factor: 1.5
   weight_sparsity: 0.3

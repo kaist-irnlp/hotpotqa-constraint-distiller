@@ -5,8 +5,6 @@ dataset:
   path: "dbpedia"
   emb_path: "dense/bert-large-cased"
   on_memory: true
-  tags:
-    - dbpedia
 model:
   input_size: 1024
 
