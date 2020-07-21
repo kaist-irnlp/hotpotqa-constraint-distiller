@@ -72,16 +72,47 @@ class PostTrainCallback(pl.Callback):
             pl_module.logger.log_text("error", "Error uploading checkpoints.")
 
 
-def gather_tags(hparams):
+def generate_tags(hparams):
     tags = []
-    # explicit tags
-    for grp, val in hparams.items():
-        if isinstance(val, DictConfig):
-            _tags = hparams[grp].get("tags", [])
-            tags += list(_tags)
+
+    # dataset
+    tags.append(hparams.dataset.name)
+
     # emb model
-    emb = hparams.dataset.emb_path.split("/")[1]
-    tags.append(emb)
+    tags.append(hparams.dataset.emb_path.split("/")[1])
+
+    # loss
+    loss_tags = []
+    if hparams.loss.use_task_loss:
+        loss_tags.append("task")
+    if hparams.loss.use_recovery_loss:
+        loss_tags.append("recovery")
+    tags.append("-".join(loss_tags))
+
+    # model
+    tags.append(hparams.model.name)
+
+    # n, k
+    tags.append(",".join([str(k) for k in hparams.model_k.k]))
+    tags.append(",".join([str(n) for n in hparams.model_n.n]))
+
+    # noise, dropout
+    tags.append(f"noise:{hparams.noise.ratio}")
+    tags.append(f"dropout:{hparams.model.dropout}")
+
+    # batch_size, lr
+    tags.append(f"bsz:{hparams.train.batch_size}")
+    tags.append(f"lr:{hparams.train.learning_rate}")
+
+    # explicit tags
+    # for grp, val in hparams.items():
+    #     if isinstance(val, DictConfig):
+    #         _tags = hparams[grp].get("tags", [])
+    #         tags += list(_tags)
+    # # emb model
+    # emb = hparams.dataset.emb_path.split("/")[1]
+    # tags.append(emb)
+    print(tags)
     return tags
 
 
@@ -92,29 +123,6 @@ def flatten_params(hparams):
             for k, v in val.items():
                 params[f"{grp}.{k}"] = v
     return params
-
-
-def get_data_cls(name):
-    if name in ("news20"):
-        return EmbeddingLabelDataset
-    else:
-        raise ValueError("Unkonwn dataset")
-
-
-def get_sparse_cls(name):
-    if name == "wta":
-        return WTAModel
-    else:
-        raise ValueError("Unknown sparse model")
-
-
-def get_task_cls(tp):
-    if tp == "classify":
-        return ClassificationTask
-    elif tp == "ranking":
-        return RankingTask
-    else:
-        raise ValueError("Unknown task")
 
 
 @hydra.main(config_path="conf", config_name="config")
@@ -148,7 +156,7 @@ def main(hparams):
 
     # init logger
     source_files_path = str(Path(hydra.utils.get_original_cwd()) / "**/*.py")
-    tags = gather_tags(hparams)
+    tags = generate_tags(hparams)
     log_params = flatten_params(hparams)
     close_after_fit = not hparams.train.upload_checkpoints
     neptune_logger = NeptuneLogger(
