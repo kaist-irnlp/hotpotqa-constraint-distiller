@@ -4,6 +4,6 @@ dataset:
   cls: emb-lbl
   path: "msmarco-passage"
   emb_path: "dense/bert-large-cased"
-  on_memory: true
+  on_memory: false
 model:
   input_size: 1024
