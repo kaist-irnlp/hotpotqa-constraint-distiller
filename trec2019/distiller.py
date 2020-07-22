@@ -114,6 +114,7 @@ class Distiller(pl.LightningModule):
     def _init_datasets(self):
         self._train_dataset = self._init_dataset("train")
         self._val_dataset = self._init_dataset("val")
+        self._val_dataset = self._init_dataset("test")
 
     def _get_dataloader(self, dataset, shuffle=False):
         batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
@@ -137,6 +138,9 @@ class Distiller(pl.LightningModule):
 
     def val_dataloader(self):
         return self._get_dataloader(self._val_dataset)
+
+    def test_dataloader(self):
+        return self._get_dataloader(self._test_dataset)
 
     def loss(self, outputs):
         losses = {}
@@ -233,35 +237,6 @@ class Distiller(pl.LightningModule):
             "log": tqdm_dict,
         }
 
-    def _log_kwinner(self, m):
-        if isinstance(m, KWinnersBase):
-            # entropy
-            duty_cycles = m.dutyCycle.cpu()
-            _, entropy = binaryEntropy(duty_cycles)
-            self.logger.experiment.log_metric(f"entropy", entropy)
-
-            # duty cycle
-            fig = plotDutyCycles(duty_cycles)
-            self.logger.experiment.log_image(f"duty_cycles", fig)
-            plt.close(fig)
-
-            # boost strength
-            boost_strength = m.boostStrength
-            self.logger.experiment.log_metric(
-                f"boost_strength", boost_strength
-            )
-
-            # boost factors
-            # boost_factors = m.boost_factors
-            # if boost_factors is not None:
-            #     fig = plot_boost_factors(boost_factors)
-            #     self.logger.experiment.log_image(f"boost_factors", fig)
-            #     plt.close(fig)
-
-    def _log_network_states(self):
-        # duty cycles & entropy
-        self.apply(self._log_kwinner)
-
     def validation_epoch_end(self, outputs):
         # network states
         self._log_network_states()
@@ -280,6 +255,70 @@ class Distiller(pl.LightningModule):
 
         return results
 
+    def test_step(self, batch, batch_idx):
+        return self.forward(batch)
+
+    def test_step_end(self, outputs):
+        # loss
+        losses = self.loss(outputs)
+
+        # logging
+        tqdm_dict = {
+            "test_loss": losses["total"],
+        }
+        for aux_loss in ["task", "recover"]:
+            if aux_loss in losses:
+                tqdm_dict[f"test_loss_{aux_loss}"] = losses[aux_loss]
+        return {
+            **tqdm_dict,
+            "progress_bar": tqdm_dict,
+            "log": tqdm_dict,
+        }
+
+    def test_epoch_end(self, outputs):
+        # network states
+        self._log_network_states()
+
+        # losses
+        tqdm_dict = {}
+        for k in outputs[0].keys():
+            if "loss" in k:
+                tqdm_dict[f"avg_{k}"] = torch.stack([out[k] for out in outputs]).mean()
+
+        results = {
+            "avg_test_loss": tqdm_dict["avg_test_loss"],
+            "log": tqdm_dict,
+        }
+
+        return results
+
+    def _log_kwinner(self, m):
+        if isinstance(m, KWinnersBase):
+            # entropy
+            duty_cycles = m.dutyCycle.cpu()
+            _, entropy = binaryEntropy(duty_cycles)
+            self.logger.experiment.log_metric(f"entropy", entropy)
+
+            # duty cycle
+            fig = plotDutyCycles(duty_cycles)
+            self.logger.experiment.log_image(f"duty_cycles", fig)
+            plt.close(fig)
+
+            # boost strength
+            boost_strength = m.boostStrength
+            self.logger.experiment.log_metric(f"boost_strength", boost_strength)
+
+            # boost factors
+            # boost_factors = m.boost_factors
+            # if boost_factors is not None:
+            #     fig = plot_boost_factors(boost_factors)
+            #     self.logger.experiment.log_image(f"boost_factors", fig)
+            #     plt.close(fig)
+
+    def _log_network_states(self):
+        # duty cycles & entropy
+        self.apply(self._log_kwinner)
+
     # sparsity boosting weight adjustment, etc.
     def on_epoch_end(self):
         self.sparse.on_epoch_end()
@@ -290,5 +329,3 @@ class Distiller(pl.LightningModule):
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return [optimizer], [scheduler]
 
-    # def test_dataloader(self):
-    #     return self._get_dataloader(self._test_dataset)
