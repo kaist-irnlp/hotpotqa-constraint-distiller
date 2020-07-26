@@ -63,14 +63,16 @@ class SupConLoss(nn.Module):
         if labels is not None and mask is not None:
             raise ValueError("Cannot define both `labels` and `mask`")
         elif labels is None and mask is None:
-            mask = torch.eye(batch_size, dtype=torch.float32).type_as(features)
+            mask = torch.eye(batch_size, dtype=torch.float32)
         elif labels is not None:
             labels = labels.contiguous().view(-1, 1)
             if labels.shape[0] != batch_size:
                 raise ValueError("Num of labels does not match num of features")
-            mask = torch.eq(labels, labels.T).float().type_as(features)
+            mask = torch.eq(labels, labels.T).float()
         else:
-            mask = mask.float().type_as(features)
+            mask = mask.float()
+        # mask to relevant type
+        # mask = mask.type_as(features)
 
         contrast_count = features.shape[1]
         contrast_feature = torch.cat(torch.unbind(features, dim=1), dim=0)

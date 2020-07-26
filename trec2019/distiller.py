@@ -73,20 +73,27 @@ class Distiller(pl.LightningModule):
         self.sparse = sparse_cls(self.hparams)
 
     def _init_task_layer(self):
-        if self.hparams.loss.use_task_loss:
-            in_dim = self.sparse.output_size
-            h_dim = 256
-            feat_dim = 128
-            self.task = nn.Sequential(
-                nn.Linear(in_dim, h_dim), nn.LeakyReLU(), nn.Linear(h_dim, feat_dim),
-            )
+        if self._use_task_loss():
+            # use projection layer
+            if self.hparams.loss.use_task_projection:
+                in_dim = self.sparse.output_size
+                h_dim = 256
+                feat_dim = 128
+                self.task = nn.Sequential(
+                    nn.Linear(in_dim, h_dim),
+                    nn.LeakyReLU(),
+                    nn.Linear(h_dim, feat_dim),
+                )
+            else:
+                self.task = nn.Identity()
+
             self.loss_task = SupConLoss()
         else:
             self.task = None
             self.loss_task = None
 
     def _init_recover_layer(self):
-        if self.hparams.loss.use_recovery_loss:
+        if self._use_recovery_loss():
             input_size = self.sparse.output_size
             output_size = self.hparams.model.input_size
             self.recover = nn.Linear(input_size, output_size)
@@ -148,6 +155,9 @@ class Distiller(pl.LightningModule):
 
         # task loss
         if self._use_task_loss():
+            # use sparse Tensor if not using project
+            # if not self.hparams.loss.use_task_projection:
+            #     outputs["task"] = outputs["task"].to_sparse()
             losses["task"] = self.loss_task(outputs["task"], outputs["target"])
             losses["total"] += losses["task"]
 
