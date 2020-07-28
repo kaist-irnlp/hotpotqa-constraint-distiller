@@ -1,8 +1,8 @@
 # @package _global_
 dataset:
-  name: robust_04
+  name: robust04
   cls: emb-lbl
-  path: "robust_04"
+  path: "robust04"
   emb_path: "dense/bert-large-cased"
   on_memory: true
 model:
