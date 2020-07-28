@@ -1,0 +1,9 @@
+# @package _global_
+dataset:
+  name: robust_04
+  cls: emb-lbl
+  path: "robust_04"
+  emb_path: "dense/bert-large-cased"
+  on_memory: true
+model:
+  input_size: 1024
