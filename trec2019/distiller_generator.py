@@ -149,8 +149,6 @@ def main(ckpt_dir, dataset_dir):
 
     # encode: all
     for f in Path(dataset_dir).glob("*.zarr"):
-        if not ".all" in f.name:
-            continue
         print(f)
         encode_dset(model, hparams, f, emb_path)
 
