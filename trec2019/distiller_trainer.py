@@ -76,7 +76,7 @@ def generate_tags(hparams):
     tags = []
 
     # dataset
-    tags.append(hparams.dataset.name)
+    # tags.append(hparams.dataset.name)
 
     # emb model
     tags.append(hparams.dataset.emb_path.split("/")[1])
@@ -88,6 +88,10 @@ def generate_tags(hparams):
     if hparams.loss.use_recovery_loss:
         loss_tags.append("recovery")
     tags.append("-".join(loss_tags))
+
+    # projection
+    if hparams.loss.use_task_projection:
+        loss_tags.append("projection")
 
     # model
     tags.append(hparams.model.name)
