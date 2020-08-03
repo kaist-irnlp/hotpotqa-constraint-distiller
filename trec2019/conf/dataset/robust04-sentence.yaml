@@ -1,0 +1,9 @@
+# @package _global_
+dataset:
+  name: robust04-sentence
+  cls: emb-lbl
+  path: "robust04"
+  emb_path: "dense/bert-large-cased"
+  on_memory: false
+model:
+  input_size: 1024
