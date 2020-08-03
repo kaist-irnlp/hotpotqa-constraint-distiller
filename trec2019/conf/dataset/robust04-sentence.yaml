@@ -2,7 +2,7 @@
 dataset:
   name: robust04-sentence
   cls: emb-lbl
-  path: "robust04"
+  path: "robust04-sentence"
   emb_path: "dense/bert-large-cased"
   on_memory: false
 model:
