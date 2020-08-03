@@ -8,6 +8,7 @@ from pathlib import Path
 from collections import Counter
 from pprint import pprint
 from io import StringIO
+import tarfile
 
 import torch
 from torch.backends import cudnn
@@ -65,9 +66,14 @@ class PostTrainCallback(pl.Callback):
             trainer.save_checkpoint(
                 ckpt_path / f"last_epoch={trainer.current_epoch}.ckpt"
             )
+        # compress
+        ckpt_path_compressed = ckpt_path.with_suffix(".tar.gz")
+        with tarfile.open(ckpt_path_compressed, "w:gz") as tar:
+            tar.add(ckpt_path, arcname=ckpt_path.name)
+
         # upload checkpoints
         try:
-            pl_module.logger.log_artifact(str(ckpt_path))
+            pl_module.logger.log_artifact(str(ckpt_path_compressed))
         except:
             pl_module.logger.log_text("error", "Error uploading checkpoints.")
 
