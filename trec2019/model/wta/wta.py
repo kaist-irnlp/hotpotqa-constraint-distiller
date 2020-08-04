@@ -73,53 +73,53 @@ class WTAModel(nn.Module):
     #         m.bias.data.fill_(0.01)
 
 
-class BatchTopK(nn.Module):
-    def __init__(self, k_ratio=1.0, batchwise=False):
-        super().__init__()
-        self.k_ratio = k_ratio
-        self.batchwise = batchwise
-        if batchwise:
-            self.k_dim = 0  # batch
-        else:
-            self.k_dim = -1  # emb
+# class BatchTopK(nn.Module):
+#     def __init__(self, k_ratio=1.0, batchwise=False):
+#         super().__init__()
+#         self.k_ratio = k_ratio
+#         self.batchwise = batchwise
+#         if batchwise:
+#             self.k_dim = 0  # batch
+#         else:
+#             self.k_dim = -1  # emb
 
-    # TODO: https://discuss.pytorch.org/t/implementing-k-sparse-autoencoder-on-fasttext-embedding-the-output-is-strange/39245/2
-    def forward(self, x):
-        if self.batchwise:
-            batch_size = x.shape[0]
-            k = math.ceil(self.k_ratio * batch_size)
-        else:
-            emb_size = x.shape[-1]
-            k = math.ceil(self.k_ratio * emb_size)
-        _, self.indices = torch.topk(x, k, dim=self.k_dim)
-        mask = torch.zeros(x.size()).type_as(x)
-        mask.scatter_(self.k_dim, self.indices, 1)
-        output = torch.mul(x, mask)
+#     # TODO: https://discuss.pytorch.org/t/implementing-k-sparse-autoencoder-on-fasttext-embedding-the-output-is-strange/39245/2
+#     def forward(self, x):
+#         if self.batchwise:
+#             batch_size = x.shape[0]
+#             k = math.ceil(self.k_ratio * batch_size)
+#         else:
+#             emb_size = x.shape[-1]
+#             k = math.ceil(self.k_ratio * emb_size)
+#         _, self.indices = torch.topk(x, k, dim=self.k_dim)
+#         mask = torch.zeros(x.size()).type_as(x)
+#         mask.scatter_(self.k_dim, self.indices, 1)
+#         output = torch.mul(x, mask)
 
-        if self.training:
-            output.register_hook(self._backward_hook)
+#         if self.training:
+#             output.register_hook(self._backward_hook)
 
-            # buffer, self.indices = self._topk(x, k, dim=0, largest=True)
-            # # output
-            # output = torch.zeros_like(x).scatter(0, self.indices, buffer)
-            # output.register_hook(self._backward_hook)
-        # else:
-        #     output = x
+#             # buffer, self.indices = self._topk(x, k, dim=0, largest=True)
+#             # # output
+#             # output = torch.zeros_like(x).scatter(0, self.indices, buffer)
+#             # output.register_hook(self._backward_hook)
+#         # else:
+#         #     output = x
 
-        return output
+#         return output
 
-    def _backward_hook(self, grad):
-        if self.training:
-            mask = torch.zeros(grad.size()).type_as(grad)
-            mask.scatter_(self.k_dim, self.indices, 1)
-            grad.mul_(mask)
-            return grad
+#     def _backward_hook(self, grad):
+#         if self.training:
+#             mask = torch.zeros(grad.size()).type_as(grad)
+#             mask.scatter_(self.k_dim, self.indices, 1)
+#             grad.mul_(mask)
+#             return grad
 
-            # _grad = torch.zeros_like(grad).scatter(
-            #     self.k_dim,
-            #     self.indices,
-            #     torch.gather(grad, self.k_dim, self.indices),
-            # )
-        else:
-            return grad
+#             # _grad = torch.zeros_like(grad).scatter(
+#             #     self.k_dim,
+#             #     self.indices,
+#             #     torch.gather(grad, self.k_dim, self.indices),
+#             # )
+#         else:
+#             return grad
 

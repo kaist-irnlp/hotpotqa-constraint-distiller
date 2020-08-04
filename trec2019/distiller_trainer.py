@@ -8,6 +8,7 @@ from pathlib import Path
 from collections import Counter
 from pprint import pprint
 from io import StringIO
+import tarfile
 
 import torch
 from torch.backends import cudnn
@@ -65,9 +66,14 @@ class PostTrainCallback(pl.Callback):
             trainer.save_checkpoint(
                 ckpt_path / f"last_epoch={trainer.current_epoch}.ckpt"
             )
+        # compress
+        ckpt_path_compressed = ckpt_path.with_suffix(".tar.gz")
+        with tarfile.open(ckpt_path_compressed, "w:gz") as tar:
+            tar.add(ckpt_path, arcname=ckpt_path.name)
+
         # upload checkpoints
         try:
-            pl_module.logger.log_artifact(str(ckpt_path))
+            pl_module.logger.log_artifact(str(ckpt_path_compressed))
         except:
             pl_module.logger.log_text("error", "Error uploading checkpoints.")
 
@@ -76,7 +82,7 @@ def generate_tags(hparams):
     tags = []
 
     # dataset
-    tags.append(hparams.dataset.name)
+    # tags.append(hparams.dataset.name)
 
     # emb model
     tags.append(hparams.dataset.emb_path.split("/")[1])
@@ -88,6 +94,10 @@ def generate_tags(hparams):
     if hparams.loss.use_recovery_loss:
         loss_tags.append("recovery")
     tags.append("-".join(loss_tags))
+
+    # projection
+    if hparams.loss.use_task_projection:
+        loss_tags.append("projection")
 
     # model
     tags.append(hparams.model.name)
@@ -183,7 +193,7 @@ def main(hparams):
     early_stop_callback = None
     if hparams.train.use_early_stop:
         early_stop_callback = EarlyStopping(
-            monitor="val_loss", patience=10, verbose=True, mode="min"
+            monitor="val_loss", patience=20, verbose=True, mode="min"
         )
 
     # use profiler

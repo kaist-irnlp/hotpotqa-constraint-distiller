@@ -17,7 +17,7 @@ parser.add_argument("exp_dir", type=str)
 parser.add_argument("dataset_dir", type=str)
 parser.add_argument("--gpu", type=int, default=0)
 parser.add_argument("--batch_size", type=int, default=8192)
-parser.add_argument("--num_workers", type=int, default=4)
+parser.add_argument("--num_workers", type=int, default=8)
 args = parser.parse_args()
 
 
@@ -61,7 +61,7 @@ def get_model_properties(hparams):
     properties.append(hparams["model"]["name"])
     ## model_arch
     properties.append(
-        f"{'_'.join([str(v) for v in hparams['model']['n']])}_{'_'.join((str(v) for v in hparams['model']['k']))}"
+        f"{'_'.join([str(v) for v in hparams['model_n']['n']])}_{'_'.join((str(v) for v in hparams['model_k']['k']))}"
     )
     ## losses
     losses = []
@@ -70,9 +70,12 @@ def get_model_properties(hparams):
     if hparams["loss"]["use_task_loss"]:
         losses.append("task")
     properties.append("-".join(losses))
+    ## projection
+    if hparams["loss"]["use_task_projection"]:
+        properties.append("projection")
     ## bs & lr
-    properties.append(hparams["train"]["batch_size"])
-    properties.append(hparams["train"]["learning_rate"])
+    properties.append("batch-" + str(hparams["train"]["batch_size"]))
+    properties.append("lr-" + str(hparams["train"]["learning_rate"]))
     # return as a single string
     return "_".join([str(p) for p in properties])
 
@@ -90,7 +93,7 @@ def encode_dset(model, hparams, dset_path, emb_path):
     print(model_props)
     # encode
     z = zarr.open(str(dset_path))
-    out_shape = (len(z.id), int(hparams["model"]["n"][-1]))
+    out_shape = (len(z.id), int(hparams["model_n"]["n"][-1]))
     z_out = z.zeros(
         f"result/{model_props}",
         shape=out_shape,
