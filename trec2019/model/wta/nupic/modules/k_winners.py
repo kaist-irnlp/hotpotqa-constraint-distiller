@@ -254,6 +254,7 @@ class KWinners(KWinnersBase):
 
     def update_duty_cycle(self, x):
         batch_size = x.shape[0]
+        self.duty_cycle_period = batch_size * 20  # added by me
         self.learning_iterations += batch_size
         period = min(self.duty_cycle_period, self.learning_iterations)
         self.duty_cycle.mul_(period - batch_size)
