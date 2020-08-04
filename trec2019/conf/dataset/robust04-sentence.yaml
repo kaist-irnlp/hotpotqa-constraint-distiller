@@ -5,5 +5,7 @@ dataset:
   path: "robust04-sentence"
   emb_path: "dense/bert-large-cased"
   on_memory: false
+  val_percent_check: 0.5
+  train_percent_check: 0.5
 model:
   input_size: 1024

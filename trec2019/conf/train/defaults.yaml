@@ -12,8 +12,6 @@ train:
   # etc
   profile: false
   fast_dev_run: false
-  val_percent_check: 1.0
-  train_percent_check: 1.0
   # early stop & logging
   use_early_stop: true
   upload_checkpoints: false
