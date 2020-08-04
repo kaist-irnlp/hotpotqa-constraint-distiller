@@ -19,12 +19,14 @@
 # http://numenta.org/licenses/
 # ----------------------------------------------------------------------
 from .flatten import Flatten
-from .k_winners import KWinners, KWinners2d, update_boost_strength
+from .k_winners import KWinnersBase, KWinners, KWinners2d, update_boost_strength
 from .sparse_weights import (
-    SparseWeights, SparseWeights2d, rezero_weights,
-    normalize_sparse_weights
+    SparseWeights,
+    SparseWeights2d,
+    rezero_weights,
+    normalize_sparse_weights,
 )
-from .prunable_sparse_weights import ( 
+from .prunable_sparse_weights import (
     PrunableSparseWeights,
     PrunableSparseWeights2d,
 )

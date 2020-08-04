@@ -37,7 +37,7 @@ class WTAModel(nn.Module):
         for i in range(len(n)):
             linear = nn.Linear(next_input_size, n[i])
             if 0 < weight_sparsity < 1:
-                linear = SparseWeights(linear, weightSparsity=weight_sparsity)
+                linear = SparseWeights(linear, sparsity=weight_sparsity)
                 if normalize_weights:
                     linear.apply(normalize_sparse_weights)
             self.layers.add_module(f"linear_{i+1}", linear)

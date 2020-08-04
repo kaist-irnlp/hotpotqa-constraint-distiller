@@ -32,7 +32,7 @@ from pprint import pprint
 from trec2019.utils.dataset import *
 from trec2019.utils.noise import *
 from trec2019.model import WTAModel
-from trec2019.model.wta.helper import *
+from trec2019.model.wta.nupic import *
 from trec2019.task import ClassificationTask, RankingTask
 from trec2019.utils.losses import SupConLoss, TripletLoss
 
@@ -305,17 +305,17 @@ class Distiller(pl.LightningModule):
     def _log_kwinner(self, m):
         if isinstance(m, KWinnersBase):
             # entropy
-            duty_cycles = m.dutyCycle.cpu()
-            _, entropy = binaryEntropy(duty_cycles)
+            duty_cycles = m.duty_cycle.cpu()
+            _, entropy = binary_entropy(duty_cycles)
             self.logger.experiment.log_metric(f"entropy", entropy)
 
             # duty cycle
-            fig = plotDutyCycles(duty_cycles)
+            fig = plot_duty_cycle(duty_cycles)
             self.logger.experiment.log_image(f"duty_cycles", fig)
             plt.close(fig)
 
             # boost strength
-            boost_strength = m.boostStrength
+            boost_strength = m._cached_boost_strength
             self.logger.experiment.log_metric(f"boost_strength", boost_strength)
 
             # boost factors

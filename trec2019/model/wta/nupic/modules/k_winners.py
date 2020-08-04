@@ -24,8 +24,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-import trec2019.wta.nupic.functions as F
-from trec2019.wta.nupic.duty_cycle_metrics import binary_entropy, max_entropy
+import trec2019.model.wta.nupic.functions as F
+from trec2019.model.wta.nupic.duty_cycle_metrics import binary_entropy, max_entropy
 
 
 def update_boost_strength(m):
