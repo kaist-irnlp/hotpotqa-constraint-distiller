@@ -154,7 +154,7 @@ def main(ckpt_dir, dataset_dir):
 
 
 if __name__ == "__main__":
-    main(args.exp_dir, args.dataset_dir)
-    # out_dirs = list(Path(args.exp_dir).glob("**/output"))
-    # for out_dir in tqdm(out_dirs):
-    #     main((out_dir / "checkpoints"), args.dataset_dir)
+    # main(args.exp_dir, args.dataset_dir)
+    out_dirs = list(Path(args.exp_dir).glob("*"))
+    for out_dir in tqdm(out_dirs):
+        main(out_dir, args.dataset_dir)
