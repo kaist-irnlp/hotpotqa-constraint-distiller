@@ -41,11 +41,10 @@ class BM25(object):
 
 
 # ------------ End of library impl. Followings are the example -----------------
+if __name__ == "__main__":
+    from sklearn.datasets import fetch_20newsgroups
 
-from sklearn.datasets import fetch_20newsgroups
-
-
-texts = fetch_20newsgroups(subset="train").data
-bm25 = BM25()
-bm25.fit(texts[1:])
-print(bm25.transform(texts[0], texts))
+    texts = fetch_20newsgroups(subset="train").data
+    bm25 = BM25()
+    bm25.fit(texts[1:])
+    print(bm25.transform(texts[0], texts))
