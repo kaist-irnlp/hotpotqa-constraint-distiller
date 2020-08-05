@@ -123,11 +123,6 @@ def main(ckpt_dir, dataset_dir):
     hparams_path = str(hparams_path)
     hparams = load_hparams(hparams_path)
 
-    # skip if SparseNet
-    if hparams["model"]["name"] == "sparsenet":
-        print(f"Skipping SparseNet: {ckpt_dir}")
-        return None
-
     model_props = get_model_properties(hparams)
     # check if ckpt exists
     override_hparams(hparams_path, dataset_dir)
@@ -149,12 +144,14 @@ def main(ckpt_dir, dataset_dir):
 
     # encode: all
     for f in Path(dataset_dir).glob("*.zarr"):
+        if "all" in f.name:
+            continue
         print(f)
         encode_dset(model, hparams, f, emb_path)
 
 
 if __name__ == "__main__":
-    main(args.exp_dir, args.dataset_dir)
-    # out_dirs = list(Path(args.exp_dir).glob("**/output"))
-    # for out_dir in tqdm(out_dirs):
-    #     main((out_dir / "checkpoints"), args.dataset_dir)
+    # main(args.exp_dir, args.dataset_dir)
+    out_dirs = list(Path(args.exp_dir).glob("*"))
+    for out_dir in tqdm(out_dirs):
+        main(out_dir, args.dataset_dir)
