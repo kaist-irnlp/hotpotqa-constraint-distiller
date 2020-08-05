@@ -157,4 +157,6 @@ if __name__ == "__main__":
     # main(args.exp_dir, args.dataset_dir)
     out_dirs = list(Path(args.exp_dir).glob("*"))
     for out_dir in tqdm(out_dirs):
+        if "all" in out_dir.name:
+            continue
         main(out_dir, args.dataset_dir)
