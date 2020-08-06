@@ -18,6 +18,7 @@ parser.add_argument("dataset_dir", type=str)
 parser.add_argument("--gpu", type=int, default=0)
 parser.add_argument("--batch_size", type=int, default=8192)
 parser.add_argument("--num_workers", type=int, default=8)
+parser.add_argument("-p", "--pattern", type=str, default="*.zarr")
 args = parser.parse_args()
 
 
@@ -143,9 +144,7 @@ def main(ckpt_dir, dataset_dir):
     emb_path = hparams["dataset"]["emb_path"]
 
     # encode: all
-    for f in Path(dataset_dir).glob("*.zarr"):
-        if "all" in f.name:
-            continue
+    for f in Path(dataset_dir).glob(args.pattern):
         print(f)
         encode_dset(model, hparams, f, emb_path)
 
