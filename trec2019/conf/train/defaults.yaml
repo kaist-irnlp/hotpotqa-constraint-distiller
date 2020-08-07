@@ -14,5 +14,6 @@ train:
   fast_dev_run: false
   # early stop & logging
   use_early_stop: true
+  early_stop_patience: 20
   upload_checkpoints: false
   save_last_checkpoint: false
