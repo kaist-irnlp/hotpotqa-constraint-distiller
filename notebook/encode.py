@@ -13,6 +13,10 @@ import zarr
 import torch
 from torch.utils.data import Dataset, DataLoader
 from transformers import AutoModel, AutoConfig, AutoTokenizer
+from fse import SplitIndexedList, IndexedList
+from textblob import TextBlob
+import gensim.downloader as api
+from fse.models import SIF
 
 torch.set_grad_enabled(False)
 
@@ -29,32 +33,15 @@ parser.add_argument("--start", type=int, default=0)
 parser.add_argument("--end", type=int, default=None)
 args = parser.parse_args()
 
-# # Load
-
-# ## Model
-
-# In[2]:
+# encoder functions
+batch_encode = None
 
 
-# Store the model we want to use
-device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
-MODEL_NAME = args.model
-
-# We need to create the model and tokenizer
-config = AutoConfig.from_pretrained(MODEL_NAME, output_hidden_states=True)
-model = AutoModel.from_pretrained(MODEL_NAME, config=config).to(device)
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME,)
+def _batch_encode_fse(texts, model):
+    return model.infer(texts)
 
 
-# # Encode
-
-# In[5]:
-
-
-POOLING_LAYER_IDX = 2
-
-
-def batch_encode(texts):
+def _batch_encode_bert(texts, tokenizer, model):
     # tokenize
     tokens = tokenizer.batch_encode_plus(
         texts,
@@ -79,6 +66,31 @@ def batch_encode(texts):
     return pooling_layer.mean(1).cpu()
 
 
+# Store the model we want to use
+device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
+model_name = args.model
+
+# We need to create the model and tokenizer
+if "bert" in model_name:
+    config = AutoConfig.from_pretrained(model_name, output_hidden_states=True)
+    model = AutoModel.from_pretrained(model_name, config=config).to(device)
+    tokenizer = AutoTokenizer.from_pretrained(model_name,)
+    batch_encode = _batch_encode_bert
+    emb_dim = config.hidden_size
+elif "fse" in model_name:
+    model = api.load("glove-wiki-gigaword-300")
+    batch_encode = _batch_encode_fse
+    emb_dim = model.vector_size
+
+
+# # Encode
+
+# In[5]:
+
+
+POOLING_LAYER_IDX = 2
+
+
 # In[ ]:
 
 
@@ -100,7 +112,6 @@ loader = DataLoader(dset, batch_size=args.batch_size, num_workers=0, pin_memory=
 
 # save to
 emb_path = f"dense/{args.model}"
-emb_dim = config.hidden_size
 z = zarr.open(str(fpath))
 if emb_path not in z:
     z_embs = z.zeros(
@@ -111,11 +122,27 @@ else:
 
 
 # encode & save
-for i, batch in enumerate(tqdm(loader)):
-    # encode
-    embs = batch_encode(batch).cpu()
-    # save
-    start = i * args.batch_size
-    end = start + embs.shape[0]
-    z_embs[start:end] = embs[:]
-
+if "bert" in model_name:
+    for i, batch in enumerate(tqdm(loader)):
+        # encode
+        embs = batch_encode(batch, tokenizer, model).cpu()
+        # save
+        start = i * args.batch_size
+        end = start + embs.shape[0]
+        z_embs[start:end] = embs[:]
+elif "fse" in model_name:
+    sent_model = SIF(model, workers=8, lang_freq="en")
+    # train
+    for i, batch in enumerate(loader):
+        sentences = IndexedList([TextBlob(s).tokens for s in batch])
+        sent_model.train(sentences)
+    sent_model.save(fpath.parent / 'fse.model')
+    # infer
+    for i, batch in enumerate(loader):
+        sentences = IndexedList([TextBlob(s).tokens for s in batch])
+        # encode
+        embs = batch_encode(sentences, sent_model)
+        # save
+        start = i * args.batch_size
+        end = start + embs.shape[0]
+        z_embs[start:end] = embs[:]
