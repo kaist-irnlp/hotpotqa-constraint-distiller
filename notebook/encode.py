@@ -27,10 +27,8 @@ parser.add_argument("fpath", type=str)
 parser.add_argument("gpu", type=int)
 parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--max_len", type=int, default=512)
-parser.add_argument("--model", type=str, default="bert-base-cased")
-# parser.add_argument("--emb_dim", type=int, default=768)
-parser.add_argument("--start", type=int, default=0)
-parser.add_argument("--end", type=int, default=None)
+parser.add_argument("--model", type=str, default="nboost/pt-bert-large-msmarco")
+parser.add_argument("--pooling_layer", type=int, default=-1)
 args = parser.parse_args()
 
 # encoder functions
@@ -39,6 +37,9 @@ batch_encode = None
 
 def _batch_encode_fse(texts, model):
     return model.infer(texts)
+
+
+POOLING_LAYER_IDX = args.pooling_layer
 
 
 def _batch_encode_bert(texts, tokenizer, model):
@@ -74,6 +75,7 @@ model_name = args.model
 if "bert" in model_name:
     config = AutoConfig.from_pretrained(model_name, output_hidden_states=True)
     model = AutoModel.from_pretrained(model_name, config=config).to(device)
+    model.eval()
     tokenizer = AutoTokenizer.from_pretrained(model_name,)
     batch_encode = _batch_encode_bert
     emb_dim = config.hidden_size
@@ -81,17 +83,6 @@ elif "fse" in model_name:
     model = api.load("glove-wiki-gigaword-300")
     batch_encode = _batch_encode_fse
     emb_dim = model.vector_size
-
-
-# # Encode
-
-# In[5]:
-
-
-POOLING_LAYER_IDX = 2
-
-
-# In[ ]:
 
 
 class TextDataset(Dataset):
@@ -136,7 +127,7 @@ elif "fse" in model_name:
     for i, batch in enumerate(loader):
         sentences = IndexedList([TextBlob(s).tokens for s in batch])
         sent_model.train(sentences)
-    sent_model.save(fpath.parent / 'fse.model')
+    sent_model.save(fpath.parent / "fse.model")
     # infer
     for i, batch in enumerate(loader):
         sentences = IndexedList([TextBlob(s).tokens for s in batch])
