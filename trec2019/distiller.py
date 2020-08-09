@@ -128,25 +128,25 @@ class Distiller(pl.LightningModule):
     def _get_dataloader(self, dataset, shuffle=False):
         batch_size = self.hparams.train.batch_size
         # pre-load data
-        tensors_data = []
-        tensors_target = []
-        for d in tqdm(dataset):
-            tensors_data.append(d["data"])
-            tensors_target.append(d["target"])
-        tensors_data = torch.tensor(tensors_data)
-        tensors_target = torch.tensor(tensors_target)
-        # return DataLoader
-        return FastTensorDataLoader(
-            tensors_data, tensors_target, batch_size=batch_size, shuffle=shuffle
-        )
-        # num_workers = 4
-        # return DataLoader(
-        #     dataset,
-        #     batch_size=batch_size,
-        #     num_workers=num_workers,
-        #     pin_memory=True,
-        #     shuffle=shuffle,
+        # tensors_data = []
+        # tensors_target = []
+        # for d in tqdm(dataset):
+        #     tensors_data.append(d["data"])
+        #     tensors_target.append(d["target"])
+        # tensors_data = torch.tensor(tensors_data)
+        # tensors_target = torch.tensor(tensors_target)
+        # # return DataLoader
+        # return FastTensorDataLoader(
+        #     tensors_data, tensors_target, batch_size=batch_size, shuffle=shuffle
         # )
+        num_workers = 4
+        return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            pin_memory=True,
+            shuffle=shuffle,
+        )
 
     def _use_recovery_loss(self):
         return self.hparams.loss.use_recovery_loss
