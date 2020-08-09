@@ -14,54 +14,7 @@ import torchtext
 from collections import Counter
 import json
 from sklearn.preprocessing import normalize
-
-# from textblob import TextBlob
-# from gensim.corpora import Dictionary
-
-# from transformers import BertTokenizer
-# from transformers.tokenization_auto import AutoTokenizer
 from trec2019.utils.dense import *
-
-_root_dir = str(Path(__file__).parent.absolute())
-blosc.use_threads = False
-
-
-class AbstractNoisyDataset(Dataset):
-    def __init__(self, noise_ratio=0.0):
-        self._noise_funcs = {
-            "gaussian": self.add_gaussian_noise,
-            "masking": self.add_masking_noise,
-            "salt": self.add_salt_pepper_noise,
-        }
-        self._noise_ratio = noise_ratio
-
-    def add_gaussian_noise(self, X, range_=[0, 1]):
-        X_noisy = X + self._noise_ratio * np.random.normal(
-            loc=0.0, scale=1.0, size=X.shape
-        )
-        # X_noisy = np.clip(X_noisy, range_[0], range_[1])
-
-        return X_noisy
-
-    def add_masking_noise(self, X):
-        assert self._noise_ratio >= 0 and self._noise_ratio <= 1
-        X_noisy = np.copy(X)
-        nrow, ncol = 1, X.shape[0]
-        n = int(ncol * self._noise_ratio)
-        idx_noisy = np.random.choice(ncol, n, replace=False)
-        X_noisy[idx_noisy] = 0
-
-        return X_noisy
-
-    def add_salt_pepper_noise(self, X):
-        assert self._noise_ratio >= 0 and self._noise_ratio <= 1
-        X_noisy = np.copy(X)
-        nrow, ncol = 1, X.shape[0]
-        n = int(ncol * self._noise_ratio)
-        idx_noisy = np.random.choice(ncol, n, replace=False)
-        X_noisy[idx_noisy] = np.random.binomial(1, 0.5, n)
-
-        return X_noisy
 
 
 class FastTensorDataLoader:
@@ -110,6 +63,44 @@ class FastTensorDataLoader:
 
     def __len__(self):
         return self.n_batches
+
+
+class AbstractNoisyDataset(Dataset):
+    def __init__(self, noise_ratio=0.0):
+        self._noise_funcs = {
+            "gaussian": self.add_gaussian_noise,
+            "masking": self.add_masking_noise,
+            "salt": self.add_salt_pepper_noise,
+        }
+        self._noise_ratio = noise_ratio
+
+    def add_gaussian_noise(self, X, range_=[0, 1]):
+        X_noisy = X + self._noise_ratio * np.random.normal(
+            loc=0.0, scale=1.0, size=X.shape
+        )
+        # X_noisy = np.clip(X_noisy, range_[0], range_[1])
+
+        return X_noisy
+
+    def add_masking_noise(self, X):
+        assert self._noise_ratio >= 0 and self._noise_ratio <= 1
+        X_noisy = np.copy(X)
+        nrow, ncol = 1, X.shape[0]
+        n = int(ncol * self._noise_ratio)
+        idx_noisy = np.random.choice(ncol, n, replace=False)
+        X_noisy[idx_noisy] = 0
+
+        return X_noisy
+
+    def add_salt_pepper_noise(self, X):
+        assert self._noise_ratio >= 0 and self._noise_ratio <= 1
+        X_noisy = np.copy(X)
+        nrow, ncol = 1, X.shape[0]
+        n = int(ncol * self._noise_ratio)
+        idx_noisy = np.random.choice(ncol, n, replace=False)
+        X_noisy[idx_noisy] = np.random.binomial(1, 0.5, n)
+
+        return X_noisy
 
 
 class EmbeddingDataset(AbstractNoisyDataset):

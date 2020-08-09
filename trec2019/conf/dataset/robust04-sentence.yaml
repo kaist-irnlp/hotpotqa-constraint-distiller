@@ -4,7 +4,7 @@ dataset:
   cls: emb-lbl
   path: "robust04-sentence"
   emb_path: "dense/bert-large-cased"
-  on_memory: true
+  on_memory: false
   val_percent_check: 1.0
   train_percent_check: 1.0
 model:

@@ -9,6 +9,7 @@ import logging
 from multiprocessing import cpu_count
 from pathlib import Path
 from collections import OrderedDict
+from tqdm import tqdm
 
 import torch
 from torch import optim
@@ -101,6 +102,12 @@ class Distiller(pl.LightningModule):
             self.recover = None
 
     # dataset
+
+    def _init_datasets(self):
+        self._train_dataset = self._init_dataset("train")
+        self._val_dataset = self._init_dataset("val")
+        # self._test_dataset = self._init_dataset("test")
+
     def _init_dataset(self, dset_type):
         data_path = Path(self.hparams.dataset.path) / f"{dset_type}.zarr"
         data_cls = self.hparams.dataset.cls
@@ -118,21 +125,28 @@ class Distiller(pl.LightningModule):
             data_path, emb_path, noise_ratio=noise_ratio, on_memory=on_memory,
         )
 
-    def _init_datasets(self):
-        self._train_dataset = self._init_dataset("train")
-        self._val_dataset = self._init_dataset("val")
-        self._val_dataset = self._init_dataset("test")
-
     def _get_dataloader(self, dataset, shuffle=False):
-        batch_size = self.hparams.train.batch_size if self.training else 2 ** 13
-        num_workers = 4
-        return DataLoader(
-            dataset,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=True,
-            shuffle=shuffle,
+        batch_size = self.hparams.train.batch_size
+        # pre-load data
+        tensors_data = []
+        tensors_target = []
+        for d in tqdm(dataset):
+            tensors_data.append(d["data"])
+            tensors_target.append(d["target"])
+        tensors_data = torch.tensor(tensors_data)
+        tensors_target = torch.tensor(tensors_target)
+        # return DataLoader
+        return FastTensorDataLoader(
+            tensors_data, tensors_target, batch_size=batch_size, shuffle=shuffle
         )
+        # num_workers = 4
+        # return DataLoader(
+        #     dataset,
+        #     batch_size=batch_size,
+        #     num_workers=num_workers,
+        #     pin_memory=True,
+        #     shuffle=shuffle,
+        # )
 
     def _use_recovery_loss(self):
         return self.hparams.loss.use_recovery_loss
@@ -146,8 +160,8 @@ class Distiller(pl.LightningModule):
     def val_dataloader(self):
         return self._get_dataloader(self._val_dataset)
 
-    def test_dataloader(self):
-        return self._get_dataloader(self._test_dataset)
+    # def test_dataloader(self):
+    #     return self._get_dataloader(self._test_dataset)
 
     def loss(self, outputs):
         losses = {}
@@ -184,11 +198,14 @@ class Distiller(pl.LightningModule):
 
     @auto_move_data
     def forward(self, batch):
+        data, target = batch[0], batch[1]
+
         # output features
-        outputs = batch.copy()
+        outputs = {}
 
         ## (bsz, n_views, ...)
-        outputs["data"] = outputs["data"].permute(0, 2, 1)
+        outputs["data"] = data.permute(0, 2, 1)
+        outputs["target"] = target
 
         # normalize
         outputs["data"] = F.normalize(outputs["data"], dim=-1)
