@@ -103,7 +103,7 @@ loader = DataLoader(dset, batch_size=args.batch_size, num_workers=0, pin_memory=
 
 # save to
 emb_path = f"dense/{args.model}"
-z = zarr.open(str(fpath))
+z = zarr.open(str(fpath), "r+")
 if emb_path not in z:
     z_embs = z.zeros(
         emb_path, shape=(len(z.text), emb_dim), chunks=(64, None), dtype="f4"
