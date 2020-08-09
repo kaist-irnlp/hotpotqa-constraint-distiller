@@ -198,14 +198,11 @@ class Distiller(pl.LightningModule):
 
     @auto_move_data
     def forward(self, batch):
-        data, target = batch[0], batch[1]
-
         # output features
-        outputs = {}
+        outputs = batch.copy()
 
         ## (bsz, n_views, ...)
-        outputs["data"] = data.permute(0, 2, 1)
-        outputs["target"] = target
+        outputs["data"] = outputs["data"].permute(0, 2, 1)
 
         # normalize
         outputs["data"] = F.normalize(outputs["data"], dim=-1)
