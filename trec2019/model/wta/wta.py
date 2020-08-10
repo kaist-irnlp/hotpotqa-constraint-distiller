@@ -41,6 +41,7 @@ class WTAModel(nn.Module):
                 if normalize_weights:
                     linear.apply(normalize_sparse_weights)
             self.layers.add_module(f"linear_{i+1}", linear)
+            self.layers.add_module(f"selu_{i+1}", nn.SELU())
             self.layers.add_module(f"bn_{i+1}", nn.BatchNorm1d(n[i], affine=False))
             # dropout
             self.layers.add_module(f"dropout_{i+1}", nn.Dropout(dropout))
