@@ -67,11 +67,12 @@ def _batch_encode_bert(texts, tokenizer, model):
     input_ids = tokens["input_ids"].to(device)
     token_type_ids = tokens["token_type_ids"].to(device)
     attention_mask = tokens["attention_mask"].to(device)
-    outputs = model(
-        input_ids=input_ids,
-        attention_mask=attention_mask,
-        token_type_ids=token_type_ids,
-    )
+    with torch.no_grad():
+        outputs = model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+        )
     output = _pooling_bert(outputs, args.pooling)
     return output.cpu()
 
