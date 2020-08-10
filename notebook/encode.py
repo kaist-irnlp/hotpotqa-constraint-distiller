@@ -50,6 +50,7 @@ def _pooling_bert(outputs, pooling):
     pooling_layer = args.pooling_layer
     if pooling == "cls":  # [CLS] of the last layer
         output = last_hidden_state[0]
+        # output = pooler_output
     elif pooling == "mean":  # mean pooling
         output = hidden_states[pooling_layer].mean(1)
     elif pooling == "max":  # max pooling
