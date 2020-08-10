@@ -42,7 +42,11 @@ def _batch_encode_fse(texts, model):
 
 def _pooling_bert(outputs, pooling):
     output = None
-    last_hidden_state, hidden_states = outputs[0], outputs[2][1:]
+    last_hidden_state, pooler_output, hidden_states = (
+        outputs[0],
+        outputs[1],
+        outputs[2][1:],
+    )
     pooling_layer = args.pooling_layer
     if pooling == "cls":  # [CLS] of the last layer
         output = last_hidden_state[0]
