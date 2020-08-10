@@ -74,7 +74,7 @@ def _batch_encode_bert(texts, tokenizer, model):
             token_type_ids=token_type_ids,
         )
     output = _pooling_bert(outputs, args.pooling)
-    return output.cpu().numpy()
+    return output
 
 
 # Store the model we want to use
