@@ -29,7 +29,7 @@ parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--max_len", type=int, default=512)
 parser.add_argument("--model", type=str, default="nboost/pt-bert-large-msmarco")
 parser.add_argument("--pooling", type=str, default="cls")
-parser.add_argument("--pooling_layer", type=int, default=-2)
+parser.add_argument("--pooling_layer", type=int, default=0)
 args = parser.parse_args()
 
 # encoder functions
