@@ -155,7 +155,7 @@ class Distiller(pl.LightningModule):
         return self.hparams.loss.use_task_loss
 
     def train_dataloader(self):
-        return self._get_dataloader(self._train_dataset, shuffle=True)
+        return self._get_dataloader(self._train_dataset)
 
     def val_dataloader(self):
         return self._get_dataloader(self._val_dataset)
