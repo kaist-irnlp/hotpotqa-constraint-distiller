@@ -126,7 +126,7 @@ if args.model != "fse":
 z = zarr.open(str(fpath), "r+")
 if emb_path not in z:
     z_embs = z.zeros(
-        emb_path, shape=(len(z.text), emb_dim), chunks=(256, None), dtype="f4"
+        emb_path, shape=(len(z.text), emb_dim), chunks=(2048, None), dtype="f4"
     )
 else:
     z_embs = z[emb_path]
