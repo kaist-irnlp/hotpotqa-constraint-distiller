@@ -126,7 +126,7 @@ else:
 if "bert" in model_name:
     for i, batch in enumerate(tqdm(loader)):
         # encode
-        embs = batch_encode(batch, tokenizer, model).cpu()
+        embs = batch_encode(batch, tokenizer, model).cpu().numpy()
         # save
         start = i * args.batch_size
         end = start + embs.shape[0]
