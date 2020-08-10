@@ -28,7 +28,8 @@ parser.add_argument("gpu", type=int)
 parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--max_len", type=int, default=512)
 parser.add_argument("--model", type=str, default="nboost/pt-bert-large-msmarco")
-parser.add_argument("--pooling_layer", type=int, default=-1)
+parser.add_argument("--pooling", type=str, default="cls")
+parser.add_argument("--pooling_layer", type=int, default=-2)
 args = parser.parse_args()
 
 # encoder functions
@@ -39,7 +40,17 @@ def _batch_encode_fse(texts, model):
     return model.infer(texts)
 
 
-POOLING_LAYER_IDX = args.pooling_layer
+def _pooling_bert(outputs, pooling):
+    output = None
+    last_hidden_state, hidden_states = outputs[0], outputs[2][1:]
+    pooling_layer = args.pooling_layer
+    if pooling == "cls":  # [CLS] of the last layer
+        output = last_hidden_state[0]
+    elif pooling == "mean":  # mean pooling
+        output = hidden_states[pooling_layer].mean(1)
+    elif pooling == "max":  # max pooling
+        output = hidden_states[pooling_layer].max(1)
+    return output
 
 
 def _batch_encode_bert(texts, tokenizer, model):
@@ -61,10 +72,8 @@ def _batch_encode_bert(texts, tokenizer, model):
         attention_mask=attention_mask,
         token_type_ids=token_type_ids,
     )
-    # return outputs[1].cpu()
-    hidden_states = outputs[2]
-    pooling_layer = hidden_states[POOLING_LAYER_IDX]
-    return pooling_layer.mean(1).cpu()
+    output = _pooling_bert(outputs, args.pooling)
+    return output.cpu()
 
 
 # Store the model we want to use
