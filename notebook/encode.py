@@ -118,6 +118,11 @@ loader = DataLoader(dset, batch_size=args.batch_size, num_workers=0, pin_memory=
 
 # save to
 emb_path = f"dense/{args.model}"
+if args.model != "fse":
+    if args.pooling == "cls":
+        emb_path = f"{emb_path}_{args.pooling}"
+    else:
+        emb_path = f"{emb_path}_{args.pooling}_{args.pooling_layer}"
 z = zarr.open(str(fpath), "r+")
 if emb_path not in z:
     z_embs = z.zeros(
