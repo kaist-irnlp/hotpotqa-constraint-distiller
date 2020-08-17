@@ -1,0 +1,5 @@
+# @package _global_
+discriminator:
+  layers: 1
+  hidden: 256
+  out: 3

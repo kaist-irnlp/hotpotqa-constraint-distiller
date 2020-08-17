@@ -1,8 +1,8 @@
 project: "kjang0517/news20"
 defaults:
   - model: wta
+  - discriminator: single
   - dataset: news20
-  - noise: defaults
   - model_n: defaults
   - model_k: defaults
   - train: defaults

@@ -56,53 +56,25 @@ class Distiller(pl.LightningModule):
         self._init_layers()
 
     def _init_layers(self):
-        self._init_sparse_layer()
-        self._init_task_layer()
-        self._init_recover_layer()
-
-    def _get_sparse_cls(self):
-        name = self.hparams.model.name
-        if name == "wta":
-            return WTAModel
-        elif name == "kate":
-            raise NotImplementedError()
-        else:
-            raise ValueError("Unknown sparse model")
-
-    def _init_sparse_layer(self):
-        sparse_cls = self._get_sparse_cls()
-        self.sparse = sparse_cls(self.hparams)
-
-    def _init_task_layer(self):
-        if self._use_task_loss():
-            # use projection layer
-            if self.hparams.loss.use_task_projection:
-                in_dim = self.sparse.output_size
-                h_dim = 256
-                feat_dim = 128
-                self.task = nn.Sequential(
-                    nn.Linear(in_dim, h_dim),
-                    nn.LeakyReLU(),
-                    nn.Linear(h_dim, feat_dim),
-                )
+        # encoder
+        self.encoder = WTAModel(self.hparams)
+        # discriminator
+        in_dim = self.encoder.output_size
+        h_dim = self.hparams.discriminator.hidden
+        n_layers = self.hparams.discriminator.layers
+        self.discriminator = nn.Sequential()
+        for i in range(n_layers):
+            if i == (n_layers - 1):  # last layer
+                out_dim = self.hparams.discriminator.out
             else:
-                self.task = nn.Identity()
-
-            self.loss_task = SupConLoss()
-        else:
-            self.task = None
-            self.loss_task = None
-
-    def _init_recover_layer(self):
-        if self._use_recovery_loss():
-            input_size = self.sparse.output_size
-            output_size = self.hparams.model.input_size
-            self.recover = nn.Linear(input_size, output_size)
-        else:
-            self.recover = None
+                out_dim = h_dim
+            self.discriminator.add_module(
+                f"disc_linear_{i+1}", nn.Linear(in_dim, out_dim)
+            )
+            self.discriminator.add_module(f"disc_selu_{i+1}", nn.SELU())
+            in_dim = h_dim
 
     # dataset
-
     def _init_datasets(self):
         self._train_dataset = self._init_dataset("train")
         self._val_dataset = self._init_dataset("val")
@@ -113,7 +85,6 @@ class Distiller(pl.LightningModule):
         data_cls = self.hparams.dataset.cls
         emb_path = self.hparams.dataset.emb_path
         on_memory = self.hparams.dataset.on_memory
-        noise_ratio = self.hparams.noise.ratio
 
         data_cls = {
             "tr": TripleEmbeddingDataset,
@@ -121,9 +92,7 @@ class Distiller(pl.LightningModule):
             "emb-lbl": EmbeddingLabelDataset,
         }[data_cls]
 
-        return data_cls(
-            data_path, emb_path, noise_ratio=noise_ratio, on_memory=on_memory,
-        )
+        return data_cls(data_path, emb_path, on_memory=on_memory,)
 
     def _get_dataloader(self, dataset, shuffle=False):
         batch_size = self.hparams.train.batch_size
@@ -147,12 +116,6 @@ class Distiller(pl.LightningModule):
             pin_memory=True,
             shuffle=shuffle,
         )
-
-    def _use_recovery_loss(self):
-        return self.hparams.loss.use_recovery_loss
-
-    def _use_task_loss(self):
-        return self.hparams.loss.use_task_loss
 
     def train_dataloader(self):
         return self._get_dataloader(self._train_dataset)

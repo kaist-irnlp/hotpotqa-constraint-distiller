@@ -103,11 +103,11 @@ class AbstractNoisyDataset(Dataset):
         return X_noisy
 
 
-class EmbeddingDataset(AbstractNoisyDataset):
+class EmbeddingDataset(Dataset):
     def __init__(
-        self, data_path, emb_path, noise_ratio=0.0, on_memory=False,
+        self, data_path, emb_path, on_memory=False,
     ):
-        super().__init__(noise_ratio=noise_ratio)
+        super().__init__()
         self.data_path = data_path
         self.emb_path = emb_path
         self.on_memory = on_memory
@@ -124,22 +124,17 @@ class EmbeddingDataset(AbstractNoisyDataset):
 
     def __getitem__(self, index):
         data = self.embedding[index]
-        # generate noised version (nbs, n_view, ...)
-        data = np.stack(
-            [data] + [noise_f(data) for noise_f in self._noise_funcs.values()], axis=1
-        )
         return {
-            "index": index,
             "data": data.astype("f4"),
         }
 
 
 class EmbeddingLabelDataset(EmbeddingDataset):
     def __init__(
-        self, data_path, emb_path, noise_ratio=0.0, on_memory=False,
+        self, data_path, emb_path, on_memory=False,
     ):
         super().__init__(
-            data_path, emb_path, noise_ratio=noise_ratio, on_memory=on_memory,
+            data_path, emb_path, on_memory=on_memory,
         )
 
     def _load_data(self):
