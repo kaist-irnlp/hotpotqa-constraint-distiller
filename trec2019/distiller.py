@@ -62,16 +62,15 @@ class Distiller(pl.LightningModule):
         in_dim = self.encoder.output_size
         h_dim = self.hparams.discriminator.hidden
         n_layers = self.hparams.discriminator.layers
-        self.discriminator = nn.Sequential()
+        out_dim = None
+        self.out = nn.Sequential()
         for i in range(n_layers):
             if i == (n_layers - 1):  # last layer
                 out_dim = self.hparams.discriminator.out
             else:
                 out_dim = h_dim
-            self.discriminator.add_module(
-                f"disc_linear_{i+1}", nn.Linear(in_dim, out_dim)
-            )
-            self.discriminator.add_module(f"disc_selu_{i+1}", nn.SELU())
+            self.out.add_module(f"disc_linear_{i+1}", nn.Linear(in_dim, out_dim))
+            self.out.add_module(f"disc_selu_{i+1}", nn.SELU())
             in_dim = h_dim
 
     # dataset
@@ -131,55 +130,52 @@ class Distiller(pl.LightningModule):
         losses["total"] = 0.0
 
         # task loss
-        if self._use_task_loss():
-            # use sparse Tensor if not using project
-            # if not self.hparams.loss.use_task_projection:
-            #     outputs["task"] = outputs["task"].to_sparse()
-            losses["task"] = self.loss_task(outputs["task"], outputs["target"])
-            losses["total"] += losses["task"]
+        # if self._use_task_loss():
+        #     # use sparse Tensor if not using project
+        #     # if not self.hparams.loss.use_task_projection:
+        #     #     outputs["task"] = outputs["task"].to_sparse()
+        #     losses["task"] = self.loss_task(outputs["task"], outputs["target"])
+        #     losses["total"] += losses["task"]
 
-        # recover loss
-        if self._use_recovery_loss():
-            orig_data = outputs["data"][:, 0, :]
-            recv_data_list = outputs["recover"].unbind(dim=1)
-            losses["recover"] = torch.mean(
-                torch.stack([F.mse_loss(rt, orig_data) for rt in recv_data_list], dim=0)
-            )
-            losses["total"] += losses["recover"]
+        # # recover loss
+        # if self._use_recovery_loss():
+        #     orig_data = outputs["data"][:, 0, :]
+        #     recv_data_list = outputs["recover"].unbind(dim=1)
+        #     losses["recover"] = torch.mean(
+        #         torch.stack([F.mse_loss(rt, orig_data) for rt in recv_data_list], dim=0)
+        #     )
+        #     losses["total"] += losses["recover"]
 
         return losses
 
-    def forward_sparse(self, data):
-        sparse_tensors = torch.stack(
-            [self.sparse(t) for t in data.unbind(dim=1)], dim=1
-        )
-        return F.normalize(sparse_tensors, dim=-1)
+    def forward_encoder(self, data):
+        encoded = self.encoder(data)
+        return encoded
+        # return F.normalize(encoded, dim=-1)
 
-    def forward_task(self, data):
+    def forward_out(self, q, d, target):
         # return self.task(data)
-        return F.normalize(self.task(data), dim=-1)
+        # return F.normalize(self.task(data), dim=-1)
+        out = self.out(data)
+        return out
 
     @auto_move_data
     def forward(self, batch):
         # output features
-        outputs = batch.copy()
+        outputs = {}
 
-        ## (bsz, n_views, ...)
-        outputs["data"] = outputs["data"].permute(0, 2, 1)
+        # forward encoder
+        outputs["enc_query"] = self.forward_encoder(batch["query"])
+        outputs["enc_pos"] = self.forward_encoder(batch["pos"])
+        outputs["enc_neg"] = self.forward_encoder(batch["neg"])
 
-        # normalize
-        outputs["data"] = F.normalize(outputs["data"], dim=-1)
-
-        # forward sparse
-        outputs["sparse"] = self.forward_sparse(outputs["data"])
-
-        # forward task (optional)
-        if self._use_task_loss():
-            outputs["task"] = self.forward_task(outputs["sparse"])
-
-        # forward recover (optional)
-        if self._use_recovery_loss():
-            outputs["recover"] = self.recover(outputs[f"sparse"])
+        # forward discriminator
+        outputs["out_pos"] = self.forward_out(
+            outputs["enc_query"], outputs["enc_pos"], batch["target_pos"]
+        )
+        outputs["out_neg"] = self.forward_out(
+            outputs["enc_query"], outputs["enc_neg"], batch["target_neg"]
+        )
 
         return outputs
 

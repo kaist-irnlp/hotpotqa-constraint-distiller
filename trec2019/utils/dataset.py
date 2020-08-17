@@ -148,81 +148,45 @@ class EmbeddingLabelDataset(EmbeddingDataset):
         return item
 
 
-class TripleEmbeddingDataset(AbstractNoisyDataset):
+class TripleEmbeddingDataset(Dataset):
     def __init__(
-        self, data_dir, emb_path, dset_type, noise_ratio=0.0, on_memory=False,
+        self, data_path, emb_path, on_memory=False,
     ):
-        super().__init__(noise_ratio=noise_ratio, on_memory=on_memory)
-        self.data_dir = Path(data_dir)
-        self.emb_path = str(emb_path)
-        self.dset_type = dset_type
+        super().__init__()
+        self.data_path = data_path
+        self.emb_path = emb_path
+        self.on_memory = on_memory
         self._load_data()
-        self._build_indexer()
-
-    def _build_indexer(self):
-        """"""
-        target_query_ids = set(self.triples[:, 0].tolist())
-        target_doc_ids = set(self.triples[:, 1:].flatten().tolist())
-
-        self.idx_queries = {
-            u_id: seq_id
-            for (seq_id, u_id) in enumerate(self.queries.id)
-            if u_id in target_query_ids
-        }
-        self.idx_docs = {
-            u_id: seq_id
-            for (seq_id, u_id) in enumerate(self.docs.id)
-            if u_id in target_doc_ids
-        }
 
     def _load_data(self):
-        self.triples = zarr.open(
-            str(self.data_dir / f"triples.{self.dset_type}.zarr"), "r"
-        )[:]
-        self.queries = zarr.open(
-            str(self.data_dir / f"queries.{self.dset_type}.zarr"), "r"
+        z = zarr.open(str(self.data_path), "r")
+        self.query, self.pos, self.neg, self.target_pos, self.target_neg = (
+            z.query[self.emb_path],
+            z.pos[self.emb_path],
+            z.neg[self.emb_path],
+            z.target_pos[:],
+            z.target_neg[:],
         )
-        self.docs = zarr.open(str(self.data_dir / f"docs.{self.dset_type}.zarr"), "r")
-        self.queries_emb = self.queries[self.emb_path]
-        self.docs_emb = self.docs[self.emb_path]
-
         if self.on_memory:
-            # self.triples = self.triples[:] # triples are always on memory
-            self.queries_emb = self.queries_emb[:]
-            self.docs_emb = self.docs_emb[:]
+            self.query, self.pos, self.neg = self.query[:], self.pos[:], self.neg[:]
 
     def __len__(self):
-        return len(self.triples)
+        return len(self.query)
 
     def __getitem__(self, index):
-        q_id, pos_id, neg_id = self.triples[index]
-        q = orig_q = self.queries_emb[self.idx_queries[q_id]]
-        pos = orig_pos = self.docs_emb[self.idx_docs[pos_id]]
-        neg = orig_neg = self.docs_emb[self.idx_docs[neg_id]]
-
-        # add noise
-        if self._add_noise:
-            q = self._add_noise(q)
-            pos = self._add_noise(pos)
-            neg = self._add_noise(neg)
-
-        # Float
-        q = q.astype("f4")
-        pos = pos.astype("f4")
-        neg = neg.astype("f4")
-        orig_q = orig_q.astype("f4")
-        orig_pos = orig_pos.astype("f4")
-        orig_neg = orig_neg.astype("f4")
-
-        # return
+        query, pos, neg, target_pos, target_neg = (
+            self.query[index],
+            self.pos[index],
+            self.neg[index],
+            self.target_pos[index],
+            self.target_neg[index],
+        )
         return {
-            "index": index,
-            "q": q,
+            "query": query,
             "pos": pos,
             "neg": neg,
-            "orig_q": orig_q,
-            "orig_pos": orig_pos,
-            "orig_neg": orig_neg,
+            "target_pos": target_pos,
+            "target_neg": target_neg,
         }
 
 
