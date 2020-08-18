@@ -80,7 +80,7 @@ class Distiller(pl.LightningModule):
             # prepare next connection
             in_dim = h_dims[i]
         ## discriminator: add out layer
-        self.out.add_module(f"disc_out", nn.Linear(in_dim, out_dim))
+        self.out.add_module(f"disc_out_linear", nn.Linear(in_dim, out_dim))
         self.out.add_module(f"disc_out_selu", nn.SELU())
 
     # dataset
@@ -104,20 +104,8 @@ class Distiller(pl.LightningModule):
         return data_cls(data_path, emb_path, on_memory=on_memory,)
 
     def _get_dataloader(self, dataset, shuffle=False):
+        num_workers = int(cpu_count() / 3)
         batch_size = self.hparams.train.batch_size
-        # pre-load data
-        # tensors_data = []
-        # tensors_target = []
-        # for d in tqdm(dataset):
-        #     tensors_data.append(d["data"])
-        #     tensors_target.append(d["target"])
-        # tensors_data = torch.tensor(tensors_data)
-        # tensors_target = torch.tensor(tensors_target)
-        # # return DataLoader
-        # return FastTensorDataLoader(
-        #     tensors_data, tensors_target, batch_size=batch_size, shuffle=shuffle
-        # )
-        num_workers = 4
         return DataLoader(
             dataset,
             batch_size=batch_size,
