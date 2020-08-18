@@ -126,13 +126,11 @@ class Distiller(pl.LightningModule):
         return self._get_dataloader(self._test_dataset)
 
     def loss_rank(self, outputs):
-        return F.triplet_margin_loss(
-            outputs["enc_query"],
-            outputs["enc_pos"],
-            outputs["enc_neg"],
-            margin=1.0,
-            p=2,
-        )
+        q, pos, neg = outputs["enc_query"], outputs["enc_pos"], outputs["enc_neg"]
+        sim_p = F.cosine_similarity(q, pos)
+        sim_n = F.cosine_similarity(q, neg)
+        margin = 1.0
+        return max(sim_n - sim_p + margin, 0)
 
     def loss_disc(self, outputs):
         out_pos, target_pos = outputs["out_pos"], outputs["target_pos"]
