@@ -57,16 +57,16 @@ class Distiller(pl.LightningModule):
 
     def _init_layers(self):
         # encoder
-        self.encoder = WTAModel(self.hparams)
+        self._enc = WTAModel(self.hparams)
 
         # discriminator
         ## define
-        in_dim = self.encoder.output_size * 2  # encoder output will be concatenated.
+        in_dim = self._enc.output_size * 2  # encoder output will be concatenated.
         h_dims = self.hparams.discriminator.hidden
         out_dim = self.hparams.discriminator.out
         weight_sparsity = self.hparams.discriminator.weight_sparsity
         ## build
-        self.out = nn.Sequential()
+        self._disc = nn.Sequential()
         for i in range(len(h_dims)):
             linear = nn.Linear(in_dim, h_dims[i])
             # use sparse weights
@@ -74,16 +74,17 @@ class Distiller(pl.LightningModule):
                 linear = SparseWeights(linear, sparsity=weight_sparsity)
                 linear.apply(normalize_sparse_weights)
             # add modules
-            self.out.add_module(f"disc_linear_{i+1}", linear)
-            self.layers.add_module(
+            self._disc.add_module(f"disc_linear_{i+1}", linear)
+            self._disc.add_module(
                 f"disc_bn_{i+1}", nn.BatchNorm1d(h_dims[i], affine=False)
             )
-            self.out.add_module(f"disc_selu_{i+1}", nn.SELU())
+            self._disc.add_module(f"disc_selu_{i+1}", nn.SELU())
             # prepare next connection
             in_dim = h_dims[i]
         ## add out layer
-        self.out.add_module(f"disc_out_linear", nn.Linear(in_dim, out_dim))
-        self.out.add_module(f"disc_out_selu", nn.SELU())
+        self._disc.add_module(f"disc_out_linear", nn.Linear(in_dim, out_dim))
+        self._disc.add_module(f"disc_out_bn", nn.BatchNorm1d(out_dim, affine=False))
+        self._disc.add_module(f"disc_out_selu", nn.SELU())
 
     # dataset
     def _init_datasets(self):
@@ -155,20 +156,20 @@ class Distiller(pl.LightningModule):
 
         return losses
 
-    def forward_encoder(self, data):
-        # return self.encoder(data)
-        return F.normalize(self.encoder(data), dim=-1)
+    def encode(self, data):
+        # return self._enc(data)
+        return F.normalize(self._enc(data), dim=1)
 
-    def forward_out(self, q, d):
+    def out(self, q, d):
         # return self.task(data)
-        # return F.normalize(self.task(data), dim=-1)
-        t_max = F.normalize(torch.max(q, d), dim=-1)
-        t_dot = F.normalize(q * d, dim=-1)
+        # return F.normalize(self.task(data), dim=1)
+        t_max = F.normalize(torch.max(q, d), dim=1)
+        t_dot = F.normalize(q * d, dim=1)
         if self.hparams.discriminator.use_binary:
             t_max = t_max > 0
             t_dot = t_dot > 0
         t = torch.cat([t_max, t_dot])
-        return self.out(t)
+        return self._disc(t)
 
     @auto_move_data
     def forward(self, batch):
@@ -176,13 +177,13 @@ class Distiller(pl.LightningModule):
         outputs = batch.clone()
 
         # forward encoder
-        outputs["enc_query"] = self.forward_encoder(outputs["query"])
-        outputs["enc_pos"] = self.forward_encoder(outputs["pos"])
-        outputs["enc_neg"] = self.forward_encoder(outputs["neg"])
+        outputs["enc_query"] = self.encode(outputs["query"])
+        outputs["enc_pos"] = self.encode(outputs["pos"])
+        outputs["enc_neg"] = self.encode(outputs["neg"])
 
         # forward discriminator
-        outputs["out_pos"] = self.forward_out(outputs["enc_query"], outputs["enc_pos"])
-        outputs["out_neg"] = self.forward_out(outputs["enc_query"], outputs["enc_neg"])
+        outputs["out_pos"] = self.out(outputs["enc_query"], outputs["enc_pos"])
+        outputs["out_neg"] = self.out(outputs["enc_query"], outputs["enc_neg"])
 
         return outputs
 
@@ -313,7 +314,6 @@ class Distiller(pl.LightningModule):
         self.sparse.on_epoch_end()
 
     def configure_optimizers(self):
-        # can return multiple optimizers and learning_rate schedulers
         optimizer = optim.Adam(self.parameters(), lr=self.hparams.train.learning_rate)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return [optimizer], [scheduler]
