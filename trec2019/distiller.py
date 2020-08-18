@@ -133,13 +133,13 @@ class Distiller(pl.LightningModule):
         losses = {}
 
         # L1: contrastive loss between pos/neg
-        losses["ranking"] = self.loss_ranking(outputs)
+        losses["rank"] = self.loss_ranking(outputs)
 
         # L2: discriminator loss
-        losses["discriminate"] = self.loss_discriminate(outputs)
+        losses["disc"] = self.loss_discriminate(outputs)
 
         # L1 + L2
-        losses["total"] = losses["ranking"] + losses["discriminate"]
+        losses["total"] = losses["rank"] + losses["disc"]
 
         return losses
 
@@ -184,8 +184,8 @@ class Distiller(pl.LightningModule):
         # logging losses
         tqdm_dict = {
             "loss": losses["total"],
-            "loss_rank": losses["ranking"],
-            "loss_disc": losses["discriminate"],
+            "loss_rank": losses["rank"],
+            "loss_disc": losses["disc"],
         }
 
         return {
@@ -204,8 +204,8 @@ class Distiller(pl.LightningModule):
         # logging
         tqdm_dict = {
             "val_loss": losses["total"],
-            "val_loss_rank": losses["ranking"],
-            "val_loss_disc": losses["discriminate"],
+            "val_loss_rank": losses["rank"],
+            "val_loss_disc": losses["disc"],
         }
 
         return {
@@ -242,8 +242,8 @@ class Distiller(pl.LightningModule):
         # logging
         tqdm_dict = {
             "test_loss": losses["total"],
-            "test_loss_rank": losses["ranking"],
-            "test_loss_disc": losses["discriminate"],
+            "test_loss_rank": losses["rank"],
+            "test_loss_disc": losses["disc"],
         }
 
         return {
