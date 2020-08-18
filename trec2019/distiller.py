@@ -58,12 +58,14 @@ class Distiller(pl.LightningModule):
     def _init_layers(self):
         # encoder
         self.encoder = WTAModel(self.hparams)
-        ## discriminator: define
+
+        # discriminator
+        ## define
         in_dim = self.encoder.output_size * 2  # encoder output will be concatenated.
         h_dims = self.hparams.discriminator.hidden
         out_dim = self.hparams.discriminator.out
         weight_sparsity = self.hparams.discriminator.layers.weight_sparsity
-        ## discriminator: build
+        ## build
         self.out = nn.Sequential()
         for i in range(len(h_dims)):
             linear = nn.Linear(in_dim, h_dims[i])
@@ -79,7 +81,7 @@ class Distiller(pl.LightningModule):
             self.out.add_module(f"disc_selu_{i+1}", nn.SELU())
             # prepare next connection
             in_dim = h_dims[i]
-        ## discriminator: add out layer
+        ## add out layer
         self.out.add_module(f"disc_out_linear", nn.Linear(in_dim, out_dim))
         self.out.add_module(f"disc_out_selu", nn.SELU())
 
