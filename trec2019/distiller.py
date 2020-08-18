@@ -64,7 +64,7 @@ class Distiller(pl.LightningModule):
         in_dim = self.encoder.output_size * 2  # encoder output will be concatenated.
         h_dims = self.hparams.discriminator.hidden
         out_dim = self.hparams.discriminator.out
-        weight_sparsity = self.hparams.discriminator.layers.weight_sparsity
+        weight_sparsity = self.hparams.discriminator.weight_sparsity
         ## build
         self.out = nn.Sequential()
         for i in range(len(h_dims)):
