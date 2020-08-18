@@ -58,20 +58,30 @@ class Distiller(pl.LightningModule):
     def _init_layers(self):
         # encoder
         self.encoder = WTAModel(self.hparams)
-        # discriminator
-        in_dim = self.encoder.output_size
-        h_dim = self.hparams.discriminator.hidden
-        n_layers = self.hparams.discriminator.layers
-        out_dim = None
+        ## discriminator: define
+        in_dim = self.encoder.output_size * 2  # encoder output will be concatenated.
+        h_dims = self.hparams.discriminator.hidden
+        out_dim = self.hparams.discriminator.out
+        weight_sparsity = self.hparams.discriminator.layers.weight_sparsity
+        ## discriminator: build
         self.out = nn.Sequential()
-        for i in range(n_layers):
-            if i == (n_layers - 1):  # last layer
-                out_dim = self.hparams.discriminator.out
-            else:
-                out_dim = h_dim
-            self.out.add_module(f"disc_linear_{i+1}", nn.Linear(in_dim, out_dim))
+        for i in range(len(h_dims)):
+            linear = nn.Linear(in_dim, h_dims[i])
+            # use sparse weights
+            if 0 < weight_sparsity < 1:
+                linear = SparseWeights(linear, sparsity=weight_sparsity)
+                linear.apply(normalize_sparse_weights)
+            # add modules
+            self.out.add_module(f"disc_linear_{i+1}", linear)
+            self.layers.add_module(
+                f"disc_bn_{i+1}", nn.BatchNorm1d(h_dims[i], affine=False)
+            )
             self.out.add_module(f"disc_selu_{i+1}", nn.SELU())
-            in_dim = h_dim
+            # prepare next connection
+            in_dim = h_dims[i]
+        ## discriminator: add out layer
+        self.out.add_module(f"disc_out", nn.Linear(in_dim, out_dim))
+        self.out.add_module(f"disc_out_selu", nn.SELU())
 
     # dataset
     def _init_datasets(self):
@@ -129,6 +139,10 @@ class Distiller(pl.LightningModule):
         losses = {}
         losses["total"] = 0.0
 
+        # L1: contrastive loss between pos/neg
+
+        # L2: discriminator loss
+
         # task loss
         # if self._use_task_loss():
         #     # use sparse Tensor if not using project
@@ -149,14 +163,17 @@ class Distiller(pl.LightningModule):
         return losses
 
     def forward_encoder(self, data):
-        return self.encoder(data)
-        # return F.normalize(encoded, dim=-1)
+        # return self.encoder(data)
+        return F.normalize(self.encoder(data), dim=-1)
 
     def forward_out(self, q, d):
         # return self.task(data)
         # return F.normalize(self.task(data), dim=-1)
         t_max = F.normalize(torch.max(q, d), dim=-1)
         t_dot = F.normalize(q * d, dim=-1)
+        if self.hparams.discriminator.use_binary:
+            t_max = t_max > 0
+            t_dot = t_dot > 0
         t = torch.cat([t_max, t_dot])
         return self.out(t)
 

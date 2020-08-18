@@ -1,5 +1,7 @@
 # @package _global_
 discriminator:
-  layers: 1
-  hidden: 256
+  hidden: 
+    - 256
   out: 3
+  use_binary: false
+  weight_sparsity: 0.3
