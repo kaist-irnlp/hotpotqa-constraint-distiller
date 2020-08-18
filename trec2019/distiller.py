@@ -149,33 +149,30 @@ class Distiller(pl.LightningModule):
         return losses
 
     def forward_encoder(self, data):
-        encoded = self.encoder(data)
-        return encoded
+        return self.encoder(data)
         # return F.normalize(encoded, dim=-1)
 
-    def forward_out(self, q, d, target):
+    def forward_out(self, q, d):
         # return self.task(data)
         # return F.normalize(self.task(data), dim=-1)
-        out = self.out(data)
-        return out
+        t_max = F.normalize(torch.max(q, d), dim=-1)
+        t_dot = F.normalize(q * d, dim=-1)
+        t = torch.cat([t_max, t_dot])
+        return self.out(t)
 
     @auto_move_data
     def forward(self, batch):
         # output features
-        outputs = {}
+        outputs = batch.clone()
 
         # forward encoder
-        outputs["enc_query"] = self.forward_encoder(batch["query"])
-        outputs["enc_pos"] = self.forward_encoder(batch["pos"])
-        outputs["enc_neg"] = self.forward_encoder(batch["neg"])
+        outputs["enc_query"] = self.forward_encoder(outputs["query"])
+        outputs["enc_pos"] = self.forward_encoder(outputs["pos"])
+        outputs["enc_neg"] = self.forward_encoder(outputs["neg"])
 
         # forward discriminator
-        outputs["out_pos"] = self.forward_out(
-            outputs["enc_query"], outputs["enc_pos"], batch["target_pos"]
-        )
-        outputs["out_neg"] = self.forward_out(
-            outputs["enc_query"], outputs["enc_neg"], batch["target_neg"]
-        )
+        outputs["out_pos"] = self.forward_out(outputs["enc_query"], outputs["enc_pos"])
+        outputs["out_neg"] = self.forward_out(outputs["enc_query"], outputs["enc_neg"])
 
         return outputs
 
