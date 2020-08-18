@@ -87,7 +87,7 @@ class Distiller(pl.LightningModule):
     def _init_datasets(self):
         self._train_dataset = self._init_dataset("train")
         self._val_dataset = self._init_dataset("val")
-        # self._test_dataset = self._init_dataset("test")
+        self._test_dataset = self._init_dataset("test")
 
     def _init_dataset(self, dset_type):
         data_path = Path(self.hparams.dataset.path) / f"{dset_type}.zarr"
@@ -120,33 +120,26 @@ class Distiller(pl.LightningModule):
     def val_dataloader(self):
         return self._get_dataloader(self._val_dataset)
 
-    # def test_dataloader(self):
-    #     return self._get_dataloader(self._test_dataset)
+    def test_dataloader(self):
+        return self._get_dataloader(self._test_dataset)
+
+    def loss_ranking(self, outputs):
+        pass
+
+    def loss_discriminate(self, outputs):
+        pass
 
     def loss(self, outputs):
         losses = {}
-        losses["total"] = 0.0
 
         # L1: contrastive loss between pos/neg
+        losses["ranking"] = self.loss_ranking(outputs)
 
         # L2: discriminator loss
+        losses["discriminate"] = self.loss_discriminate(outputs)
 
-        # task loss
-        # if self._use_task_loss():
-        #     # use sparse Tensor if not using project
-        #     # if not self.hparams.loss.use_task_projection:
-        #     #     outputs["task"] = outputs["task"].to_sparse()
-        #     losses["task"] = self.loss_task(outputs["task"], outputs["target"])
-        #     losses["total"] += losses["task"]
-
-        # # recover loss
-        # if self._use_recovery_loss():
-        #     orig_data = outputs["data"][:, 0, :]
-        #     recv_data_list = outputs["recover"].unbind(dim=1)
-        #     losses["recover"] = torch.mean(
-        #         torch.stack([F.mse_loss(rt, orig_data) for rt in recv_data_list], dim=0)
-        #     )
-        #     losses["total"] += losses["recover"]
+        # L1 + L2
+        losses["total"] = losses["ranking"] + losses["discriminate"]
 
         return losses
 
@@ -190,14 +183,13 @@ class Distiller(pl.LightningModule):
 
         # logging losses
         tqdm_dict = {
-            "train_loss": losses["total"],
+            "loss": losses["total"],
+            "loss_rank": losses["ranking"],
+            "loss_disc": losses["discriminate"],
         }
-        for aux_loss in ["task", "recover"]:
-            if aux_loss in losses:
-                tqdm_dict[f"train_loss_{aux_loss}"] = losses[aux_loss]
 
         return {
-            "loss": tqdm_dict["train_loss"],
+            "loss": tqdm_dict["loss"],
             "progress_bar": tqdm_dict,
             "log": tqdm_dict,
         }
@@ -212,10 +204,10 @@ class Distiller(pl.LightningModule):
         # logging
         tqdm_dict = {
             "val_loss": losses["total"],
+            "val_loss_rank": losses["ranking"],
+            "val_loss_disc": losses["discriminate"],
         }
-        for aux_loss in ["task", "recover"]:
-            if aux_loss in losses:
-                tqdm_dict[f"val_loss_{aux_loss}"] = losses[aux_loss]
+
         return {
             **tqdm_dict,
             "progress_bar": tqdm_dict,
@@ -250,10 +242,10 @@ class Distiller(pl.LightningModule):
         # logging
         tqdm_dict = {
             "test_loss": losses["total"],
+            "test_loss_rank": losses["ranking"],
+            "test_loss_disc": losses["discriminate"],
         }
-        for aux_loss in ["task", "recover"]:
-            if aux_loss in losses:
-                tqdm_dict[f"test_loss_{aux_loss}"] = losses[aux_loss]
+
         return {
             **tqdm_dict,
             "progress_bar": tqdm_dict,
