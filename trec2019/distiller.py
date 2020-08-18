@@ -123,20 +123,32 @@ class Distiller(pl.LightningModule):
     def test_dataloader(self):
         return self._get_dataloader(self._test_dataset)
 
-    def loss_ranking(self, outputs):
-        pass
+    def loss_rank(self, outputs):
+        return F.triplet_margin_loss(
+            outputs["enc_query"],
+            outputs["enc_pos"],
+            outputs["enc_neg"],
+            margin=1.0,
+            p=2,
+        )
 
-    def loss_discriminate(self, outputs):
-        pass
+    def loss_disc(self, outputs):
+        out_pos, target_pos = outputs["out_pos"], outputs["target_pos"]
+        out_neg, target_neg = outputs["out_neg"], outputs["target_neg"]
+        loss_pos, loss_neg = (
+            F.cross_entropy(out_pos, target_pos),
+            F.cross_entropy(out_neg, target_neg),
+        )
+        return loss_pos + loss_neg
 
     def loss(self, outputs):
         losses = {}
 
         # L1: contrastive loss between pos/neg
-        losses["rank"] = self.loss_ranking(outputs)
+        losses["rank"] = self.loss_rank(outputs)
 
         # L2: discriminator loss
-        losses["disc"] = self.loss_discriminate(outputs)
+        losses["disc"] = self.loss_disc(outputs)
 
         # L1 + L2
         losses["total"] = losses["rank"] + losses["disc"]
