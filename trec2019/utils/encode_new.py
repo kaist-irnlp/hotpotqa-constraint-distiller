@@ -1,6 +1,7 @@
 import logging
 from argparse import ArgumentParser
 from pathlib import Path
+from tqdm import tqdm
 
 import zarr
 from torch.utils.data import DataLoader, Dataset
@@ -50,10 +51,12 @@ if __name__ == "__main__":
     # open data to save
     emb_path = f"dense/{args.model}"
     z = zarr.open(str(data_path), "r+")
-    z_embs = z.zeros(emb_path, shape=(len(z.text), model.dim), dtype="f4", overwrite=True)
+    z_embs = z.zeros(
+        emb_path, shape=(len(z.text), model.dim), dtype="f4", overwrite=True
+    )
 
     # infer & save
-    for i, batch in enumerate(loader):
+    for i, batch in enumerate(tqdm(loader)):
         embs = model.encode_batch(batch)
         # save
         start = i * args.batch_size
