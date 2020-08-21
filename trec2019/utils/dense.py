@@ -2,28 +2,29 @@ import logging
 from abc import ABC, abstractclassmethod, abstractmethod
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
+import pickle
 
 import gensim.downloader as api
 import numpy as np
 import torch.nn.functional as F
-from gensim.models import KeyedVectors
-from sklearn.preprocessing import normalize
-
-from textblob import TextBlob
-from gensim.parsing.preprocessing import preprocess_string
-from gensim.parsing.preprocessing import (
-    remove_stopwords,
-    strip_punctuation,
-    strip_tags,
-    strip_short,
-    strip_numeric,
-    strip_multiple_whitespaces,
-    split_alphanum,
-    strip_non_alphanum,
-    stem_text,
-)
-from fse.models import SIF
 from fse import IndexedList
+from fse.models import SIF
+from gensim.models import KeyedVectors
+from gensim.parsing.preprocessing import (
+    preprocess_string,
+    remove_stopwords,
+    split_alphanum,
+    stem_text,
+    strip_multiple_whitespaces,
+    strip_non_alphanum,
+    strip_numeric,
+    strip_punctuation,
+    strip_short,
+    strip_tags,
+)
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import normalize
+from textblob import TextBlob
 
 logging.basicConfig(
     format="%(asctime)s : %(levelname)s : %(message)s", level=logging.INFO
@@ -69,10 +70,27 @@ class AbstractDense(ABC):
         return self._dim
 
 
-class DenseSIF(AbstractDense):
-    def __init__(self, args):
-        super().__init__(args)
+class DenseTFIDF(AbstractDense):
+    def _init(self):
+        with open(self.args.model_path, "rb") as f:
+            self.model = pickle.load(f)
+        self._dim = len(self.model.get_feature_names())
 
+    def _tokenize(self, text):
+        return preprocess_string(text, filters=PREPROCESS_FILTERS)
+
+    def add_argparse_args(parser):
+        parser.add_argument("--model_path", type=str, required=True)
+        return parser
+
+    def encode(self, text):
+        return self.model.transform([text]).toarray().squeeze()
+
+    def encode_batch(self, texts):
+        return self.model.transform(texts).toarray()
+
+
+class DenseSIF(AbstractDense):
     def _init(self):
         self.model = SIF.load(self.args.model_path)
         self._dim = self.model.wv.vector_size

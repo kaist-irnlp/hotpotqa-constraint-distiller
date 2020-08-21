@@ -6,7 +6,7 @@ from tqdm import tqdm
 import zarr
 from torch.utils.data import DataLoader, Dataset
 
-from trec2019.utils.dense import DenseSIF
+from trec2019.utils.dense import DenseSIF, DenseTFIDF
 
 logging.basicConfig(
     format="%(asctime)s : %(levelname)s : %(message)s", level=logging.INFO
@@ -15,8 +15,12 @@ logger = logging.getLogger(__file__)
 
 parser = ArgumentParser()
 parser.add_argument("--data_path", type=str, required=True)
-parser.add_argument("--model", type=str, choices=("sif", "bert"), required=True)
+parser.add_argument(
+    "--model", type=str, choices=("sif", "bert", "tfidf"), required=True
+)
+parser.add_argument("--model_tag", type=str, default="")
 parser.add_argument("--batch_size", type=int, default=512)
+parser.add_argument("--chunk_size", type=int, default=512)
 known_args, extra_args = parser.parse_known_args()
 
 
@@ -33,7 +37,7 @@ class TextDataset(Dataset):
 
 if __name__ == "__main__":
     # identify model
-    MODEL = {"sif": DenseSIF}[known_args.model]
+    MODEL = {"sif": DenseSIF, "tfidf": DenseTFIDF}[known_args.model]
 
     # add model-specific args
     # and initialize
@@ -49,10 +53,15 @@ if __name__ == "__main__":
     )
 
     # open data to save
-    emb_path = f"dense/{args.model}"
+    model_name = "_".join((args.model, args.model_tag))
+    emb_path = f"emb/{model_name}"
     z = zarr.open(str(data_path), "r+")
     z_embs = z.zeros(
-        emb_path, shape=(len(z.text), model.dim), dtype="f4", overwrite=True
+        emb_path,
+        shape=(len(z.text), model.dim),
+        chunks=(args.chunk_size, model.dim),
+        dtype="f4",
+        overwrite=True,
     )
 
     # infer & save
