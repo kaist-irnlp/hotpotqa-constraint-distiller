@@ -192,11 +192,11 @@ class TripleEmbeddingDataset(Dataset):
 
 if __name__ == "__main__":
     # data
-    data_dir = "D:/Data/news20/test.zarr"
-    dataset = EmbeddingLabelDataset(data_dir, "dense/bert-base-cased")
+    data_path = "D:/Data/msmarco-passage-triple/val.zarr"
+    dataset = TripleEmbeddingDataset(data_path, "sif")
     # test
     loader = DataLoader(dataset, batch_size=2)
     for i, batch in enumerate(loader):
-        print(batch["data"].shape)
+        print(batch.keys())
         if i > 1:
             break
