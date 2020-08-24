@@ -212,21 +212,26 @@ class Distiller(pl.LightningModule):
         losses = self.loss(outputs)
         # logging
         result = pl.EvalResult(checkpoint_on=losses["total"])
-        result.losses = losses
-        result.log(
-            "val_loss", losses["total"], prog_bar=True, logger=True, sync_dist=True
+        result.log_dict(
+            {
+                "val_loss": losses["total"],
+                "val_loss_rank": losses["rank"],
+                "val_loss_disc": losses["disc"],
+            },
+            prog_bar=False,
+            logger=True,
+            sync_dist=True,
         )
-        result.log(
-            "val_loss_rank", losses["rank"], prog_bar=False, logger=True, sync_dist=True
-        )
-        result.log(
-            "val_loss_disc", losses["disc"], prog_bar=False, logger=True, sync_dist=True
-        )
+
         return result
 
-    def validation_epoch_end(self, result):
-        result.log("val_loss", torch.mean(loss["total"] for loss in result.losses))
-        return result
+    # def validation_epoch_end(self, result):
+    #     avg_val_loss = torch.mean(
+    #         torch.stack([loss["total"] for loss in result.losses])
+    #     )
+    #     result.log("val_loss", avg_val_loss)
+
+    #     return result
 
     def test_step(self, batch, batch_idx):
         result = self.validation_step(batch, batch_idx)
@@ -273,4 +278,5 @@ class Distiller(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.hparams.train.learning_rate)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        return [optimizer], [scheduler]
+        return optimizer
+        # return [optimizer], [scheduler]
