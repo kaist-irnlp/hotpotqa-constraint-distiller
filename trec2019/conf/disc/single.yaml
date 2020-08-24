@@ -1,7 +1,6 @@
 # @package _global_
-discriminator:
+disc:
   hidden: 
-    - 512
     - 512
   out: 3
   use_binary: false

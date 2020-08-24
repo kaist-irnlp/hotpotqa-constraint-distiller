@@ -1,6 +1,6 @@
 defaults:
   - model: wta
-  - discriminator: single
+  - disc: single
   - dataset: msmarco-passage
   - model_n: defaults
   - model_k: defaults
