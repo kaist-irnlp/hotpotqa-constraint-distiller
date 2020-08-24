@@ -87,24 +87,15 @@ def generate_tags(hparams):
     # emb model
     tags.append(hparams.dataset.emb_path)
 
-    # loss
-    loss_tags = []
-    if hparams.loss.use_task_loss:
-        loss_tags.append("task")
-    if hparams.loss.use_recovery_loss:
-        loss_tags.append("recovery")
-    tags.append("-".join(loss_tags))
-
-    # projection
-    if hparams.loss.use_task_projection:
-        loss_tags.append("projection")
-
     # model
     tags.append(hparams.model.name)
 
     # n, k
     tags.append(",".join([str(k) for k in hparams.model_k.k]))
     tags.append(",".join([str(n) for n in hparams.model_n.n]))
+
+    # disc
+    tags.append(f"disc:{'-'.join([h for h in hparams.disc.hidden])}")
 
     # noise, dropout
     # tags.append(f"noise:{hparams.noise.ratio}")
@@ -170,6 +161,7 @@ def main(hparams):
     log_params = flatten_params(hparams)
     close_after_fit = not hparams.train.upload_checkpoints
     neptune_logger = NeptuneLogger(
+        experiment_name="_".join(tags),
         project_name=f"kjang0517/{hparams.dataset.name}",
         params=log_params,  # Optional,
         tags=tags,  # Optional,
