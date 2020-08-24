@@ -1,41 +1,36 @@
 """
 This file defines the core research contribution
 """
+import gc
+import logging
 import os
 import sys
-import gc
 from argparse import ArgumentParser
-import logging
+from collections import OrderedDict
 from multiprocessing import cpu_count
 from pathlib import Path
-from collections import OrderedDict
-from tqdm import tqdm
-
-import torch
-from torch import optim
-import torch_optimizer
-from torch import nn
-from torch import tensor
-from torch.nn import functional as F
-from torch.utils.data import DataLoader
-import pytorch_lightning as pl
-from pytorch_lightning.core.decorators import auto_move_data
-from test_tube import HyperOptArgumentParser
-from omegaconf import ListConfig
-from omegaconf import OmegaConf
-
-import zarr
-import numpy as np
-import pandas as pd
 from pprint import pprint
 
-# project specific
-from trec2019.utils.dataset import *
-from trec2019.utils.noise import *
+import numpy as np
+import pandas as pd
+import pytorch_lightning as pl
+import torch
+import torch_optimizer
+import zarr
+from omegaconf import ListConfig, OmegaConf
+from pytorch_lightning.core.decorators import auto_move_data
+from test_tube import HyperOptArgumentParser
+from torch import nn, optim, tensor
+from torch.nn import functional as F
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
 from trec2019.model import WTAModel
 from trec2019.model.wta.nupic import *
 from trec2019.task import ClassificationTask, RankingTask
+from trec2019.utils.dataset import *
 from trec2019.utils.losses import SupConLoss, TripletLoss
+from trec2019.utils.noise import *
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -107,7 +102,7 @@ class Distiller(pl.LightningModule):
         return data_cls(data_path, emb_path, on_memory=on_memory,)
 
     def _get_dataloader(self, dataset, shuffle=False):
-        num_workers = int(cpu_count() / 3)
+        num_workers = int(cpu_count() / 2)
         batch_size = self.hparams.train.batch_size
         return DataLoader(
             dataset,
@@ -160,7 +155,7 @@ class Distiller(pl.LightningModule):
         # return self._enc(data)
         return F.normalize(self._enc(data), dim=1)
 
-    def out(self, q, d):
+    def disc(self, q, d):
         # return self.task(data)
         # return F.normalize(self.task(data), dim=1)
         t_max = F.normalize(torch.max(q, d), dim=1)
@@ -168,7 +163,7 @@ class Distiller(pl.LightningModule):
         if self.hparams.discriminator.use_binary:
             t_max = t_max > 0
             t_dot = t_dot > 0
-        t = torch.cat([t_max, t_dot])
+        t = torch.cat([t_max, t_dot], dim=1)
         return self._disc(t)
 
     @auto_move_data
@@ -182,8 +177,8 @@ class Distiller(pl.LightningModule):
         outputs["enc_neg"] = self.encode(outputs["neg"])
 
         # forward discriminator
-        outputs["out_pos"] = self.out(outputs["enc_query"], outputs["enc_pos"])
-        outputs["out_neg"] = self.out(outputs["enc_query"], outputs["enc_neg"])
+        outputs["out_pos"] = self.disc(outputs["enc_query"], outputs["enc_pos"])
+        outputs["out_neg"] = self.disc(outputs["enc_query"], outputs["enc_neg"])
 
         return outputs
 
@@ -317,4 +312,3 @@ class Distiller(pl.LightningModule):
         optimizer = optim.Adam(self.parameters(), lr=self.hparams.train.learning_rate)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         return [optimizer], [scheduler]
-
