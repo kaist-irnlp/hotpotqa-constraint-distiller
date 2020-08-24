@@ -221,7 +221,14 @@ class Distiller(pl.LightningModule):
             logger=True,
             sync_dist=True,
         )
+        result.val_loss = losses["total"]
 
+        return result
+
+    def validation_epoch_end(self, outputs):
+        avg_loss = outputs.val_loss.mean()
+        result = pl.EvalResult()
+        result.log('val_loss', avg_loss)
         return result
 
     def test_step(self, batch, batch_idx):

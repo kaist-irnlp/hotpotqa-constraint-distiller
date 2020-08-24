@@ -91,8 +91,8 @@ def generate_tags(hparams):
     tags.append(hparams.model.name)
 
     # n, k
-    tags.append(",".join([str(k) for k in hparams.model_k.k]))
     tags.append(",".join([str(n) for n in hparams.model_n.n]))
+    tags.append(",".join([str(k) for k in hparams.model_k.k]))
 
     # disc
     tags.append(f"disc:{'_'.join([str(h) for h in hparams.disc.hidden])}_{hparams.disc.weight_sparsity}")
