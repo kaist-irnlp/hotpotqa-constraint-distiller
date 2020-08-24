@@ -4,6 +4,6 @@ dataset:
   cls: tr
   path: "msmarco-passage"
   emb_path: "sif"
-  on_memory: false
+  on_memory: true
 model:
   input_size: 300
