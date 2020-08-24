@@ -224,28 +224,18 @@ class Distiller(pl.LightningModule):
         )
         return result
 
+    def validation_epoch_end(self, result):
+        result.log("val_loss", result.losses["total"])
+        return result
+
     def test_step(self, batch, batch_idx):
-        outputs = self.forward(batch)
-        losses = self.loss(outputs)
-        # logging
-        result = pl.EvalResult(checkpoint_on=losses["total"])
-        result.losses = losses
-        result.log(
-            "test_loss", losses["total"], prog_bar=True, logger=True, sync_dist=True
-        )
-        result.log(
-            "test_loss_rank",
-            losses["rank"],
-            prog_bar=False,
-            logger=True,
-            sync_dist=True,
-        )
-        result.log(
-            "test_loss_disc",
-            losses["disc"],
-            prog_bar=False,
-            logger=True,
-            sync_dist=True,
+        result = self.validation_step(batch, batch_idx)
+        result.rename_keys(
+            {
+                "val_loss": "test_loss",
+                "val_loss_rank": "test_loss_rank",
+                "val_loss_disc": "test_loss_disc",
+            }
         )
         return result
 
