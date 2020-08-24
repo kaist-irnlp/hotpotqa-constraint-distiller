@@ -157,13 +157,13 @@ class Distiller(pl.LightningModule):
         return F.normalize(self._enc(data), dim=1)
 
     def disc(self, q, d):
-        # t_max = F.normalize(torch.max(q, d), dim=1)
-        # t_dot = F.normalize(q * d, dim=1)
-        # if self.hparams.discriminator.use_binary:
-        #     t_max = t_max > 0
-        #     t_dot = t_dot > 0
-        # t = torch.cat([t_max, t_dot], dim=1)
-        t = torch.cat([q, d], dim=1)
+        t_max = F.normalize(torch.max(q, d), dim=1)
+        t_dot = F.normalize(q * d, dim=1)
+        if self.hparams.discriminator.use_binary:
+            t_max = t_max > 0
+            t_dot = t_dot > 0
+        t = torch.cat([t_max, t_dot], dim=1)
+        # t = torch.cat([q, d], dim=1)
         return self._disc(t)
 
     @auto_move_data
@@ -223,7 +223,6 @@ class Distiller(pl.LightningModule):
         )
 
         return result
-
 
     def test_step(self, batch, batch_idx):
         result = self.validation_step(batch, batch_idx)
