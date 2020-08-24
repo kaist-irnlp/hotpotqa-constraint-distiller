@@ -1,9 +1,9 @@
 # @package _global_
 dataset:
   name: msmarco-passage
-  cls: emb-lbl
+  cls: tr
   path: "msmarco-passage"
-  emb_path: "dense/bert-large-cased"
+  emb_path: "sif"
   on_memory: false
 model:
-  input_size: 1024
+  input_size: 300

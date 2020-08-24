@@ -85,7 +85,7 @@ class Distiller(pl.LightningModule):
     def _init_datasets(self):
         self._train_dataset = self._init_dataset("train")
         self._val_dataset = self._init_dataset("val")
-        self._test_dataset = self._init_dataset("test")
+        # self._test_dataset = self._init_dataset("test")
 
     def _init_dataset(self, dset_type):
         data_path = Path(self.hparams.dataset.path) / f"{dset_type}.zarr"
@@ -118,15 +118,16 @@ class Distiller(pl.LightningModule):
     def val_dataloader(self):
         return self._get_dataloader(self._val_dataset)
 
-    def test_dataloader(self):
-        return self._get_dataloader(self._test_dataset)
+    # def test_dataloader(self):
+    #     return self._get_dataloader(self._test_dataset)
 
     def loss_rank(self, outputs):
         q, pos, neg = outputs["enc_query"], outputs["enc_pos"], outputs["enc_neg"]
         sim_p = F.cosine_similarity(q, pos)
         sim_n = F.cosine_similarity(q, neg)
+        delta = torch.mean(sim_n - sim_p)
         margin = 1.0
-        return max(sim_n - sim_p + margin, 0)
+        return max(delta + margin, 0)
 
     def loss_disc(self, outputs):
         out_pos, target_pos = outputs["out_pos"], outputs["target_pos"]
@@ -169,7 +170,7 @@ class Distiller(pl.LightningModule):
     @auto_move_data
     def forward(self, batch):
         # output features
-        outputs = batch.clone()
+        outputs = batch.copy()
 
         # forward encoder
         outputs["enc_query"] = self.encode(outputs["query"])
@@ -183,99 +184,112 @@ class Distiller(pl.LightningModule):
         return outputs
 
     def training_step(self, batch, batch_idx):
-        return self.forward(batch)
-
-    def training_step_end(self, outputs):
-        # loss
+        outputs = self.forward(batch)
         losses = self.loss(outputs)
+        # logging
+        result = pl.TrainResult(minimize=losses["total"])
+        result.log(
+            "train_loss", losses["total"], prog_bar=True, logger=True, sync_dist=True
+        )
+        result.log(
+            "train_loss_rank",
+            losses["rank"],
+            prog_bar=False,
+            logger=True,
+            sync_dist=True,
+        )
+        result.log(
+            "train_loss_disc",
+            losses["disc"],
+            prog_bar=False,
+            logger=True,
+            sync_dist=True,
+        )
+        return result
 
-        # logging losses
-        tqdm_dict = {
-            "loss": losses["total"],
-            "loss_rank": losses["rank"],
-            "loss_disc": losses["disc"],
-        }
+    # def training_step_end(self, training_step_outputs):
+    #     all_outs = training_step_outputs.out
 
-        return {
-            "loss": tqdm_dict["loss"],
-            "progress_bar": tqdm_dict,
-            "log": tqdm_dict,
-        }
+    #     # loss
+    #     losses = self.loss(all_outs)
+
+    #     # logging losses
+    #     result = pl.TrainResult(minimize=losses["total"])
+    #     result.log("train_loss", losses["total"], prog_bar=True, logger=True)
+    #     result.log("train_loss_rank", losses["rank"], prog_bar=False, logger=True)
+    #     result.log("train_loss_disc", losses["disc"], prog_bar=False, logger=True)
+    #     return result
+    # tqdm_dict = {
+    #     "loss": losses["total"],
+    #     "loss_rank": losses["rank"],
+    #     "loss_disc": losses["disc"],
+    # }
+
+    # return {
+    #     "loss": tqdm_dict["loss"],
+    #     "progress_bar": tqdm_dict,
+    #     "log": tqdm_dict,
+    # }
 
     def validation_step(self, batch, batch_idx):
-        return self.forward(batch)
-
-    def validation_step_end(self, outputs):
-        # loss
+        outputs = self.forward(batch)
         losses = self.loss(outputs)
-
         # logging
-        tqdm_dict = {
-            "val_loss": losses["total"],
-            "val_loss_rank": losses["rank"],
-            "val_loss_disc": losses["disc"],
-        }
+        result = pl.EvalResult(checkpoint_on=losses["total"])
+        result.log(
+            "val_loss", losses["total"], prog_bar=True, logger=True, sync_dist=True
+        )
+        result.log(
+            "val_loss_rank", losses["rank"], prog_bar=False, logger=True, sync_dist=True
+        )
+        result.log(
+            "val_loss_disc", losses["disc"], prog_bar=False, logger=True, sync_dist=True
+        )
+        return result
 
-        return {
-            **tqdm_dict,
-            "progress_bar": tqdm_dict,
-            "log": tqdm_dict,
-        }
+    # def validation_step_end(self, validation_step_outputs):
+    #     all_outs = validation_step_outputs.out
 
-    def validation_epoch_end(self, outputs):
-        # network states
-        self._log_network_states()
+    #     # loss
+    #     losses = self.loss(all_outs)
 
-        # losses
-        tqdm_dict = {}
-        for k in outputs[0].keys():
-            if "loss" in k:
-                tqdm_dict[f"avg_{k}"] = torch.stack([out[k] for out in outputs]).mean()
+    #     # logging losses
+    #     result = pl.EvalResult(minimize=losses["total"])
+    #     result.log("val_loss", losses["total"], prog_bar=True, logger=True)
+    #     result.log("val_loss_rank", losses["rank"], prog_bar=False, logger=True)
+    #     result.log("val_loss_disc", losses["disc"], prog_bar=False, logger=True)
+    #     return result
 
-        results = {
-            "val_loss": tqdm_dict["avg_val_loss"],
-            "progress_bar": tqdm_dict,
-            "log": tqdm_dict,
-        }
+    # def validation_epoch_end(self, val_step_outputs):
+    #     # network states
+    #     self._log_network_states()
 
-        return results
+    #     print(val_step_outputs)
 
-    def test_step(self, batch, batch_idx):
-        return self.forward(batch)
+    #     # losses
+    #     avg_losses = {}
+    #     avg_losses["avg_val_loss"] = torch.stack(
+    #         [out["val_loss"] for out in val_step_outputs]
+    #     ).mean()
+    #     avg_losses["avg_val_loss_rank"] = torch.stack(
+    #         [out["val_loss_rank"] for out in val_step_outputs]
+    #     ).mean()
+    #     avg_losses["avg_val_loss_disc"] = torch.stack(
+    #         [out["val_loss_disc"] for out in val_step_outputs]
+    #     ).mean()
 
-    def test_step_end(self, outputs):
-        # loss
-        losses = self.loss(outputs)
+    #     # tqdm_dict = {}
+    #     # for k in outputs[0].keys():
+    #     #     if "loss" in k:
+    #     #         tqdm_dict[f"avg_{k}"] = torch.stack([out[k] for out in outputs]).mean()
 
-        # logging
-        tqdm_dict = {
-            "test_loss": losses["total"],
-            "test_loss_rank": losses["rank"],
-            "test_loss_disc": losses["disc"],
-        }
+    #     # results = {
+    #     #     "val_loss": tqdm_dict["avg_val_loss"],
+    #     #     "progress_bar": tqdm_dict,
+    #     #     "log": tqdm_dict,
+    #     # }
 
-        return {
-            **tqdm_dict,
-            "progress_bar": tqdm_dict,
-            "log": tqdm_dict,
-        }
-
-    def test_epoch_end(self, outputs):
-        # network states
-        self._log_network_states()
-
-        # losses
-        tqdm_dict = {}
-        for k in outputs[0].keys():
-            if "loss" in k:
-                tqdm_dict[f"avg_{k}"] = torch.stack([out[k] for out in outputs]).mean()
-
-        results = {
-            "avg_test_loss": tqdm_dict["avg_test_loss"],
-            "log": tqdm_dict,
-        }
-
-        return results
+    #     return results
 
     def _log_kwinner(self, m):
         if isinstance(m, KWinnersBase):

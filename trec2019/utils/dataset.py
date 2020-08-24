@@ -181,12 +181,14 @@ class TripleEmbeddingDataset(Dataset):
             self.target_pos[index],
             self.target_neg[index],
         )
+        dt_f = "f4"
+        dt_i = "i8"
         return {
-            "query": query,
-            "pos": pos,
-            "neg": neg,
-            "target_pos": target_pos,
-            "target_neg": target_neg,
+            "query": query.astype(dt_f),
+            "pos": pos.astype(dt_f),
+            "neg": neg.astype(dt_f),
+            "target_pos": target_pos.astype(dt_i),
+            "target_neg": target_neg.astype(dt_i),
         }
 
 

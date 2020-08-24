@@ -85,7 +85,7 @@ def generate_tags(hparams):
     # tags.append(hparams.dataset.name)
 
     # emb model
-    tags.append(hparams.dataset.emb_path.split("/")[1])
+    tags.append(hparams.dataset.emb_path)
 
     # loss
     loss_tags = []
@@ -107,8 +107,8 @@ def generate_tags(hparams):
     tags.append(",".join([str(n) for n in hparams.model_n.n]))
 
     # noise, dropout
-    tags.append(f"noise:{hparams.noise.ratio}")
-    tags.append(f"dropout:{hparams.model.dropout}")
+    # tags.append(f"noise:{hparams.noise.ratio}")
+    # tags.append(f"dropout:{hparams.model.dropout}")
 
     # batch_size, lr
     tags.append(f"bsz:{hparams.train.batch_size}")
@@ -211,8 +211,8 @@ def main(hparams):
         fast_dev_run=hparams.train.fast_dev_run,
         amp_level=hparams.train.amp_level,
         precision=hparams.train.precision,
-        train_percent_check=hparams.dataset.train_percent_check,
-        val_percent_check=hparams.dataset.val_percent_check,
+        train_percent_check=hparams.train.train_percent_check,
+        val_percent_check=hparams.train.val_percent_check,
         # **hparams.train,
         benchmark=True,
         profiler=profiler,
