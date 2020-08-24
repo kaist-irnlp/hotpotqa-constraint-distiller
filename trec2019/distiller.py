@@ -187,20 +187,20 @@ class Distiller(pl.LightningModule):
         losses = self.loss(outputs)
         # logging
         result = pl.TrainResult(minimize=losses["total"])
-        result.log(
-            "train_loss", losses["total"], prog_bar=True, logger=True, sync_dist=True
-        )
+        # result.log(
+        #     "train_loss", losses["total"], prog_bar=True, logger=True, sync_dist=True
+        # )
         result.log(
             "train_loss_rank",
             losses["rank"],
-            prog_bar=False,
+            prog_bar=True,
             logger=True,
             sync_dist=True,
         )
         result.log(
             "train_loss_disc",
             losses["disc"],
-            prog_bar=False,
+            prog_bar=True,
             logger=True,
             sync_dist=True,
         )
@@ -210,7 +210,7 @@ class Distiller(pl.LightningModule):
         outputs = self.forward(batch)
         losses = self.loss(outputs)
         # logging
-        result = pl.EvalResult(checkpoint_on=losses["total"],)
+        result = pl.EvalResult()
         result.log_dict(
             {
                 "val_loss": losses["total"],
@@ -274,5 +274,4 @@ class Distiller(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.hparams.train.learning_rate)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        return optimizer
-        # return [optimizer], [scheduler]
+        return [optimizer], [scheduler]
