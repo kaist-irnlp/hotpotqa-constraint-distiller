@@ -95,7 +95,9 @@ def generate_tags(hparams):
     tags.append(",".join([str(k) for k in hparams.model_k.k]))
 
     # disc
-    tags.append(f"disc:{'_'.join([str(h) for h in hparams.disc.hidden])}_{hparams.disc.weight_sparsity}")
+    tags.append(
+        f"disc:{'_'.join([str(h) for h in hparams.disc.hidden])}_{hparams.disc.weight_sparsity}"
+    )
 
     # noise, dropout
     # tags.append(f"noise:{hparams.noise.ratio}")
@@ -182,14 +184,14 @@ def main(hparams):
     callbacks = [PostTrainCallback(), LearningRateLogger()]
 
     # Callbacks: Early stop
-    # early_stop_callback = None
-    if hparams.train.use_early_stop:
-        patience = hparams.train.early_stop_patience
-        early_stop_callback = EarlyStopping(
-            monitor="val_loss", patience=patience, verbose=True, mode="min"
-        )
-    else:
-        early_stop_callback = None
+    early_stop_callback = None
+    # if hparams.train.use_early_stop:
+    #     patience = hparams.train.early_stop_patience
+    #     early_stop_callback = EarlyStopping(
+    #         monitor="val_loss", patience=patience, verbose=True, mode="min"
+    #     )
+    # else:
+    #     early_stop_callback = None
 
     # use profiler
     profiler = AdvancedProfiler() if hparams.train.profile else None
