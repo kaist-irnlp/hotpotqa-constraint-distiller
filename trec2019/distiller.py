@@ -85,7 +85,7 @@ class Distiller(pl.LightningModule):
     def _init_datasets(self):
         self._train_dataset = self._init_dataset("train")
         self._val_dataset = self._init_dataset("val")
-        # self._test_dataset = self._init_dataset("test")
+        self._test_dataset = self._init_dataset("test")
 
     def _init_dataset(self, dset_type):
         data_path = Path(self.hparams.dataset.path) / f"{dset_type}.zarr"
@@ -118,8 +118,8 @@ class Distiller(pl.LightningModule):
     def val_dataloader(self):
         return self._get_dataloader(self._val_dataset)
 
-    # def test_dataloader(self):
-    #     return self._get_dataloader(self._test_dataset)
+    def test_dataloader(self):
+        return self._get_dataloader(self._test_dataset)
 
     def loss_rank(self, outputs):
         q, pos, neg = outputs["enc_query"], outputs["enc_pos"], outputs["enc_neg"]
@@ -207,37 +207,11 @@ class Distiller(pl.LightningModule):
         )
         return result
 
-    # def training_step_end(self, training_step_outputs):
-    #     all_outs = training_step_outputs.out
-
-    #     # loss
-    #     losses = self.loss(all_outs)
-
-    #     # logging losses
-    #     result = pl.TrainResult(minimize=losses["total"])
-    #     result.log("train_loss", losses["total"], prog_bar=True, logger=True)
-    #     result.log("train_loss_rank", losses["rank"], prog_bar=False, logger=True)
-    #     result.log("train_loss_disc", losses["disc"], prog_bar=False, logger=True)
-    #     return result
-    # tqdm_dict = {
-    #     "loss": losses["total"],
-    #     "loss_rank": losses["rank"],
-    #     "loss_disc": losses["disc"],
-    # }
-
-    # return {
-    #     "loss": tqdm_dict["loss"],
-    #     "progress_bar": tqdm_dict,
-    #     "log": tqdm_dict,
-    # }
-
     def validation_step(self, batch, batch_idx):
         outputs = self.forward(batch)
         losses = self.loss(outputs)
         # logging
-        result = pl.EvalResult(
-            checkpoint_on=losses["total"], early_stop_on=losses["total"]
-        )
+        result = pl.EvalResult(checkpoint_on=losses["total"])
         result.losses = losses
         result.log(
             "val_loss", losses["total"], prog_bar=True, logger=True, sync_dist=True
@@ -250,49 +224,30 @@ class Distiller(pl.LightningModule):
         )
         return result
 
-    # def validation_step_end(self, validation_step_outputs):
-    #     all_outs = validation_step_outputs.out
-
-    #     # loss
-    #     losses = self.loss(all_outs)
-
-    #     # logging losses
-    #     result = pl.EvalResult(minimize=losses["total"])
-    #     result.log("val_loss", losses["total"], prog_bar=True, logger=True)
-    #     result.log("val_loss_rank", losses["rank"], prog_bar=False, logger=True)
-    #     result.log("val_loss_disc", losses["disc"], prog_bar=False, logger=True)
-    #     return result
-
-    # def validation_epoch_end(self, val_step_outputs):
-    #     # network states
-    #     self._log_network_states()
-
-    #     print(val_step_outputs)
-
-    #     # losses
-    #     avg_losses = {}
-    #     avg_losses["avg_val_loss"] = torch.stack(
-    #         [out["val_loss"] for out in val_step_outputs]
-    #     ).mean()
-    #     avg_losses["avg_val_loss_rank"] = torch.stack(
-    #         [out["val_loss_rank"] for out in val_step_outputs]
-    #     ).mean()
-    #     avg_losses["avg_val_loss_disc"] = torch.stack(
-    #         [out["val_loss_disc"] for out in val_step_outputs]
-    #     ).mean()
-
-    #     # tqdm_dict = {}
-    #     # for k in outputs[0].keys():
-    #     #     if "loss" in k:
-    #     #         tqdm_dict[f"avg_{k}"] = torch.stack([out[k] for out in outputs]).mean()
-
-    #     # results = {
-    #     #     "val_loss": tqdm_dict["avg_val_loss"],
-    #     #     "progress_bar": tqdm_dict,
-    #     #     "log": tqdm_dict,
-    #     # }
-
-    #     return results
+    def test_step(self, batch, batch_idx):
+        outputs = self.forward(batch)
+        losses = self.loss(outputs)
+        # logging
+        result = pl.EvalResult(checkpoint_on=losses["total"])
+        result.losses = losses
+        result.log(
+            "test_loss", losses["total"], prog_bar=True, logger=True, sync_dist=True
+        )
+        result.log(
+            "test_loss_rank",
+            losses["rank"],
+            prog_bar=False,
+            logger=True,
+            sync_dist=True,
+        )
+        result.log(
+            "test_loss_disc",
+            losses["disc"],
+            prog_bar=False,
+            logger=True,
+            sync_dist=True,
+        )
+        return result
 
     def _log_kwinner(self, m):
         if isinstance(m, KWinnersBase):
@@ -323,7 +278,7 @@ class Distiller(pl.LightningModule):
 
     # sparsity boosting weight adjustment, etc.
     def on_epoch_end(self):
-        self.sparse.on_epoch_end()
+        self._enc.on_epoch_end()
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.hparams.train.learning_rate)
