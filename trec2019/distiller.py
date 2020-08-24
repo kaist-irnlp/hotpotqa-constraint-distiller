@@ -210,7 +210,7 @@ class Distiller(pl.LightningModule):
         outputs = self.forward(batch)
         losses = self.loss(outputs)
         # logging
-        result = pl.EvalResult()
+        result = pl.EvalResult(checkpoint_on=losses["total"])
         result.log_dict(
             {
                 "val_loss": losses["total"],
@@ -223,9 +223,7 @@ class Distiller(pl.LightningModule):
         return result
 
     # def validation_epoch_end(self, outputs):
-    #     avg_loss = outputs.val_loss.mean()
-    #     result = pl.EvalResult()
-    #     result.log('val_loss', avg_loss)
+    #     result = outputs
     #     return result
 
     def test_step(self, batch, batch_idx):
@@ -274,4 +272,5 @@ class Distiller(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.hparams.train.learning_rate)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        return [optimizer], [scheduler]
+        return optimizer
+        # return [optimizer], [scheduler]
