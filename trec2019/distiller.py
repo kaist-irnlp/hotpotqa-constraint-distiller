@@ -57,9 +57,9 @@ class Distiller(pl.LightningModule):
         # discriminator
         ## define
         in_dim = self._enc.output_size * 2  # encoder output will be concatenated.
-        h_dims = self.hparams.discriminator.hidden
-        out_dim = self.hparams.discriminator.out
-        weight_sparsity = self.hparams.discriminator.weight_sparsity
+        h_dims = self.hparams.disc.hidden
+        out_dim = self.hparams.disc.out
+        weight_sparsity = self.hparams.disc.weight_sparsity
         ## build
         self._disc = nn.Sequential()
         for i in range(len(h_dims)):
@@ -144,7 +144,7 @@ class Distiller(pl.LightningModule):
         # L1: contrastive loss between pos/neg
         losses["rank"] = self.loss_rank(outputs)
 
-        # L2: discriminator loss
+        # L2: disc loss
         losses["disc"] = self.loss_disc(outputs)
 
         # L1 + L2
@@ -159,9 +159,9 @@ class Distiller(pl.LightningModule):
     def disc(self, q, d):
         t_max = F.normalize(torch.max(q, d), dim=1)
         t_dot = F.normalize(q * d, dim=1)
-        if self.hparams.discriminator.use_binary:
-            t_max = t_max > 0
-            t_dot = t_dot > 0
+        if self.hparams.disc.use_binary:
+            t_max = (t_max > 0).type_as(q)
+            t_dot = (t_dot > 0).type_as(q)
         t = torch.cat([t_max, t_dot], dim=1)
         # t = torch.cat([q, d], dim=1)
         return self._disc(t)
@@ -176,7 +176,7 @@ class Distiller(pl.LightningModule):
         outputs["enc_pos"] = self.encode(outputs["pos"])
         outputs["enc_neg"] = self.encode(outputs["neg"])
 
-        # forward discriminator
+        # forward disc
         outputs["out_pos"] = self.disc(outputs["enc_query"], outputs["enc_pos"])
         outputs["out_neg"] = self.disc(outputs["enc_query"], outputs["enc_neg"])
 
