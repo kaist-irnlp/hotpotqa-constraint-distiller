@@ -5,4 +5,4 @@ disc:
     - 512
   out: 3
   use_binary: false
-  weight_sparsity: 1.0
+  weight_sparsity: 0.3
