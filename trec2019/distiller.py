@@ -225,7 +225,7 @@ class Distiller(pl.LightningModule):
         return result
 
     def validation_epoch_end(self, result):
-        result.log("val_loss", result.losses["total"])
+        result.log("val_loss", torch.mean(loss["total"] for loss in result.losses))
         return result
 
     def test_step(self, batch, batch_idx):
