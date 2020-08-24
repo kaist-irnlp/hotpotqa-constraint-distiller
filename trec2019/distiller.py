@@ -269,6 +269,7 @@ class Distiller(pl.LightningModule):
     # sparsity boosting weight adjustment, etc.
     def on_epoch_end(self):
         self._enc.on_epoch_end()
+        self._log_network_states()
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.hparams.train.learning_rate)
