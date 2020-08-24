@@ -157,14 +157,13 @@ class Distiller(pl.LightningModule):
         return F.normalize(self._enc(data), dim=1)
 
     def disc(self, q, d):
-        # return self.task(data)
-        # return F.normalize(self.task(data), dim=1)
-        t_max = F.normalize(torch.max(q, d), dim=1)
-        t_dot = F.normalize(q * d, dim=1)
-        if self.hparams.discriminator.use_binary:
-            t_max = t_max > 0
-            t_dot = t_dot > 0
-        t = torch.cat([t_max, t_dot], dim=1)
+        # t_max = F.normalize(torch.max(q, d), dim=1)
+        # t_dot = F.normalize(q * d, dim=1)
+        # if self.hparams.discriminator.use_binary:
+        #     t_max = t_max > 0
+        #     t_dot = t_dot > 0
+        # t = torch.cat([t_max, t_dot], dim=1)
+        t = torch.cat([q, d], dim=1)
         return self._disc(t)
 
     @auto_move_data
@@ -218,20 +217,13 @@ class Distiller(pl.LightningModule):
                 "val_loss_rank": losses["rank"],
                 "val_loss_disc": losses["disc"],
             },
-            prog_bar=False,
+            prog_bar=True,
             logger=True,
             sync_dist=True,
         )
 
         return result
 
-    # def validation_epoch_end(self, result):
-    #     avg_val_loss = torch.mean(
-    #         torch.stack([loss["total"] for loss in result.losses])
-    #     )
-    #     result.log("val_loss", avg_val_loss)
-
-    #     return result
 
     def test_step(self, batch, batch_idx):
         result = self.validation_step(batch, batch_idx)
