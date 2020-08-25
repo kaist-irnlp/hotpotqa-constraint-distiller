@@ -7,17 +7,22 @@ import yaml
 import zarr
 import numpy as np
 from tqdm import tqdm
+from multiprocessing import cpu_count
 from numcodecs import Zstd
 
 from trec2019.distiller import Distiller
-from trec2019.utils.dataset import EmbeddingDataset, EmbeddingLabelDataset
+from trec2019.utils.dataset import (
+    EmbeddingDataset,
+    EmbeddingLabelDataset,
+    TripleEmbeddingDataset,
+)
 
 parser = ArgumentParser()
 parser.add_argument("exp_dir", type=str)
 parser.add_argument("dataset_dir", type=str)
 parser.add_argument("--gpu", type=int, default=0)
 parser.add_argument("--batch_size", type=int, default=8192)
-parser.add_argument("--num_workers", type=int, default=8)
+parser.add_argument("--num_workers", type=int, default=(cpu_count() / 2))
 parser.add_argument("-p", "--pattern", type=str, default="*.zarr")
 args = parser.parse_args()
 
@@ -55,7 +60,9 @@ def get_model_properties(hparams):
     # properties
     properties = []
     ## base_emb
-    properties.append(hparams["dataset"]["emb_path"].split("/")[1])
+    emb_path = hparams["dataset"]["emb_path"].split("/")
+    emb_path = emb_path[1] if len(emb_path) > 1 else emb_path[0]
+    properties.append(emb_path)
     ## base_emb_dim
     properties.append(hparams["model"]["input_size"])
     ## model_name
@@ -64,16 +71,6 @@ def get_model_properties(hparams):
     properties.append(
         f"{'_'.join([str(v) for v in hparams['model_n']['n']])}_{'_'.join((str(v) for v in hparams['model_k']['k']))}"
     )
-    ## losses
-    losses = []
-    if hparams["loss"]["use_recovery_loss"]:
-        losses.append("recover")
-    if hparams["loss"]["use_task_loss"]:
-        losses.append("task")
-    properties.append("-".join(losses))
-    ## projection
-    if hparams["loss"]["use_task_projection"]:
-        properties.append("projection")
     ## bs & lr
     properties.append("batch-" + str(hparams["train"]["batch_size"]))
     properties.append("lr-" + str(hparams["train"]["learning_rate"]))
@@ -82,7 +79,7 @@ def get_model_properties(hparams):
 
 
 def encode_dset(model, hparams, dset_path, emb_path):
-    dataset = EmbeddingLabelDataset(dset_path, emb_path)
+    dataset = TripleEmbeddingDataset(dset_path, emb_path)
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -93,20 +90,27 @@ def encode_dset(model, hparams, dset_path, emb_path):
     model_props = get_model_properties(hparams)
     print(model_props)
     # encode
-    z = zarr.open(str(dset_path))
+    z = zarr.open(str(dset_path), "r+")
     out_shape = (len(z.id), int(hparams["model_n"]["n"][-1]))
-    z_out = z.zeros(
-        f"result/{model_props}",
-        shape=out_shape,
-        chunks=(args.batch_size, None),
-        overwrite=True,
-        compressor=Zstd(),
-    )
-    for i, data in enumerate(tqdm(loader)):
-        out = model.forward_sparse(data["data"].permute(0, 2, 1)).cpu().numpy()[:, 0, :]
-        start = args.batch_size * i
-        end = start + out.shape[0]
-        z_out[start:end] = out[:]
+    z_result = {}
+    for k in ["query", "pos", "neg"]:
+        z_result[k] = z.zeros(
+            f"{k}/result/{model_props}",
+            shape=out_shape,
+            chunks=(args.batch_size, None),
+            overwrite=True,
+            compressor=Zstd(),
+        )
+    # for i, data in enumerate(tqdm(loader)):
+    #     query, pos, neg = data["query"], data["pos"], data["neg"]
+    #     enc_query, enc_pos, enc_neg = (
+    #         model.encode(data["query"]),
+    #         model.encode(data["pos"]),
+    #         model.encode(data["neg"]),
+    #     )
+    #     start = args.batch_size * i
+    #     end = start + out.shape[0]
+    #     z_out[start:end] = out[:]
         # sparsity
         # n_filled = len(out.nonzero()[0])
         # print("AVG sparsity", n_filled / out.size)
@@ -124,7 +128,7 @@ def main(ckpt_dir, dataset_dir):
     hparams_path = str(hparams_path)
     hparams = load_hparams(hparams_path)
 
-    model_props = get_model_properties(hparams)
+    # model_props = get_model_properties(hparams)
     # check if ckpt exists
     override_hparams(hparams_path, dataset_dir)
     # hparam_overrides = {"dataset": {"path": dataset_dir}}
