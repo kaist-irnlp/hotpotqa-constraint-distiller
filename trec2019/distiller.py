@@ -24,6 +24,7 @@ from torch import nn, optim, tensor
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from pytorch_lightning.metrics import functional as FM
 
 from trec2019.model import WTAModel
 from trec2019.model.wta.nupic import *
@@ -87,6 +88,9 @@ class Distiller(pl.LightningModule):
         return max(delta + margin, 0)
 
     def loss_disc(self, outputs):
+        # TODO: target 필드를 하나로 통일
+        # TODO: acc = FM.accuracy(y_hat, y)
+        # https://pytorch-lightning.readthedocs.io/en/stable/lightning-module.html#lightningmodule-for-production
         out_pos, target_pos = outputs["out_pos"], outputs["target_pos"]
         out_neg, target_neg = outputs["out_neg"], outputs["target_neg"]
         loss_pos, loss_neg = (
