@@ -172,7 +172,9 @@ class Distiller(pl.LightningModule):
         outputs = self.shared_step(batch)
         losses = self.loss(outputs)
         # for epoch_end
-        result = pl.EvalResult(checkpoint_on=losses["total"])
+        result = pl.EvalResult(
+            checkpoint_on=losses["total"], early_stop_on=losses["total"]
+        )
         result.log_dict(
             {
                 "val_loss": losses["total"],
