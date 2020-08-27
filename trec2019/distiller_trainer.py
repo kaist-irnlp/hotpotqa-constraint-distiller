@@ -85,7 +85,7 @@ def generate_tags(hparams):
     # tags.append(hparams.dataset.name)
 
     # emb model
-    tags.append(hparams.dataset.emb_path)
+    tags.append(hparams.dataset.emb_path.split("/")[1])
 
     # model
     tags.append(hparams.model.name)
