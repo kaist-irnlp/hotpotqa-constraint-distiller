@@ -227,5 +227,5 @@ class Distiller(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.hparams.train.learning_rate)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        # return optimizer
-        return [optimizer], [scheduler]
+        return optimizer
+        # return [optimizer], [scheduler]
