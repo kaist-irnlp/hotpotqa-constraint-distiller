@@ -31,7 +31,7 @@ from omegaconf import OmegaConf
 # project specific
 from trec2019.distiller import Distiller
 from trec2019.model import WTAModel
-from trec2019.utils.dataset import EmbeddingLabelDataset
+from trec2019.utils.dataset import EmbeddingLabelDataset, TripleEmbeddingDataModule
 from trec2019.task import ClassificationTask, RankingTask
 
 
@@ -217,8 +217,11 @@ def main(hparams):
         # deterministic=True,
     )
 
+    # init data
+    dm = TripleEmbeddingDataModule(hparams)
+
     # train
-    trainer.fit(model)
+    trainer.fit(model, dm)
 
     # upload the best model and configs
     # checkpoints_dir = os.getcwd()

@@ -1,19 +1,23 @@
-import torch
-import pandas as pd
+import gc
 import gzip
-from pprint import pprint
+import json
+from collections import Counter
 from pathlib import Path
-from torch.utils.data import Dataset, ConcatDataset, IterableDataset, DataLoader
+from pprint import pprint
+from multiprocessing import cpu_count
+
 import h5py
 import numpy as np
-import gc
+import pandas as pd
+import pytorch_lightning as pl
+import torch
+import torchtext
 import zarr
 from numcodecs import blosc
-from torchtext.vocab import Vocab
-import torchtext
-from collections import Counter
-import json
 from sklearn.preprocessing import normalize
+from torch.utils.data import ConcatDataset, DataLoader, Dataset, IterableDataset
+from torchtext.vocab import Vocab
+
 from trec2019.utils.dense import *
 
 
@@ -190,6 +194,54 @@ class TripleEmbeddingDataset(Dataset):
             "target_pos": target_pos.astype(dt_i),
             "target_neg": target_neg.astype(dt_i),
         }
+
+
+class TripleEmbeddingDataModule(pl.LightningDataModule):
+    def __init__(self, hparams):
+        super().__init__()
+        self.hparams = hparams
+        self._init_datasets()
+
+    # dataset
+    def _init_datasets(self):
+        self._train_dataset = self._init_dataset("train")
+        self._val_dataset = self._init_dataset("val")
+        self._test_dataset = self._init_dataset("test")
+
+    def _init_dataset(self, dset_type):
+        data_path = Path(self.hparams.dataset.path) / f"{dset_type}.zarr"
+        emb_path = self.hparams.dataset.emb_path
+        on_memory = self.hparams.dataset.on_memory
+
+        return TripleEmbeddingDataset(data_path, emb_path, on_memory=on_memory,)
+
+    def _get_dataloader(self, dataset, shuffle=False):
+        num_workers = int(cpu_count() / 2)
+        batch_size = self.hparams.batch_size
+        return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            pin_memory=True,
+            shuffle=shuffle,
+        )
+
+    def train_dataloader(self):
+        return self._get_dataloader(self._train_dataset)
+
+    def val_dataloader(self):
+        return self._get_dataloader(self._val_dataset)
+
+    def test_dataloader(self):
+        return self._get_dataloader(self._test_dataset)
+
+    # OPTIONAL, called only on 1 GPU/machine
+    def prepare_data(self):
+        pass
+
+    # OPTIONAL, called for every GPU/machine (assigning state is OK)
+    def setup(self, stage):
+        pass
 
 
 if __name__ == "__main__":

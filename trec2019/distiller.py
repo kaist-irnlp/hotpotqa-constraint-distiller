@@ -44,9 +44,6 @@ class Distiller(pl.LightningModule):
         super().__init__()
         self.hparams = hparams
 
-        # dataset
-        self._init_datasets()
-
         # layers
         self._init_layers()
 
@@ -80,46 +77,6 @@ class Distiller(pl.LightningModule):
         self._disc.add_module(f"disc_out_linear", nn.Linear(in_dim, out_dim))
         self._disc.add_module(f"disc_out_bn", nn.BatchNorm1d(out_dim, affine=False))
         self._disc.add_module(f"disc_out_selu", nn.SELU())
-
-    # dataset
-    def _init_datasets(self):
-        self._train_dataset = self._init_dataset("train")
-        self._val_dataset = self._init_dataset("val")
-        self._test_dataset = self._init_dataset("test")
-
-    def _init_dataset(self, dset_type):
-        data_path = Path(self.hparams.dataset.path) / f"{dset_type}.zarr"
-        data_cls = self.hparams.dataset.cls
-        emb_path = self.hparams.dataset.emb_path
-        on_memory = self.hparams.dataset.on_memory
-
-        data_cls = {
-            "tr": TripleEmbeddingDataset,
-            "emb": EmbeddingDataset,
-            "emb-lbl": EmbeddingLabelDataset,
-        }[data_cls]
-
-        return data_cls(data_path, emb_path, on_memory=on_memory,)
-
-    def _get_dataloader(self, dataset, shuffle=False):
-        num_workers = int(cpu_count() / 2)
-        batch_size = self.hparams.train.batch_size
-        return DataLoader(
-            dataset,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=True,
-            shuffle=shuffle,
-        )
-
-    def train_dataloader(self):
-        return self._get_dataloader(self._train_dataset)
-
-    def val_dataloader(self):
-        return self._get_dataloader(self._val_dataset)
-
-    def test_dataloader(self):
-        return self._get_dataloader(self._test_dataset)
 
     def loss_rank(self, outputs):
         q, pos, neg = outputs["enc_query"], outputs["enc_pos"], outputs["enc_neg"]
