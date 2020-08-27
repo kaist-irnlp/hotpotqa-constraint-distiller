@@ -171,7 +171,7 @@ class Distiller(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         outputs = self.shared_step(batch)
         losses = self.loss(outputs)
-        # logging
+        # for epoch_end
         result = pl.EvalResult(checkpoint_on=losses["total"])
         result.log_dict(
             {
@@ -183,10 +183,6 @@ class Distiller(pl.LightningModule):
             on_epoch=True,
         )
         return result
-
-    # def validation_epoch_end(self, outputs):
-    #     result = outputs
-    #     return result
 
     def test_step(self, batch, batch_idx):
         result = self.validation_step(batch, batch_idx)
@@ -232,7 +228,11 @@ class Distiller(pl.LightningModule):
         self._log_network_states()
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=self.hparams.train.learning_rate)
+        optimizer = optim.Adam(
+            self.parameters(),
+            lr=self.hparams.train.learning_rate,
+            weight_decay=self.hparams.l2_norm,
+        )
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         # reduce every epoch (default)
         # https://github.com/PyTorchLightning/pytorch-lightning/issues/2976
