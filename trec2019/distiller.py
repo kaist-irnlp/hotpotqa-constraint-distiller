@@ -53,7 +53,9 @@ class Distiller(pl.LightningModule):
 
         # discriminator
         ## define
-        in_dim = self._enc.output_size * 2  # encoder output will be concatenated.
+        in_dim = self._enc.output_size
+        if self.hparams.disc.use_maxpool:
+            in_dim *= 2
         h_dims = self.hparams.disc.hidden
         out_dim = self.hparams.disc.out
         weight_sparsity = self.hparams.disc.weight_sparsity
@@ -93,7 +95,7 @@ class Distiller(pl.LightningModule):
             F.cross_entropy(out_pos, target_pos),
             F.cross_entropy(out_neg, target_neg),
         )
-        return loss_pos + loss_neg
+        return (loss_pos + loss_neg) / 2
 
     def loss(self, outputs):
         losses = {}
@@ -114,17 +116,21 @@ class Distiller(pl.LightningModule):
         return F.normalize(self._enc(data), dim=1)
 
     def disc(self, q, d):
-        t_max = F.normalize(torch.max(q, d), dim=1)
         t_dot = F.normalize(q * d, dim=1)
-        if self.hparams.disc.use_binary:
-            t_max = (t_max > 0).type_as(q)
-            t_dot = (t_dot > 0).type_as(q)
-        t = torch.cat([t_max, t_dot], dim=1)
+        if self.hparams.disc.use_maxpool:
+            t_max = F.normalize(torch.max(q, d), dim=1)
+            t = torch.cat([t_max, t_dot], dim=1)
+        else:
+            t = t_dot
         # t = torch.cat([q, d], dim=1)
         return self._disc(t)
 
     @auto_move_data
     def forward(self, batch):
+        raise NotImplemented()
+
+    @auto_move_data
+    def shared_step(self, batch):
         # output features
         outputs = batch.copy()
 
@@ -140,31 +146,20 @@ class Distiller(pl.LightningModule):
         return outputs
 
     def training_step(self, batch, batch_idx):
-        outputs = self.forward(batch)
+        outputs = self.shared_step(batch)
         losses = self.loss(outputs)
         # logging
         result = pl.TrainResult(minimize=losses["total"])
         # result.log(
         #     "train_loss", losses["total"], prog_bar=True, logger=True, sync_dist=True
         # )
-        result.log(
-            "train_loss_rank",
-            losses["rank"],
-            prog_bar=True,
-            logger=True,
-            sync_dist=True,
-        )
-        result.log(
-            "train_loss_disc",
-            losses["disc"],
-            prog_bar=True,
-            logger=True,
-            sync_dist=True,
+        result.log_dict(
+            {"train_loss_rank": losses["rank"], "train_loss_disc": losses["disc"],}
         )
         return result
 
     def validation_step(self, batch, batch_idx):
-        outputs = self.forward(batch)
+        outputs = self.shared_step(batch)
         losses = self.loss(outputs)
         # logging
         result = pl.EvalResult(checkpoint_on=losses["total"])
@@ -173,10 +168,9 @@ class Distiller(pl.LightningModule):
                 "val_loss": losses["total"],
                 "val_loss_rank": losses["rank"],
                 "val_loss_disc": losses["disc"],
-            }
+            },
+            on_epoch=True,
         )
-        # result.val_loss = losses["total"]
-
         return result
 
     # def validation_epoch_end(self, outputs):

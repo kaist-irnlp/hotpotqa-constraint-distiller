@@ -218,7 +218,11 @@ def main(hparams):
     )
 
     # init data
-    dm = TripleEmbeddingDataModule(hparams)
+    data_dir = hparams.dataset.path
+    emb_path = hparams.dataset.emb_path
+    batch_size = hparams.train.batch_size
+    on_memory = hparams.dataset.on_memory
+    dm = TripleEmbeddingDataModule(data_dir, emb_path, batch_size, on_memory)
 
     # train
     trainer.fit(model, dm)

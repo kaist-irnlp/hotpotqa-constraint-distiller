@@ -2,6 +2,6 @@
 disc:
   hidden: 
     - 512
-  out: 3
-  use_binary: false
+  out: 2
   weight_sparsity: 0.3
+  use_maxpool: true
