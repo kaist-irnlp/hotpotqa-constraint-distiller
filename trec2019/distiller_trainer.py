@@ -96,7 +96,7 @@ def generate_tags(hparams):
 
     # disc
     tags.append(
-        f"disc:{'_'.join([str(h) for h in hparams.disc.hidden])}_{hparams.disc.weight_sparsity}"
+        f"disc-{'_'.join([str(h) for h in hparams.disc.hidden])}_{hparams.disc.weight_sparsity}"
     )
 
     # noise, dropout
