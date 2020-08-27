@@ -228,11 +228,7 @@ class Distiller(pl.LightningModule):
         self._log_network_states()
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(
-            self.parameters(),
-            lr=self.hparams.train.learning_rate,
-            weight_decay=self.hparams.l2_norm,
-        )
+        optimizer = optim.AdamW(self.parameters(), lr=self.hparams.train.learning_rate,)
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         # reduce every epoch (default)
         # https://github.com/PyTorchLightning/pytorch-lightning/issues/2976
