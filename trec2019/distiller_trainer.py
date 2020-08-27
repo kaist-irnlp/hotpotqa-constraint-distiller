@@ -188,7 +188,7 @@ def main(hparams):
     if hparams.train.use_early_stop:
         patience = hparams.train.early_stop_patience
         early_stop_callback = EarlyStopping(
-            monitor="val_loss", patience=patience, verbose=True, mode="min"
+            monitor="val_early_stop_on", patience=patience, verbose=True, mode="min"
         )
     else:
         early_stop_callback = None
