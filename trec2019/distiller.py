@@ -158,7 +158,13 @@ class Distiller(pl.LightningModule):
         #     "train_loss", losses["total"], prog_bar=True, logger=True, sync_dist=True
         # )
         result.log_dict(
-            {"train_loss_rank": losses["rank"], "train_loss_disc": losses["disc"],}
+            {
+                "train_loss": losses["total"],
+                "train_loss_rank": losses["rank"],
+                "train_loss_disc": losses["disc"],
+            },
+            on_step=True,
+            on_epoch=False,
         )
         return result
 
@@ -173,6 +179,7 @@ class Distiller(pl.LightningModule):
                 "val_loss_rank": losses["rank"],
                 "val_loss_disc": losses["disc"],
             },
+            on_step=False,
             on_epoch=True,
         )
         return result
