@@ -226,6 +226,13 @@ class Distiller(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.hparams.train.learning_rate)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        return optimizer
-        # return [optimizer], [scheduler]
+        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+        # reduce every epoch (default)
+        # https://github.com/PyTorchLightning/pytorch-lightning/issues/2976
+        scheduler = {
+            "scheduler": lr_scheduler,
+            "reduce_on_plateau": True,
+            # val_checkpoint_on is val_loss passed in as checkpoint_on
+            "monitor": "val_checkpoint_on",
+        }
+        return [optimizer], [scheduler]
