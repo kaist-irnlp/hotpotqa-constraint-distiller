@@ -18,9 +18,9 @@ parser.add_argument("--data_path", type=str, required=True)
 parser.add_argument(
     "--model", type=str, choices=("sif", "bert", "tfidf"), required=True
 )
-parser.add_argument("--model_tag", type=str, default="")
+parser.add_argument("--model_tag", type=str, default=None)
 parser.add_argument("--batch_size", type=int, default=512)
-parser.add_argument("--chunk_size", type=int, default=512)
+parser.add_argument("--chunk_size", type=int, default=2048)
 known_args, extra_args = parser.parse_known_args()
 
 
@@ -53,7 +53,10 @@ if __name__ == "__main__":
     )
 
     # open data to save
-    model_name = "_".join((args.model, args.model_tag))
+    if args.model_tag:
+        model_name = "_".join((args.model, args.model_tag))
+    else:
+        model_name = args.model
     emb_path = f"emb/{model_name}"
     z = zarr.open(str(data_path), "r+")
     z_embs = z.zeros(

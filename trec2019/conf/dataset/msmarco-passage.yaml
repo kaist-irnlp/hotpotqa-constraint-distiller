@@ -3,7 +3,7 @@ dataset:
   name: msmarco-passage
   cls: tr
   path: "msmarco-passage"
-  emb_path: "sif"
+  emb_path: "emb/sif"
   on_memory: true
 model:
   input_size: 300
