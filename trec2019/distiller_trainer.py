@@ -104,8 +104,8 @@ def generate_tags(hparams):
     # tags.append(f"dropout:{hparams.model.dropout}")
 
     # batch_size, lr
-    tags.append(f"bsz:{hparams.train.batch_size}")
-    tags.append(f"lr:{hparams.train.learning_rate}")
+    tags.append(f"bsz-{hparams.train.batch_size}")
+    tags.append(f"lr-{hparams.train.learning_rate}")
 
     # explicit tags
     # for grp, val in hparams.items():
