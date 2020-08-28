@@ -4,4 +4,4 @@ disc:
     - 512
   out: 2
   weight_sparsity: 1.0
-  use_maxpool: true
+  use_maxpool: false
