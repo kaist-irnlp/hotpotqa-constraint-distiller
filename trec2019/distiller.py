@@ -54,9 +54,9 @@ class Distiller(pl.LightningModule):
 
         # discriminator
         ## define
-        in_dim = self._enc.output_size
-        if self.hparams.disc.use_maxpool:
-            in_dim *= 2
+        in_dim = self._enc.output_size * 2
+        # if self.hparams.disc.use_maxpool:
+        #     in_dim *= 2
         h_dims = self.hparams.disc.hidden
         out_dim = self.hparams.disc.out
         weight_sparsity = self.hparams.disc.weight_sparsity
@@ -133,12 +133,12 @@ class Distiller(pl.LightningModule):
 
     def disc(self, q, d):
         t_dot = F.normalize(q * d, dim=1)
-        if self.hparams.disc.use_maxpool:
-            t_max = F.normalize(torch.max(q, d), dim=1)
-            t = torch.cat([t_max, t_dot], dim=1)
-        else:
-            t = t_dot
-        # t = torch.cat([q, d], dim=1)
+        # if self.hparams.disc.use_maxpool:
+        #     t_max = F.normalize(torch.max(q, d), dim=1)
+        #     t = torch.cat([t_max, t_dot], dim=1)
+        # else:
+        #     t = t_dot
+        t = torch.cat([q, d], dim=1)
         return self._disc(t)
 
     @auto_move_data

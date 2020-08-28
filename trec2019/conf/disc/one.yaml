@@ -1,7 +1,7 @@
 # @package _global_
 disc:
   hidden: 
-    - 256
+    - 512
   out: 2
   weight_sparsity: 1.0
-  use_maxpool: false
+  # use_maxpool: false
