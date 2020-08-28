@@ -66,7 +66,7 @@ class PostTrainCallback(pl.Callback):
         # compress
         ckpt_path_compressed = ckpt_path.with_suffix(".tar.gz")
         with tarfile.open(ckpt_path_compressed, "w:gz") as tar:
-            tar.add(ckpt_path, arcname=ckpt_path.name)
+            tar.add(ckpt_path)
 
         # upload artifacts
         try:
