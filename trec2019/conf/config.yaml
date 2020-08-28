@@ -1,6 +1,6 @@
 defaults:
   - model: wta
-  - disc: single
+  - disc: two
   - dataset: msmarco-passage
   - model_n: defaults
   - model_k: defaults
