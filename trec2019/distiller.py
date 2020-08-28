@@ -186,6 +186,9 @@ class Distiller(pl.LightningModule):
         )
         return result
 
+    def validation_epoch_end(self, val_step_outputs):
+        return val_step_outputs
+
     def test_step(self, batch, batch_idx):
         result = self.validation_step(batch, batch_idx)
         result.rename_keys(
