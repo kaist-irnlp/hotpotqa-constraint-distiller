@@ -53,25 +53,22 @@ class PostTrainCallback(pl.Callback):
 
     def on_train_end(self, trainer, pl_module):
         ckpt_path = Path(trainer.ckpt_path)
+        exp_name = pl_module.logger.experiment_name
         # save hparams
         hparams_str = pl_module.hparams.pretty()
-        hparams_path = ckpt_path / "hparams.yaml"
+        if exp_name:
+            hparams_path = ckpt_path / exp_name / "hparams.yaml"
+        else:
+            hparams_path = ckpt_path / "hparams.yaml"
         with hparams_path.open("w", encoding="utf-8") as f:
             f.write(hparams_str)
-        # upload hparams
-        pl_module.logger.log_artifact(str(hparams_path))
 
-        # save the last checkpoint
-        if pl_module.hparams.train.save_last_checkpoint:
-            trainer.save_checkpoint(
-                ckpt_path / f"last_epoch={trainer.current_epoch}.ckpt"
-            )
         # compress
         ckpt_path_compressed = ckpt_path.with_suffix(".tar.gz")
         with tarfile.open(ckpt_path_compressed, "w:gz") as tar:
             tar.add(ckpt_path, arcname=ckpt_path.name)
 
-        # upload checkpoints
+        # upload artifacts
         try:
             pl_module.logger.log_artifact(str(ckpt_path_compressed))
         except:
