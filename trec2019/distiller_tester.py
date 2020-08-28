@@ -36,9 +36,7 @@ def load_model(exp_dir):
 
 def load_data(data_dir, hparams):
     emb_path = hparams.emb_path
-    batch_size = (1024,)
-    on_memory = True
-    return TripleEmbeddingDataModule(data_dir, emb_path, batch_size, on_memory)
+    return TripleEmbeddingDataModule(data_dir, emb_path,)
 
 
 if __name__ == "__main__":

@@ -198,7 +198,7 @@ class TripleEmbeddingDataset(Dataset):
 
 class TripleEmbeddingDataModule(pl.LightningDataModule):
     def __init__(
-        self, data_dir, emb_path, batch_size, on_memory=False,
+        self, data_dir, emb_path, batch_size=1024, on_memory=True,
     ):
         super().__init__()
         self.data_dir = data_dir
