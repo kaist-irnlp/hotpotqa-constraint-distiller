@@ -90,9 +90,6 @@ class Distiller(pl.LightningModule):
         return max(delta + margin, 0)
 
     def loss_disc(self, outputs):
-        # TODO: target 필드를 하나로 통일
-        # TODO: acc = FM.accuracy(y_hat, y)
-        # https://pytorch-lightning.readthedocs.io/en/stable/lightning-module.html#lightningmodule-for-production
         out_pos, target_pos = outputs["out_pos"], outputs["target_pos"]
         out_neg, target_neg = outputs["out_neg"], outputs["target_neg"]
         loss_pos, loss_neg = (
@@ -100,6 +97,17 @@ class Distiller(pl.LightningModule):
             F.cross_entropy(out_neg, target_neg),
         )
         return (loss_pos + loss_neg) / 2
+
+    def acc_disc(self, outputs):
+        # TODO: acc = FM.accuracy(y_hat, y)
+        # https://pytorch-lightning.readthedocs.io/en/stable/lightning-module.html#lightningmodule-for-production
+        out_pos, target_pos = outputs["out_pos"], outputs["target_pos"]
+        out_neg, target_neg = outputs["out_neg"], outputs["target_neg"]
+        acc_pos, acc_neg = (
+            FM.accuracy(out_pos.argmax(dim=-1), target_pos),
+            FM.accuracy(out_neg.argmax(dim=-1), target_neg),
+        )
+        return (acc_pos + acc_neg) / 2
 
     def loss(self, outputs):
         losses = {}
@@ -109,6 +117,9 @@ class Distiller(pl.LightningModule):
 
         # L2: disc loss
         losses["disc"] = self.loss_disc(outputs)
+
+        # Acc
+        losses["acc_disc"] = self.acc_disc(outputs)
 
         # L1 + L2
         losses["total"] = losses["rank"] + losses["disc"]
@@ -162,6 +173,7 @@ class Distiller(pl.LightningModule):
                 "train_loss": losses["total"],
                 "train_loss_rank": losses["rank"],
                 "train_loss_disc": losses["disc"],
+                "train_acc_disc": losses["acc_disc"],
             },
             on_step=True,
             on_epoch=False,
@@ -180,6 +192,7 @@ class Distiller(pl.LightningModule):
                 "val_loss": losses["total"],
                 "val_loss_rank": losses["rank"],
                 "val_loss_disc": losses["disc"],
+                "val_acc_disc": losses["acc_disc"],
             },
             on_step=False,
             on_epoch=True,
@@ -196,6 +209,7 @@ class Distiller(pl.LightningModule):
                 "val_loss": "test_loss",
                 "val_loss_rank": "test_loss_rank",
                 "val_loss_disc": "test_loss_disc",
+                "val_acc_disc": "test_acc_disc",
             }
         )
         return result
