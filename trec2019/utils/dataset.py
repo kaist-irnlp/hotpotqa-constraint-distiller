@@ -221,7 +221,8 @@ class TripleEmbeddingDataModule(pl.LightningDataModule):
         return TripleEmbeddingDataset(data_path, emb_path, on_memory=on_memory,)
 
     def _get_dataloader(self, dataset, shuffle=False):
-        num_workers = int(cpu_count() / 2)
+        # num_workers = int(cpu_count() / 2)
+        num_workers = cpu_count()
         batch_size = self.batch_size
         return DataLoader(
             dataset,
