@@ -103,9 +103,10 @@ class Distiller(pl.LightningModule):
         # https://pytorch-lightning.readthedocs.io/en/stable/lightning-module.html#lightningmodule-for-production
         out_pos, target_pos = outputs["out_pos"], outputs["target_pos"]
         out_neg, target_neg = outputs["out_neg"], outputs["target_neg"]
+        num_classes = self.hparams.disc.out
         acc_pos, acc_neg = (
-            FM.accuracy(out_pos.argmax(dim=-1), target_pos),
-            FM.accuracy(out_neg.argmax(dim=-1), target_neg),
+            FM.accuracy(out_pos.argmax(dim=-1), target_pos, num_classes=num_classes),
+            FM.accuracy(out_neg.argmax(dim=-1), target_neg, num_classes=num_classes),
         )
         return (acc_pos + acc_neg) / 2
 
