@@ -146,6 +146,8 @@ class Distiller(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         outputs = self.shared_step(batch)
         losses = self.loss(outputs)
+        # TODO: DEBUG
+        assert isinstance(losses["total"], torch.Tensor), f'{losses["total"]}, {type(losses["total"])} <- torch.Tensor'
         # logging
         result = pl.TrainResult(minimize=losses["total"])
         result.log_dict(
