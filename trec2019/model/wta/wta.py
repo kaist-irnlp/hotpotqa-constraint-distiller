@@ -16,7 +16,8 @@ class WTAModel(nn.Module):
 
     def forward(self, x):
         features = self.layers(x)
-        return F.normalize(features, dim=-1)
+        return features
+        # return F.normalize(features, dim=-1)
 
     def on_epoch_end(self):
         self.apply(update_boost_strength)
