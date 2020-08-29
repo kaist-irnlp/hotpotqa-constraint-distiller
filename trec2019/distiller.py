@@ -109,7 +109,7 @@ class Distiller(pl.LightningModule):
     def disc(self, q, d):
         # TODO: consider L2-distance?
         t_dot = q * d
-        t_dist = F.pairwise_distance(q, d)
+        t_dist = F.pairwise_distance(q, d).unsqueeze(1)
         # if self.hparams.disc.use_maxpool:
         #     t_max = F.normalize(torch.max(q, d), dim=1)
         #     t = torch.cat([t_max, t_dot], dim=1)
