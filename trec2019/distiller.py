@@ -90,11 +90,11 @@ class Distiller(pl.LightningModule):
         return (acc_pos + acc_neg) / 2
 
     def loss(self, outputs):
-        losses = {}
+        losses = {"total": 0}
 
         # L1: contrastive loss between pos/neg
         losses["rank"] = self.loss_rank(outputs)
-        losses["total"] = losses["rank"]
+        losses["total"] += losses["rank"]
 
         if self._use_disc():
             # L2: disc loss
