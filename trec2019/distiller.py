@@ -10,6 +10,7 @@ from collections import OrderedDict
 from multiprocessing import cpu_count
 from pathlib import Path
 from pprint import pprint
+from trec2019.model.disc.disc import DiscModel
 
 import numpy as np
 import pandas as pd
@@ -26,7 +27,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from pytorch_lightning.metrics import functional as FM
 
-from trec2019.model import WTAModel
+from trec2019.model import WTAModel, DiscModel
 from trec2019.model.wta.nupic import *
 from trec2019.task import ClassificationTask, RankingTask
 from trec2019.utils.dataset import *
@@ -53,33 +54,36 @@ class Distiller(pl.LightningModule):
         self._enc = WTAModel(self.hparams)
 
         # discriminator
+        self._disc = DiscModel(self.hparams)
+
+        ### TODO: Test migration
         ## define
-        in_dim = self._enc.output_size * 2
-        # if self.hparams.disc.use_maxpool:
-        #     in_dim *= 2
-        h_dims = self.hparams.disc.hidden
-        out_dim = self.hparams.disc.out
-        weight_sparsity = self.hparams.disc.weight_sparsity
-        ## build
-        self._disc = nn.Sequential()
-        for i in range(len(h_dims)):
-            linear = nn.Linear(in_dim, h_dims[i])
-            # use sparse weights
-            if 0 < weight_sparsity < 1:
-                linear = SparseWeights(linear, sparsity=weight_sparsity)
-                linear.apply(normalize_sparse_weights)
-            # add modules
-            self._disc.add_module(f"disc_linear_{i+1}", linear)
-            self._disc.add_module(
-                f"disc_bn_{i+1}", nn.BatchNorm1d(h_dims[i], affine=False)
-            )
-            self._disc.add_module(f"disc_selu_{i+1}", nn.SELU())
-            # prepare next connection
-            in_dim = h_dims[i]
-        ## add out layer
-        self._disc.add_module(f"disc_out_linear", nn.Linear(in_dim, out_dim))
-        self._disc.add_module(f"disc_out_bn", nn.BatchNorm1d(out_dim, affine=False))
-        self._disc.add_module(f"disc_out_selu", nn.SELU())
+        # in_dim = self._enc.output_size * 2
+        # # if self.hparams.disc.use_maxpool:
+        # #     in_dim *= 2
+        # h_dims = self.hparams.disc.hidden
+        # out_dim = self.hparams.disc.out
+        # weight_sparsity = self.hparams.disc.weight_sparsity
+        # ## build
+        # self._disc = nn.Sequential()
+        # for i in range(len(h_dims)):
+        #     linear = nn.Linear(in_dim, h_dims[i])
+        #     # use sparse weights
+        #     if 0 < weight_sparsity < 1:
+        #         linear = SparseWeights(linear, sparsity=weight_sparsity)
+        #         linear.apply(normalize_sparse_weights)
+        #     # add modules
+        #     self._disc.add_module(f"disc_linear_{i+1}", linear)
+        #     self._disc.add_module(
+        #         f"disc_bn_{i+1}", nn.BatchNorm1d(h_dims[i], affine=False)
+        #     )
+        #     self._disc.add_module(f"disc_selu_{i+1}", nn.SELU())
+        #     # prepare next connection
+        #     in_dim = h_dims[i]
+        # ## add out layer
+        # self._disc.add_module(f"disc_out_linear", nn.Linear(in_dim, out_dim))
+        # self._disc.add_module(f"disc_out_bn", nn.BatchNorm1d(out_dim, affine=False))
+        # self._disc.add_module(f"disc_out_selu", nn.SELU())
 
     def loss_rank(self, outputs):
         q, pos, neg = outputs["enc_query"], outputs["enc_pos"], outputs["enc_neg"]
@@ -133,6 +137,7 @@ class Distiller(pl.LightningModule):
 
     def disc(self, q, d):
         t_dot = F.normalize(q * d, dim=1)
+        # TODO: consider L2-distance?
         # if self.hparams.disc.use_maxpool:
         #     t_max = F.normalize(torch.max(q, d), dim=1)
         #     t = torch.cat([t_max, t_dot], dim=1)
@@ -166,9 +171,6 @@ class Distiller(pl.LightningModule):
         losses = self.loss(outputs)
         # logging
         result = pl.TrainResult(minimize=losses["total"])
-        # result.log(
-        #     "train_loss", losses["total"], prog_bar=True, logger=True, sync_dist=True
-        # )
         result.log_dict(
             {
                 "train_loss": losses["total"],
