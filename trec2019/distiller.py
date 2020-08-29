@@ -49,19 +49,23 @@ class Distiller(pl.LightningModule):
         # layers
         self._init_layers()
 
+    def _use_disc(self):
+        return self.hparams.disc.use_disc
+
     def _init_layers(self):
         # encoder
         self._enc = WTAModel(self.hparams)
 
         # discriminator
-        self._disc = DiscModel(self.hparams)
+        if self._use_disc():
+            self._disc = DiscModel(self.hparams)
 
     def loss_rank(self, outputs):
         q, pos, neg = outputs["enc_query"], outputs["enc_pos"], outputs["enc_neg"]
         sim_p = F.cosine_similarity(q, pos)
         sim_n = F.cosine_similarity(q, neg)
         delta = torch.mean(sim_n - sim_p)
-        margin = 0.5
+        margin = self.hparams.model.rank_margin
         return max(delta + margin, 0)
 
     def loss_disc(self, outputs):
@@ -90,15 +94,15 @@ class Distiller(pl.LightningModule):
 
         # L1: contrastive loss between pos/neg
         losses["rank"] = self.loss_rank(outputs)
+        losses["total"] = losses["rank"]
 
-        # L2: disc loss
-        losses["disc"] = self.loss_disc(outputs)
-
-        # Acc
-        losses["acc_disc"] = self.acc_disc(outputs)
-
-        # L1 + L2
-        losses["total"] = losses["rank"] + losses["disc"]
+        if self._use_disc():
+            # L2: disc loss
+            losses["disc"] = self.loss_disc(outputs)
+            # Acc
+            losses["acc_disc"] = self.acc_disc(outputs)
+            # add to total
+            losses["total"] += losses["disc"]
 
         return losses
 
@@ -133,8 +137,9 @@ class Distiller(pl.LightningModule):
         outputs["enc_neg"] = self.encode(outputs["neg"])
 
         # forward disc
-        outputs["out_pos"] = self.disc(outputs["enc_query"], outputs["enc_pos"])
-        outputs["out_neg"] = self.disc(outputs["enc_query"], outputs["enc_neg"])
+        if self._use_disc():
+            outputs["out_pos"] = self.disc(outputs["enc_query"], outputs["enc_pos"])
+            outputs["out_neg"] = self.disc(outputs["enc_query"], outputs["enc_neg"])
 
         return outputs
 
@@ -144,15 +149,19 @@ class Distiller(pl.LightningModule):
         # logging
         result = pl.TrainResult(minimize=losses["total"])
         result.log_dict(
-            {
-                "train_loss": losses["total"],
-                "train_loss_rank": losses["rank"],
-                "train_loss_disc": losses["disc"],
-                "train_acc_disc": losses["acc_disc"],
-            },
+            {"train_loss": losses["total"], "train_loss_rank": losses["rank"],},
             on_step=True,
             on_epoch=False,
         )
+        if self._use_disc():
+            result.log_dict(
+                {
+                    "train_loss_disc": losses["disc"],
+                    "train_acc_disc": losses["acc_disc"],
+                },
+                on_step=True,
+                on_epoch=False,
+            )
         return result
 
     def validation_step(self, batch, batch_idx):
@@ -163,15 +172,16 @@ class Distiller(pl.LightningModule):
             checkpoint_on=losses["total"], early_stop_on=losses["total"]
         )
         result.log_dict(
-            {
-                "val_loss": losses["total"],
-                "val_loss_rank": losses["rank"],
-                "val_loss_disc": losses["disc"],
-                "val_acc_disc": losses["acc_disc"],
-            },
+            {"val_loss": losses["total"], "val_loss_rank": losses["rank"],},
             on_step=False,
             on_epoch=True,
         )
+        if self._use_disc():
+            result.log_dict(
+                {"val_loss_disc": losses["disc"], "val_acc_disc": losses["acc_disc"],},
+                on_step=True,
+                on_epoch=False,
+            )
         return result
 
     # def validation_epoch_end(self, val_step_outputs):

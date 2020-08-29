@@ -1,6 +1,8 @@
 # @package _global_
 model:
   name: wta
+  # ranking
+  rank_margin: 0.1
   # boosting
   k_inference_factor: 1.5
   weight_sparsity: 0.3
