@@ -56,35 +56,6 @@ class Distiller(pl.LightningModule):
         # discriminator
         self._disc = DiscModel(self.hparams)
 
-        ### TODO: Test migration
-        ## define
-        # in_dim = self._enc.output_size * 2
-        # # if self.hparams.disc.use_maxpool:
-        # #     in_dim *= 2
-        # h_dims = self.hparams.disc.hidden
-        # out_dim = self.hparams.disc.out
-        # weight_sparsity = self.hparams.disc.weight_sparsity
-        # ## build
-        # self._disc = nn.Sequential()
-        # for i in range(len(h_dims)):
-        #     linear = nn.Linear(in_dim, h_dims[i])
-        #     # use sparse weights
-        #     if 0 < weight_sparsity < 1:
-        #         linear = SparseWeights(linear, sparsity=weight_sparsity)
-        #         linear.apply(normalize_sparse_weights)
-        #     # add modules
-        #     self._disc.add_module(f"disc_linear_{i+1}", linear)
-        #     self._disc.add_module(
-        #         f"disc_bn_{i+1}", nn.BatchNorm1d(h_dims[i], affine=False)
-        #     )
-        #     self._disc.add_module(f"disc_selu_{i+1}", nn.SELU())
-        #     # prepare next connection
-        #     in_dim = h_dims[i]
-        # ## add out layer
-        # self._disc.add_module(f"disc_out_linear", nn.Linear(in_dim, out_dim))
-        # self._disc.add_module(f"disc_out_bn", nn.BatchNorm1d(out_dim, affine=False))
-        # self._disc.add_module(f"disc_out_selu", nn.SELU())
-
     def loss_rank(self, outputs):
         q, pos, neg = outputs["enc_query"], outputs["enc_pos"], outputs["enc_neg"]
         sim_p = F.cosine_similarity(q, pos)
@@ -136,14 +107,15 @@ class Distiller(pl.LightningModule):
         return F.normalize(self._enc(data), dim=1)
 
     def disc(self, q, d):
-        t_dot = F.normalize(q * d, dim=1)
         # TODO: consider L2-distance?
+        t_dot = F.normalize(q * d)
+        t_dist = F.pairwise_distance(q, d)
         # if self.hparams.disc.use_maxpool:
         #     t_max = F.normalize(torch.max(q, d), dim=1)
         #     t = torch.cat([t_max, t_dot], dim=1)
         # else:
         #     t = t_dot
-        t = torch.cat([q, d], dim=1)
+        t = torch.cat([t_dot, t_dist], dim=1)
         return self._disc(t)
 
     @auto_move_data

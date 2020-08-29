@@ -16,7 +16,7 @@ class DiscModel(nn.Module):
         return self.layers(x)
 
     def _init_layers(self):
-        in_dim = self.hparams.model_n.n[-1] * 2
+        in_dim = self.hparams.model_n.n[-1] + 1  # extra 1 dim for L2-dist
         h_dims = self.hparams.disc.hidden
         out_dim = self.hparams.disc.out
         # weight_sparsity = self.hparams.disc.weight_sparsity
