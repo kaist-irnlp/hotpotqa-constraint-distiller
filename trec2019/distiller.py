@@ -66,7 +66,7 @@ class Distiller(pl.LightningModule):
         sim_n = F.cosine_similarity(q, neg)
         delta = torch.mean(sim_n - sim_p)
         margin = self.hparams.model.rank_margin
-        return torch.max(delta + margin, torch.zeros(1))
+        return torch.max(delta + margin, torch.zeros(1, device=self.device))
 
     def loss_disc(self, outputs):
         out_pos, target_pos = outputs["out_pos"], outputs["target_pos"]
