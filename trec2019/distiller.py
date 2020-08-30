@@ -90,7 +90,7 @@ class Distiller(pl.LightningModule):
         return (acc_pos + acc_neg) / 2
 
     def loss(self, outputs):
-        losses = {"total": torch.zeros(1)}
+        losses = {"total": torch.zeros(1, device=self.device)}
 
         # L1: contrastive loss between pos/neg
         losses["rank"] = self.loss_rank(outputs)
