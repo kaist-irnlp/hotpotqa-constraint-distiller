@@ -91,7 +91,7 @@ class Distiller(pl.LightningModule):
 
     @auto_move_data
     def loss(self, outputs):
-        losses = {"total": torch.zeros(1)}
+        losses = {"total": torch.zeros(1, device=self.device)}
 
         # L1: contrastive loss between pos/neg
         losses["rank"] = self.loss_rank(outputs)
