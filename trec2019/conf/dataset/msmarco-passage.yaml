@@ -6,4 +6,4 @@ dataset:
   emb_path: "emb/sif"
   on_memory: true
 model:
-  input_size: 300
+  input_size: null

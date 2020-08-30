@@ -133,16 +133,16 @@ def main_hydra(cfg: DictConfig) -> None:
 
 
 def main(hparams):
-    # # init model
-    # ## dataset
-    # data_cls = get_data_cls(hparams.dataset.name)
-    # data_path = hparams.dataset.path
-    # arr_path = hparams.dataset.arr_path
-    # ## sparse model
-    # sparse_cls = get_sparse_cls(hparams.model.name)
-    # ## task model
-    # task_cls = get_task_cls(hparams.task.type)
-    # init Distiller
+    # init data
+    data_dir = hparams.dataset.path
+    emb_path = hparams.dataset.emb_path
+    batch_size = hparams.train.batch_size
+    on_memory = hparams.dataset.on_memory
+    dm = TripleEmbeddingDataModule(data_dir, emb_path, batch_size, on_memory)
+    ## identify input_size
+    hparams.model.input_size = dm.dim
+
+    # model
     model = Distiller(hparams)
 
     # early stop
@@ -212,12 +212,6 @@ def main(hparams):
         # deterministic=True,
     )
 
-    # init data
-    data_dir = hparams.dataset.path
-    emb_path = hparams.dataset.emb_path
-    batch_size = hparams.train.batch_size
-    on_memory = hparams.dataset.on_memory
-    dm = TripleEmbeddingDataModule(data_dir, emb_path, batch_size, on_memory)
 
     # train
     trainer.fit(model, dm)

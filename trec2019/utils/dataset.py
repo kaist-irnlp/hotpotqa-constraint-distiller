@@ -162,6 +162,10 @@ class TripleEmbeddingDataset(Dataset):
         self.on_memory = on_memory
         self._load_data()
 
+    @property
+    def dim(self):
+        return self.query.shape[1]
+
     def _load_data(self):
         z = zarr.open(str(self.data_path), "r")
         self.query, self.pos, self.neg, self.target_pos, self.target_neg = (
@@ -207,6 +211,10 @@ class TripleEmbeddingDataModule(pl.LightningDataModule):
         self.on_memory = on_memory
         self._init_datasets()
 
+    @property
+    def dim(self):
+        return self._train_dataset.dim
+
     # dataset
     def _init_datasets(self):
         self._train_dataset = self._init_dataset("train")
@@ -222,6 +230,7 @@ class TripleEmbeddingDataModule(pl.LightningDataModule):
 
     def _get_dataloader(self, dataset, shuffle=False):
         num_workers = int(cpu_count() / 2)
+        # num_workers = 0
         batch_size = self.batch_size
         return DataLoader(
             dataset,
@@ -259,3 +268,4 @@ if __name__ == "__main__":
         print(batch.keys())
         if i > 1:
             break
+
