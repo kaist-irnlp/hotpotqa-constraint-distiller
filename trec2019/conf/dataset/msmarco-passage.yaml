@@ -5,5 +5,6 @@ dataset:
   path: "msmarco-passage"
   emb_path: "emb/sif"
   on_memory: true
+  num_workers: 4
 model:
   input_size: null

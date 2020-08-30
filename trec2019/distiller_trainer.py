@@ -134,11 +134,7 @@ def main_hydra(cfg: DictConfig) -> None:
 
 def main(hparams):
     # init data
-    data_dir = hparams.dataset.path
-    emb_path = hparams.dataset.emb_path
-    batch_size = hparams.train.batch_size
-    on_memory = hparams.dataset.on_memory
-    dm = TripleEmbeddingDataModule(data_dir, emb_path, batch_size, on_memory)
+    dm = TripleEmbeddingDataModule(hparams)
     ## identify input_size
     hparams.model.input_size = dm.dim
 
