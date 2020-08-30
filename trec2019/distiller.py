@@ -90,7 +90,7 @@ class Distiller(pl.LightningModule):
         return (acc_pos + acc_neg) / 2
 
     def loss(self, outputs):
-        losses = {"total": 0}
+        losses = {"total": torch.zeros(1)}
 
         # L1: contrastive loss between pos/neg
         losses["rank"] = self.loss_rank(outputs)
@@ -147,7 +147,7 @@ class Distiller(pl.LightningModule):
         outputs = self.shared_step(batch)
         losses = self.loss(outputs)
         # TODO: DEBUG
-        assert isinstance(losses["total"], torch.Tensor), f'{losses["total"]}, {type(losses["total"])} <- torch.Tensor'
+        # assert isinstance(losses["total"], torch.Tensor), f'{losses["total"]}, {type(losses["total"])} <- torch.Tensor'
         # logging
         result = pl.TrainResult(minimize=losses["total"])
         result.log_dict(
