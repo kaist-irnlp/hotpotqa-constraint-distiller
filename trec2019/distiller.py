@@ -89,6 +89,7 @@ class Distiller(pl.LightningModule):
         )
         return (acc_pos + acc_neg) / 2
 
+    @auto_move_data
     def loss(self, outputs):
         losses = {"total": torch.zeros(1)}
 
