@@ -179,7 +179,7 @@ def main(hparams):
     callbacks = [PostTrainCallback(), LearningRateLogger()]
 
     # Callbacks: Early stop
-    early_stop_callback = None
+    early_stop_callback = True
     # if hparams.train.use_early_stop:
     #     patience = hparams.train.early_stop_patience
     #     early_stop_callback = EarlyStopping(
