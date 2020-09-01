@@ -66,7 +66,7 @@ class PostTrainCallback(pl.Callback):
         # compress
         ckpt_path_compressed = ckpt_path.with_suffix(".tar.gz")
         with tarfile.open(ckpt_path_compressed, "w:gz") as tar:
-            tar.add(ckpt_path)
+            tar.add(ckpt_path, arcname=hparams_path.parent)
 
         # upload artifacts
         try:
@@ -208,16 +208,15 @@ def main(hparams):
         # deterministic=True,
     )
 
-
     # train
     trainer.fit(model, dm)
 
     # upload the best model and configs
     # checkpoints_dir = os.getcwd()
-    if hparams.train.upload_checkpoints:
-        checkpoints_dir = Path(trainer.ckpt_path)
-        neptune_logger.experiment.log_artifact(str(checkpoints_dir))
-        neptune_logger.experiment.stop()
+    # if hparams.train.upload_checkpoints:
+    #     checkpoints_dir = Path(trainer.ckpt_path)
+    #     neptune_logger.experiment.log_artifact(str(checkpoints_dir))
+    #     neptune_logger.experiment.stop()
 
 
 if __name__ == "__main__":
