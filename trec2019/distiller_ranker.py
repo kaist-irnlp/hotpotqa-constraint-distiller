@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import numpy as np
 from scipy.sparse import vstack
-from scipy.sparse import csr_matrix, save_npz
+from scipy.sparse import csr_matrix, coo_matrix, save_npz
 
 from trec2019.distiller import Distiller
 from trec2019.utils.dataset import EmbeddingDataset
@@ -30,7 +30,7 @@ parser.add_argument("--query_dir", type=str, required=True)
 parser.add_argument("--doc_dir", type=str, required=True)
 parser.add_argument("--batch_size", type=int, default=8192)
 parser.add_argument("--gpu", type=int, default=0)
-parser.add_argument("--num_workers", type=int, default=4)
+parser.add_argument("--num_workers", type=int, default=0)
 args = parser.parse_args()
 
 device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
@@ -73,7 +73,7 @@ def model_desc(hparams):
     return "_".join(tags)
 
 
-def encode(model, data_dir, batch_size=8192, num_workers=4):
+def encode(model, data_dir, batch_size, num_workers):
     emb_path = model.hparams.dataset.emb_path
     dataset = EmbeddingDataset(data_dir, emb_path)
     loader = DataLoader(
@@ -89,7 +89,17 @@ def encode(model, data_dir, batch_size=8192, num_workers=4):
         )
         ids.append(_ids)
         embs.append(_embs)
-    ids, embs = vstack(ids), vstack(embs)
+    # pad to mamtch the shape
+    # diff_n_rows = embs[0].shape[0] - embs[-1].shape[0]
+    # dim = embs[0].shape[1]
+    # ## pad embs
+    # padding = csr_matrix(np.zeros((diff_n_rows, dim)))
+    # embs[-1] = vstack([embs[-1], padding])
+    # merge all
+    ids, embs = np.concatenate(ids), vstack(embs)
+    # remove pad from embs
+    # embs = embs[:-diff_n_rows]
+    assert ids.shape[0] == embs.shape[0]
     return ids, embs
 
 
@@ -107,8 +117,8 @@ if __name__ == "__main__":
         model, args.query_dir, batch_size=args.batch_size, num_workers=args.num_workers
     )
     out_name = f"{model_desc}_query"
-    save_npz(output_dir / f"{out_name}_ids.npz", ids)
-    save_npz(output_dir / f"{out_name}_embs.npz", embs)
+    np.save(output_dir / f"{out_name}_ids", ids)
+    save_npz(output_dir / f"{out_name}_embs", embs)
 
     # encode doc
     logging.info("Encoding doc...")
@@ -116,5 +126,5 @@ if __name__ == "__main__":
         model, args.doc_dir, batch_size=args.batch_size, num_workers=args.num_workers
     )
     out_name = f"{model_desc}_doc"
-    save_npz(output_dir / f"{out_name}_ids.npz", ids)
-    save_npz(output_dir / f"{out_name}_embs.npz", embs)
+    np.save(output_dir / f"{out_name}_ids", ids)
+    save_npz(output_dir / f"{out_name}_embs", embs)
