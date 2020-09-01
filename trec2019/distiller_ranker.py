@@ -158,3 +158,7 @@ if __name__ == "__main__":
     # encode or load query & doc
     for data_type in ["query", "doc"]:
         ids[data_type], embs[data_type] = load_or_encode(model_desc, data_type, dirs)
+        assert len(ids[data_type]) == len(embs[data_type])
+
+    # build inverted index
+    
