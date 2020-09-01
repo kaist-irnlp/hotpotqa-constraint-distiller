@@ -41,6 +41,10 @@ device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
 print("Running on", device)
 
 
+output_dir = Path(args.output_dir)
+output_dir.mkdir(parents=True, exist_ok=True)
+
+
 def load_model(exp_dir):
     exp_dir = Path(exp_dir)
     model_path = str(list(exp_dir.glob("**/*.ckpt"))[0])
@@ -107,10 +111,6 @@ def encode(model, data_dir, batch_size, num_workers):
     return ids, embs
 
 
-output_dir = Path(args.output_dir)
-output_dir.mkdir(parents=True, exist_ok=True)
-
-
 def load_encoded(model_desc, data_type):
     out_name = f"{model_desc}_{data_type}"
     ids_path = output_dir / f"{out_name}_ids.npy"
@@ -173,7 +173,8 @@ if __name__ == "__main__":
         top_ids = ids["doc"][ind][:K]
         # save ranks
         ranks[q_id] = top_ids
-    with open(f"runs.{model_desc}.txt", "w", encoding="utf-8") as f:
+        break
+    with open(output_dir / f"runs.{model_desc}.txt", "w", encoding="utf-8") as f:
         for q_id, p_ids in ranks.items():
             for r, p_id in enumerate(p_ids):
                 f.write(f"{q_id}\t{p_id}\t{r+1}\n")
