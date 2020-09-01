@@ -11,7 +11,9 @@ from numcodecs import Zstd
 from pytorch_lightning.trainer.trainer import Trainer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from scipy.sparse import csr_matrix
+import numpy as np
+from scipy.sparse import vstack
+from scipy.sparse import csr_matrix, save_npz
 
 from trec2019.distiller import Distiller
 from trec2019.utils.dataset import EmbeddingDataset
@@ -78,11 +80,16 @@ def encode(model, data_dir, batch_size=8192, num_workers=4):
         dataset, batch_size=batch_size, num_workers=num_workers, pin_memory=True,
     )
 
-    encoded = {}
+    ids = []
+    embs = []
     for i, batch in enumerate(tqdm(loader)):
-        ids, encs = batch["id"], csr_matrix(model(batch["emb"]).detach().cpu().numpy())
-        encoded.update({k: v for (k, v) in zip(ids, encs)})
-    return encoded
+        _ids, _embs = (
+            batch["id"],
+            csr_matrix(model(batch["emb"]).detach().cpu().numpy()),
+        )
+        ids.append(_ids)
+        embs.append(_embs)
+    return ids, embs
 
 
 output_dir = Path("./output")
@@ -95,16 +102,18 @@ if __name__ == "__main__":
 
     # encode query
     logging.info("Encoding query...")
-    queries = encode(
+    ids, embs = encode(
         model, args.query_dir, batch_size=args.batch_size, num_workers=args.num_workers
     )
-    with open(output_dir / f"{model_desc}_queries.pkl", "wb") as f:
-        pickle.dump(queries, f)
+    save_npz(output_dir / f"{model_desc}_query_ids.npz", ids)
+    save_npz(output_dir / f"{model_desc}_query_embs.npz", embs)
+    # with open(output_dir / f"{model_desc}_queries.pkl", "wb") as f:
+    #     pickle.dump(queries, f)
 
     # # encode doc
-    logging.info("Encoding doc...")
-    docs = encode(
-        model, args.model_dir, batch_size=args.batch_size, num_workers=args.num_workers
-    )
-    with open(output_dir / f"{model_desc}_docs.pkl", "wb") as f:
-        pickle.dump(docs, f)
+    # logging.info("Encoding doc...")
+    # docs = encode(
+    #     model, args.model_dir, batch_size=args.batch_size, num_workers=args.num_workers
+    # )
+    # with open(output_dir / f"{model_desc}_docs.pkl", "wb") as f:
+    #     pickle.dump(docs, f)
