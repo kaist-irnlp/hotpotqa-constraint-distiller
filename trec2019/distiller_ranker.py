@@ -80,7 +80,7 @@ def encode(model, data_dir, batch_size=8192, num_workers=4):
 
     encoded = {}
     for i, batch in enumerate(tqdm(loader)):
-        ids, encs = batch["id"], model(batch["emb"]).detach().cpu().numpy()
+        ids, encs = batch["id"], csr_matrix(model(batch["emb"]).detach().cpu().numpy())
         encoded.update({k: v for (k, v) in zip(ids, encs)})
     return encoded
 
