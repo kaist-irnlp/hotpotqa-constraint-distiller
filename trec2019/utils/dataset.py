@@ -162,6 +162,10 @@ class TripleEmbeddingDataset(Dataset):
         self.on_memory = on_memory
         self._load_data()
 
+    @property
+    def dim(self):
+        return self.query.shape[1]
+
     def _load_data(self):
         z = zarr.open(str(self.data_path), "r")
         self.query, self.pos, self.neg, self.target_pos, self.target_neg = (
@@ -197,15 +201,14 @@ class TripleEmbeddingDataset(Dataset):
 
 
 class TripleEmbeddingDataModule(pl.LightningDataModule):
-    def __init__(
-        self, data_dir, emb_path, batch_size=1024, on_memory=True,
-    ):
+    def __init__(self, hparams):
         super().__init__()
-        self.data_dir = data_dir
-        self.emb_path = emb_path
-        self.batch_size = batch_size
-        self.on_memory = on_memory
+        self.hparams = hparams
         self._init_datasets()
+
+    @property
+    def dim(self):
+        return self._train_dataset.dim
 
     # dataset
     def _init_datasets(self):
@@ -214,16 +217,16 @@ class TripleEmbeddingDataModule(pl.LightningDataModule):
         self._test_dataset = self._init_dataset("test")
 
     def _init_dataset(self, dset_type):
-        data_path = Path(self.data_dir) / f"{dset_type}.zarr"
-        emb_path = self.emb_path
-        on_memory = self.on_memory
+        data_path = Path(self.hparams.dataset.path) / f"{dset_type}.zarr"
+        emb_path = self.hparams.dataset.emb_path
+        on_memory = self.hparams.dataset.on_memory
 
         return TripleEmbeddingDataset(data_path, emb_path, on_memory=on_memory,)
 
     def _get_dataloader(self, dataset, shuffle=False):
         # num_workers = int(cpu_count() / 2)
-        num_workers = cpu_count()
-        batch_size = self.batch_size
+        num_workers = self.hparams.dataset.num_workers
+        batch_size = self.hparams.train.batch_size
         return DataLoader(
             dataset,
             batch_size=batch_size,
@@ -260,3 +263,4 @@ if __name__ == "__main__":
         print(batch.keys())
         if i > 1:
             break
+

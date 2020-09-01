@@ -1,5 +1,6 @@
 # @package _global_
 disc:
+  use_disc: false
   hidden: 
     - 512
   out: 2
