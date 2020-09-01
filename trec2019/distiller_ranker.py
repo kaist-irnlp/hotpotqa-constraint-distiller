@@ -28,7 +28,7 @@ parser.add_argument("--query_dir", type=str, required=True)
 parser.add_argument("--doc_dir", type=str, required=True)
 parser.add_argument("--batch_size", type=int, default=8192)
 parser.add_argument("--gpu", type=int, default=0)
-parser.add_argument("--num_workers", type=int, default=0)
+parser.add_argument("--num_workers", type=int, default=4)
 args = parser.parse_args()
 
 device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
