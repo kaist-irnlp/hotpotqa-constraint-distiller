@@ -95,12 +95,16 @@ if __name__ == "__main__":
 
     # encode query
     logging.info("Encoding query...")
-    queries = encode(model, args.query_dir)
+    queries = encode(
+        model, args.query_dir, batch_size=args.batch_size, num_workers=args.num_workers
+    )
     with open(output_dir / f"{model_desc}_queries.pkl", "wb") as f:
         pickle.dump(queries, f)
 
     # # encode doc
     logging.info("Encoding doc...")
-    docs = encode(model, args.model_dir)
+    docs = encode(
+        model, args.model_dir, batch_size=args.batch_size, num_workers=args.num_workers
+    )
     with open(output_dir / f"{model_desc}_docs.pkl", "wb") as f:
         pickle.dump(docs, f)
