@@ -26,11 +26,13 @@ parser = ArgumentParser()
 parser.add_argument("--exp_dir", type=str, required=True)
 parser.add_argument("--query_dir", type=str, required=True)
 parser.add_argument("--doc_dir", type=str, required=True)
+parser.add_argument("--batch_size", type=int, default=8192)
 parser.add_argument("--gpu", type=int, default=0)
 parser.add_argument("--num_workers", type=int, default=0)
 args = parser.parse_args()
 
 device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
+print("Running on", device)
 
 
 def load_model(exp_dir):
@@ -69,11 +71,11 @@ def model_desc(hparams):
     return "_".join(tags)
 
 
-def encode(model, data_dir, num_workers=4):
+def encode(model, data_dir, batch_size=8192, num_workers=4):
     emb_path = model.hparams.dataset.emb_path
     dataset = EmbeddingDataset(data_dir, emb_path)
     loader = DataLoader(
-        dataset, batch_size=2048, num_workers=num_workers, pin_memory=True,
+        dataset, batch_size=batch_size, num_workers=num_workers, pin_memory=True,
     )
 
     encoded = {}
