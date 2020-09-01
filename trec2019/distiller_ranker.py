@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import numpy as np
 from scipy.sparse import vstack
-from scipy.sparse import csr_matrix, coo_matrix, save_npz
+from scipy.sparse import csr_matrix, coo_matrix, save_npz, load_npz
 
 from trec2019.distiller import Distiller
 from trec2019.utils.dataset import EmbeddingDataset
@@ -106,25 +106,55 @@ def encode(model, data_dir, batch_size, num_workers):
 output_dir = Path("./output")
 output_dir.mkdir(parents=True, exist_ok=True)
 
+
+def load_encoded(model_desc, data_type):
+    out_name = f"{model_desc}_{data_type}"
+    ids_path = output_dir / f"{out_name}_ids.npy"
+    embs_path = output_dir / f"{out_name}_embs.npz"
+    if ids_path.exists() and embs_path.exists():
+        logging.info(f"Loading {data_type}...")
+        ids = np.load(ids_path)
+        embs = load_npz(embs_path)
+        return ids, embs
+    else:
+        raise IOError
+
+
+def save_encoded(model_desc, data_type, ids, embs):
+    out_name = f"{model_desc}_{data_type}"
+    ids_path = output_dir / f"{out_name}_ids.npy"
+    embs_path = output_dir / f"{out_name}_embs.npz"
+    np.save(ids_path, ids)
+    save_npz(embs_path, embs)
+
+
+def load_or_encode(model_desc, data_type, dirs):
+    logging.info(f"Trying to load {data_type}...")
+    try:
+        ids, embs = load_encoded(model_desc, data_type)
+        logging.info(f"Loaded {data_type}...")
+    except IOError:
+        logging.info(f"Encoding {data_type}...")
+        ids, embs = encode(
+            model,
+            dirs[data_type],
+            batch_size=args.batch_size,
+            num_workers=args.num_workers,
+        )
+        save_encoded(model_desc, data_type, ids, embs)
+    return ids, embs
+
+
 if __name__ == "__main__":
     logging.info("Loading checkpoint...")
     model = load_model(args.exp_dir)
     model_desc = model_desc(model.hparams)
 
-    # encode query
-    logging.info("Encoding query...")
-    ids, embs = encode(
-        model, args.query_dir, batch_size=args.batch_size, num_workers=args.num_workers
-    )
-    out_name = f"{model_desc}_query"
-    np.save(output_dir / f"{out_name}_ids", ids)
-    save_npz(output_dir / f"{out_name}_embs", embs)
+    # dict for results
+    dirs = {"query": args.query_dir, "doc": args.doc_dir}
+    ids = {}
+    embs = {}
 
-    # encode doc
-    logging.info("Encoding doc...")
-    ids, embs = encode(
-        model, args.doc_dir, batch_size=args.batch_size, num_workers=args.num_workers
-    )
-    out_name = f"{model_desc}_doc"
-    np.save(output_dir / f"{out_name}_ids", ids)
-    save_npz(output_dir / f"{out_name}_embs", embs)
+    # encode or load query & doc
+    for data_type in ["query", "doc"]:
+        ids[data_type], embs[data_type] = load_or_encode(model_desc, data_type, dirs)
