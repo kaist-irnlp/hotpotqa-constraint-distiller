@@ -89,7 +89,6 @@ def encode(model, data_dir, batch_size=8192, num_workers=4):
         )
         ids.append(_ids)
         embs.append(_embs)
-        break
     ids, embs = vstack(ids), vstack(embs)
     return ids, embs
 
@@ -114,7 +113,7 @@ if __name__ == "__main__":
     # encode doc
     logging.info("Encoding doc...")
     ids, embs = encode(
-        model, args.model_dir, batch_size=args.batch_size, num_workers=args.num_workers
+        model, args.doc_dir, batch_size=args.batch_size, num_workers=args.num_workers
     )
     out_name = f"{model_desc}_doc"
     save_npz(output_dir / f"{out_name}_ids.npz", ids)
