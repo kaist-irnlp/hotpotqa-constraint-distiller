@@ -89,6 +89,8 @@ def encode(model, data_dir, batch_size=8192, num_workers=4):
         )
         ids.append(_ids)
         embs.append(_embs)
+        break
+    ids, embs = vstack(ids), vstack(embs)
     return ids, embs
 
 
@@ -105,15 +107,15 @@ if __name__ == "__main__":
     ids, embs = encode(
         model, args.query_dir, batch_size=args.batch_size, num_workers=args.num_workers
     )
-    save_npz(output_dir / f"{model_desc}_query_ids.npz", ids)
-    save_npz(output_dir / f"{model_desc}_query_embs.npz", embs)
-    # with open(output_dir / f"{model_desc}_queries.pkl", "wb") as f:
-    #     pickle.dump(queries, f)
+    out_name = f"{model_desc}_query"
+    save_npz(output_dir / f"{out_name}_ids.npz", ids)
+    save_npz(output_dir / f"{out_name}_embs.npz", embs)
 
-    # # encode doc
-    # logging.info("Encoding doc...")
-    # docs = encode(
-    #     model, args.model_dir, batch_size=args.batch_size, num_workers=args.num_workers
-    # )
-    # with open(output_dir / f"{model_desc}_docs.pkl", "wb") as f:
-    #     pickle.dump(docs, f)
+    # encode doc
+    logging.info("Encoding doc...")
+    ids, embs = encode(
+        model, args.model_dir, batch_size=args.batch_size, num_workers=args.num_workers
+    )
+    out_name = f"{model_desc}_doc"
+    save_npz(output_dir / f"{out_name}_ids.npz", ids)
+    save_npz(output_dir / f"{out_name}_embs.npz", embs)
