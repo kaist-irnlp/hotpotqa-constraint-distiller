@@ -28,9 +28,11 @@ parser = ArgumentParser()
 parser.add_argument("--exp_dir", type=str, required=True)
 parser.add_argument("--query_dir", type=str, required=True)
 parser.add_argument("--doc_dir", type=str, required=True)
+parser.add_argument("--output_dir", type=str, default="./output")
 parser.add_argument("--batch_size", type=int, default=8192)
 parser.add_argument("--gpu", type=int, default=0)
 parser.add_argument("--num_workers", type=int, default=0)
+
 args = parser.parse_args()
 
 device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
@@ -103,7 +105,7 @@ def encode(model, data_dir, batch_size, num_workers):
     return ids, embs
 
 
-output_dir = Path("./output")
+output_dir = Path(args.output_dir)
 output_dir.mkdir(parents=True, exist_ok=True)
 
 
@@ -161,4 +163,3 @@ if __name__ == "__main__":
         assert len(ids[data_type]) == len(embs[data_type])
 
     # build inverted index
-    
