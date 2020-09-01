@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 from multiprocessing import cpu_count
 from pathlib import Path
 import pickle
+from collections import defaultdict
 
 import pytorch_lightning as pl
 import torch
@@ -14,6 +15,7 @@ from tqdm import tqdm
 import numpy as np
 from scipy.sparse import vstack
 from scipy.sparse import csr_matrix, coo_matrix, save_npz, load_npz
+from sklearn.metrics.pairwise import cosine_similarity, cosine_distances
 
 from trec2019.distiller import Distiller
 from trec2019.utils.dataset import EmbeddingDataset
@@ -160,6 +162,20 @@ if __name__ == "__main__":
     # encode or load query & doc
     for data_type in ["query", "doc"]:
         ids[data_type], embs[data_type] = load_or_encode(model_desc, data_type, dirs)
-        assert len(ids[data_type]) == len(embs[data_type])
+        assert ids[data_type].shape[0] == embs[data_type].shape[0]
+
+    # generate runs
+    K = 1000
+    ranks = {}
+    for (q_id, q_emb) in tqdm(zip(ids["query"], embs["query"])):
+        scores = np.squeeze(cosine_distances(q_emb, embs["doc"]))
+        ind = np.argsort(scores)
+        top_ids = ids["doc"][ind][:K]
+        # save ranks
+        ranks[q_id] = top_ids
+    with open(f"runs.{model_desc}.txt", "w", encoding="utf-8") as f:
+        for q_id, p_ids in ranks.items():
+            for r, p_id in enumerate(p_ids):
+                f.write(f"{q_id}\t{p_id}\t{r+1}\n")
 
     # build inverted index
