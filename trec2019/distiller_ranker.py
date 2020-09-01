@@ -173,7 +173,6 @@ if __name__ == "__main__":
         top_ids = ids["doc"][ind][:K]
         # save ranks
         ranks[q_id] = top_ids
-        break
     with open(output_dir / f"runs.{model_desc}.txt", "w", encoding="utf-8") as f:
         for q_id, p_ids in ranks.items():
             for r, p_id in enumerate(p_ids):
