@@ -193,13 +193,12 @@ class Distiller(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         result = self.validation_step(batch, batch_idx)
         result.rename_keys(
-            {
-                "val_loss": "test_loss",
-                "val_loss_rank": "test_loss_rank",
-                "val_loss_disc": "test_loss_disc",
-                "val_acc_disc": "test_acc_disc",
-            }
+            {"val_loss": "test_loss", "val_loss_rank": "test_loss_rank",}
         )
+        if self._use_disc():
+            result.rename_keys(
+                {"val_loss_disc": "test_loss_disc", "val_acc_disc": "test_acc_disc",}
+            )
         return result
 
     def _log_kwinner(self, m):

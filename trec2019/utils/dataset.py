@@ -204,17 +204,24 @@ class TripleEmbeddingDataModule(pl.LightningDataModule):
     def __init__(self, hparams):
         super().__init__()
         self.hparams = hparams
-        self._init_datasets()
 
     @property
     def dim(self):
         return self._train_dataset.dim
 
+    # OPTIONAL, called for every GPU/machine (assigning state is OK)
+    def setup(self, stage="fit"):
+        if stage == "fit":
+            self._train_dataset = self._init_dataset("train")
+            self._val_dataset = self._init_dataset("val")
+        elif stage == "test":
+            self._test_dataset = self._init_dataset("test")
+
     # dataset
-    def _init_datasets(self):
-        self._train_dataset = self._init_dataset("train")
-        self._val_dataset = self._init_dataset("val")
-        self._test_dataset = self._init_dataset("test")
+    # def _init_datasets(self):
+    #     self._train_dataset = self._init_dataset("train")
+    #     self._val_dataset = self._init_dataset("val")
+    #     self._test_dataset = self._init_dataset("test")
 
     def _init_dataset(self, dset_type):
         data_path = Path(self.hparams.dataset.path) / f"{dset_type}.zarr"
@@ -246,10 +253,6 @@ class TripleEmbeddingDataModule(pl.LightningDataModule):
 
     # OPTIONAL, called only on 1 GPU/machine
     def prepare_data(self):
-        pass
-
-    # OPTIONAL, called for every GPU/machine (assigning state is OK)
-    def setup(self, stage):
         pass
 
 
