@@ -118,8 +118,9 @@ class EmbeddingDataset(Dataset):
         self._load_data()
 
     def _load_data(self):
-        data = zarr.open(str(self.data_path), "r")
-        self.embedding = data[self.emb_path]
+        z = zarr.open(str(self.data_path), "r")
+        self.embedding = z[self.emb_path]
+        self.ids = z.id[:]
         if self.on_memory:
             self.embedding = self.embedding[:]
 
@@ -127,9 +128,11 @@ class EmbeddingDataset(Dataset):
         return len(self.embedding)
 
     def __getitem__(self, index):
-        data = self.embedding[index]
+        _id = self.ids[index]
+        emb = self.embedding[index]
         return {
-            "data": data.astype("f4"),
+            "id": _id.astype("i8"),
+            "emb": emb.astype("f4"),
         }
 
 

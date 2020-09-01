@@ -4,6 +4,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 import zarr
+from numcodecs import Zstd
 from torch.utils.data import DataLoader, Dataset
 
 from trec2019.utils.dense import DenseSIF, DenseTFIDF
@@ -65,6 +66,7 @@ if __name__ == "__main__":
         chunks=(args.chunk_size, model.dim),
         dtype="f4",
         overwrite=True,
+        compressor=Zstd(),
     )
 
     # infer & save

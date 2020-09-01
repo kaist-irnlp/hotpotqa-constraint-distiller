@@ -125,7 +125,7 @@ class Distiller(pl.LightningModule):
 
     @auto_move_data
     def forward(self, batch):
-        raise NotImplemented()
+        return self.encode(batch)
 
     @auto_move_data
     def shared_step(self, batch):
